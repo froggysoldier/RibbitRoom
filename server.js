@@ -57,7 +57,3 @@ app.post('/messages', async (req, res) => {
     res.status(201).json(msg);
 });
 
-
-// Server starten
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
