@@ -1,0 +1,14 @@
+# Node modules (werden bei Render automatisch installiert)
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env-Dateien mit Passwörtern/API-Keys
+.env
+
+# Betriebssystem-Dateien
+.DS_Store
+Thumbs.db
