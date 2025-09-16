@@ -1,2 +1,4 @@
 # RibbitRoom
 A Repository for the RibbitRoom Project
+
+mongodb+srv://Sajid:jkX3JgPBDx77WmN0@ribbitroom.yivjhnr.mongodb.net/?retryWrites=true&w=majority&appName=RibbitRoom
