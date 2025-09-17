@@ -39,6 +39,18 @@ mongoose.connect(process.env.MONGO_URI, {
     .then(() => console.log("✅ MongoDB verbunden"))
     .catch((err) => console.error("❌ MongoDB Fehler:", err));
 
+// Render stellt die Port-Variable bereit
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("Server läuft 🚀");
+});
+
+// WICHTIG: an 0.0.0.0 binden
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
+});
+
 // Schema für Nachrichten
 const messageSchema = new mongoose.Schema({
     sender: String,
@@ -59,5 +71,6 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
