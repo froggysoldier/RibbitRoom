@@ -43,12 +43,6 @@ mongoose.connect(process.env.MONGO_URI, {
     .then(() => console.log("✅ MongoDB verbunden"))
     .catch((err) => console.error("❌ MongoDB Fehler:", err));
 
-// Render stellt die Port-Variable bereit
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => {
-  res.send("Server läuft 🚀");
-});
 
 // Frontend-Ordner bereitstellen
 app.use(express.static(path.join(__dirname, '../client')));
@@ -64,11 +58,6 @@ io.on('connection', (socket) => {
 //html seite laden
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/index.html"));
-});
-
-//an 0.0.0.0 binden
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Server läuft auf Port ${PORT}`);
 });
 
 // Schema für Nachrichten
@@ -91,6 +80,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
