@@ -2,7 +2,7 @@
 body {
   margin: 0;
   font-family: 'Poppins', Arial, sans-serif;
-  background: #121212; /* Dunkler Hintergrund */
+  background: #121212;
   color: #e0e0e0;
 }
 
@@ -12,13 +12,12 @@ header {
   color: white;
   padding: 15px 0;
   display: flex;
-  justify-content: center; /* Logo zentriert */
+  justify-content: center;
   align-items: center;
   position: relative;
   box-shadow: 0 2px 6px rgba(0,0,0,0.6);
 }
 
-/* Login-Button oben links */
 #loginBtn {
   position: absolute;
   left: 20px;
@@ -40,7 +39,7 @@ header {
   color: #7DDAA2;
 }
 
-/* ====== Layout ================================================================================================= */
+/* ====== Layout ====== */
 main {
   display: flex;
   justify-content: center;
@@ -54,7 +53,7 @@ main {
   gap: 20px;
 }
 
-/* ====== Sidebar (User List) ================================================================================================ */
+/* ====== Sidebar (User List) ====== */
 #userList {
   width: 220px;
   background: #1e1e1e;
@@ -95,7 +94,7 @@ main {
   cursor: pointer;
 }
 
-/* ====== Chat Area ================================================================================== */
+/* ====== Chat Area ====== */
 #chatArea {
   flex: 1;
   display: flex;
@@ -103,10 +102,11 @@ main {
   gap: 12px;
 }
 
+/* Chatfenster */
 #chatWindow {
   display: flex;
   flex-direction: column;
-  gap: 6px; /* Abstand zwischen Nachrichten */
+  gap: 6px;
   background: #1e1e1e;
   border-radius: 12px;
   padding: 15px;
@@ -118,29 +118,20 @@ main {
   color: #e0e0e0;
 }
 
-/* ====== Nachrichten ================================================================================== */
-@keyframes slideIn {
-  0% {
-    opacity: 0;
-    transform: translateX(-50px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
+/* ====== Nachrichten mit Slide-In ====== */
 .message {
   background: #2a2a2a;
   border-radius: 12px;
   padding: 10px 14px;
   margin-bottom: 8px;
   max-width: 75%;
-  animation: slideIn 0.4s ease forwards;
+  opacity: 0;                  /* unsichtbar am Anfang */
+  transform: translateX(-50px); /* Start links */
   box-shadow: 0 2px 6px rgba(0,0,0,0.5);
   color: #e0e0e0;
   font-size: 14px;
   line-height: 1.4;
+  transition: transform 0.4s ease, opacity 0.4s ease;
 }
 
 .message.self {
@@ -149,13 +140,19 @@ main {
   align-self: flex-end;
 }
 
+/* Animation starten */
+.message.show {
+  opacity: 1;
+  transform: translateX(0);
+}
+
 .message:hover {
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   transform: translateX(2px);
   transition: all 0.2s ease;
 }
 
-/* ====== Eingabe-Bereich ================================================================================= */
+/* ====== Eingabe-Bereich ====== */
 #inputArea {
   display: flex;
   gap: 10px;
@@ -197,13 +194,13 @@ main {
   color: #7DDAA2;
 }
 
-/* ====== Logo ================================================================================== */
+/* ====== Logo ====== */
 .logo {
   max-width: 200px;
   height: auto;
 }
 
-/* ====== Modal ================================================================================== */
+/* ====== Modal ====== */
 .modal {
   display: none;
   position: fixed;
