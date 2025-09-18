@@ -4,22 +4,23 @@
   <meta charset="UTF-8">
   <title>Chatroom</title>
   <link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <header>
   <button id="loginBtn">Login / Registrieren</button>
   <img src="images/logo.png" alt="Mein Logo" class="logo">
-  <!-- Filter-Button direkt im Header -->
-  <button id="filterBtn">Filter AUS</button>
 </header>
 
 <main>
   <div id="container">
     <!-- Sidebar für aktive Nutzer -->
     <div id="userList">
-      <h3>Aktive Nutzer</h3>
-      <ul id="users"></ul>
+      <h3><span class="highlight">Aktive Nutzer</span></h3>
+      <ul id="users">
+        <!-- Dynamisch gefüllte Nutzerliste -->
+      </ul>
     </div>
 
     <!-- Chatbereich -->
