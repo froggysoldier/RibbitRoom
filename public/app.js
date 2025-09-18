@@ -1,4 +1,3 @@
-// DOM Elemente
 const loginBtnHeader = document.getElementById("loginBtn");
 const modal = document.getElementById("loginModal");
 const closeModal = document.querySelector(".close");
@@ -10,7 +9,6 @@ const chatWindow = document.getElementById("chatWindow");
 const sendBtn = document.getElementById("sendBtn");
 const messageInput = document.getElementById("messageInput");
 
-// Helper
 function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -27,8 +25,7 @@ function setSendEnabled(enabled) {
   messageInput.disabled = !enabled;
 }
 
-// append message mit Admin-Farbcode
-function appendMessage(sender, content, createdAt, id, role) {
+function appendMessage(sender, content, createdAt, id) {
   const p = document.createElement("p");
   if (id) p.dataset.id = id.toString();
 
@@ -36,26 +33,20 @@ function appendMessage(sender, content, createdAt, id, role) {
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
 
-  let displayName = sender;
-  if (role === "admin") displayName = `<span style="color:red">${escapeHtml(sender)} (Admin)</span>`;
-
-  p.innerHTML = `<strong>${displayName}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
   chatWindow.appendChild(p);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// Active Users
 function renderActiveUsers(users) {
   usersListEl.innerHTML = "";
-  users.forEach(u => {
+  users.forEach(username => {
     const li = document.createElement("li");
-    if(u.role === "admin") li.innerHTML = `<span style="color:red">${escapeHtml(u.username)} (Admin)</span>`;
-    else li.textContent = u.username;
+    li.textContent = username;
     usersListEl.appendChild(li);
   });
 }
 
-// Token & Socket
 let token = localStorage.getItem("token") || null;
 let socket = null;
 
@@ -64,7 +55,7 @@ function initSocket() {
   socket = io({ auth: { token } });
 
   socket.on("connect", () => { if(token) socket.emit("identify", { token }); });
-  socket.on("newMessage", (msg) => appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, msg.role));
+  socket.on("newMessage", (msg) => appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id));
   socket.on("deletedMessages", (ids) => ids.forEach(id => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
   socket.on("activeUsers", (users) => renderActiveUsers(Array.isArray(users) ? users : []));
   socket.on("identified", (data) => {});
@@ -72,7 +63,6 @@ function initSocket() {
 }
 initSocket();
 
-// Messages laden
 async function loadMessages() {
   try {
     const headers = { "Content-Type": "application/json" };
@@ -81,18 +71,16 @@ async function loadMessages() {
     if (!res.ok) { showInfo("Verlauf kann nicht geladen werden."); return; }
     const messages = await res.json();
     chatWindow.innerHTML = "";
-    messages.reverse().forEach(m => appendMessage(m.sender, m.content, m.createdAt, m._id, m.role));
+    messages.reverse().forEach(m => appendMessage(m.sender, m.content, m.createdAt, m._id));
     setSendEnabled(!!token);
-  } catch (err) { showInfo("Fehler beim Laden der Nachrichten."); console.error(err); }
+  } catch (err) { console.error(err); showInfo("Fehler beim Laden der Nachrichten."); }
 }
 loadMessages();
 
-// Modal open/close
 loginBtnHeader.onclick = () => modal.style.display = "block";
 closeModal.onclick = () => modal.style.display = "none";
 window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
-// Login
 loginSubmit.onclick = async () => {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
@@ -100,4 +88,58 @@ loginSubmit.onclick = async () => {
 
   try {
     const res = await fetch("/api/auth/login", {
-      method: "P
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || "Login fehlgeschlagen");
+
+    token = data.token;
+    localStorage.setItem("token", token);
+    modal.style.display = "none";
+    setSendEnabled(true);
+    await loadMessages();
+
+    socket.auth = { token };
+    socket.disconnect();
+    socket.connect();
+  } catch (err) { console.error(err); alert("Login-Fehler"); }
+};
+
+registerSubmit.onclick = async () => {
+  const username = document.getElementById("newUser").value.trim();
+  const password = document.getElementById("newPass").value.trim();
+  const email = document.getElementById("email").value.trim();
+  if (!username || !password || !email) return alert("Bitte alle Felder ausfüllen.");
+
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, email })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || "Registrierung fehlgeschlagen");
+    alert("Registrierung erfolgreich — bitte einloggen.");
+  } catch (err) { console.error(err); alert("Registrieren-Fehler"); }
+};
+
+async function sendMessage() {
+  const content = messageInput.value.trim();
+  if (!content) return;
+  if (!token) return alert("Bitte einloggen!");
+
+  try {
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ content })
+    });
+    if (!res.ok) { const data = await res.json().catch(()=>({})); return alert(data.error || "Fehler beim Senden"); }
+    messageInput.value = "";
+  } catch (err) { console.error(err); alert("Fehler beim Senden"); }
+}
+
+sendBtn.onclick = sendMessage;
+messageInput.addEventListener("keydown", e => { if
