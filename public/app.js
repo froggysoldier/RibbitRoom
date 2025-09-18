@@ -27,10 +27,14 @@ function appendMessage(sender, content) {
 
 // --- Nachrichten laden ---
 async function loadMessages() {
-  const res = await fetch("/api/messages");
-  const messages = await res.json();
-  chatWindow.innerHTML = "";
-  messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content));
+  try {
+    const res = await fetch("/api/messages");
+    const messages = await res.json();
+    chatWindow.innerHTML = "";
+    messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content));
+  } catch (err) {
+    console.error("Fehler beim Laden der Nachrichten:", err);
+  }
 }
 loadMessages();
 
@@ -39,19 +43,23 @@ loginSubmit.addEventListener("click", async () => {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
 
-  const res = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password })
-  });
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
 
-  const data = await res.json();
-  if (res.ok) {
-    localStorage.setItem("token", data.token);
-    alert("Login erfolgreich!");
-    modal.style.display = "none";
-  } else {
-    alert(data.error);
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem("token", data.token);
+      alert("Login erfolgreich!");
+      modal.style.display = "none";
+    } else {
+      alert(data.error);
+    }
+  } catch (err) {
+    console.error(err);
   }
 });
 
@@ -61,48 +69,60 @@ registerSubmit.addEventListener("click", async () => {
   const password = document.getElementById("newPass").value;
   const email = document.getElementById("email").value;
 
-  const res = await fetch("/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, email })
-  });
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, email })
+    });
 
-  const data = await res.json();
-  if (res.ok) {
-    alert("Registrierung erfolgreich!");
-  } else {
-    alert(data.error);
+    const data = await res.json();
+    if (res.ok) {
+      alert("Registrierung erfolgreich!");
+    } else {
+      alert(data.error);
+    }
+  } catch (err) {
+    console.error(err);
   }
 });
 
-// --- Nachricht senden ---
-sendBtn.onclick = async () => {
+// --- Nachricht senden Funktion ---
+async function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
 
   const token = localStorage.getItem("token");
   if (!token) return alert("Bitte einloggen!");
 
-  // POST an Backend
-  const res = await fetch("/api/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({ content })
-  });
+  try {
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ content })
+    });
 
-  if (res.ok) {
-    messageInput.value = "";
-    // Nachricht auch per Socket senden
-    const data = await res.json();
-    socket.emit("chatMessage", data);
-  } else {
-    const data = await res.json();
-    alert(data.error);
+    if (res.ok) {
+      messageInput.value = "";
+      const data = await res.json();
+      socket.emit("chatMessage", data); // Echtzeit an andere Nutzer
+    } else {
+      const data = await res.json();
+      alert(data.error);
+    }
+  } catch (err) {
+    console.error(err);
   }
-};
+}
+
+// --- Button Click & Enter-Taste ---
+sendBtn.onclick = sendMessage;
+messageInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessage();
+});
 
 // --- Echtzeit Nachrichten empfangen ---
 socket.on("newMessage", msg => {
