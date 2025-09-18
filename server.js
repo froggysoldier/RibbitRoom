@@ -5,6 +5,8 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
 
+const authRoutes = require("./routes/authRoutes");
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -72,6 +74,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
