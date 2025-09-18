@@ -17,10 +17,16 @@ loginBtnHeader.onclick = () => modal.style.display = "block";
 closeModal.onclick = () => modal.style.display = "none";
 window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
-// --- Helper: Nachrichten anzeigen ---
-function appendMessage(sender, content) {
+// --- Helper: Nachricht mit Uhrzeit anzeigen ---
+function appendMessage(sender, content, createdAt) {
   const p = document.createElement("p");
-  p.innerHTML = `<strong>${sender}:</strong> ${content}`;
+
+  const date = new Date(createdAt);
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const time = `${hours}:${minutes}`;
+
+  p.innerHTML = `<strong>${sender}</strong> <span class="time">[${time}]</span>: ${content}`;
   chatWindow.appendChild(p);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
@@ -31,7 +37,7 @@ async function loadMessages() {
     const res = await fetch("/api/messages");
     const messages = await res.json();
     chatWindow.innerHTML = "";
-    messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content));
+    messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content, msg.createdAt));
   } catch (err) {
     console.error("Fehler beim Laden der Nachrichten:", err);
   }
@@ -87,7 +93,7 @@ registerSubmit.addEventListener("click", async () => {
   }
 });
 
-// --- Nachricht senden Funktion ---
+// --- Nachricht senden ---
 async function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
@@ -106,8 +112,9 @@ async function sendMessage() {
     });
 
     if (res.ok) {
-      messageInput.value = "";
       const data = await res.json();
+      messageInput.value = "";
+      appendMessage(data.sender, data.content, data.createdAt); // direkt anzeigen
       socket.emit("chatMessage", data); // Echtzeit an andere Nutzer
     } else {
       const data = await res.json();
@@ -118,7 +125,7 @@ async function sendMessage() {
   }
 }
 
-// --- Button Click & Enter-Taste ---
+// --- Button & Enter ---
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
@@ -126,5 +133,6 @@ messageInput.addEventListener("keydown", (e) => {
 
 // --- Echtzeit Nachrichten empfangen ---
 socket.on("newMessage", msg => {
-  appendMessage(msg.sender, msg.content);
+  appendMessage(msg.sender, msg.content, msg.createdAt);
 });
+
