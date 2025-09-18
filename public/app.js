@@ -1,156 +1,92 @@
-// --- DOM Elemente ---
-const loginBtnHeader = document.getElementById("loginBtn");
-const modal = document.getElementById("loginModal");
-const closeModal = document.querySelector(".close");
-const loginSubmit = document.getElementById("loginSubmit");
-const registerSubmit = document.getElementById("registerSubmit");
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require('path');
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
 
-const chatWindow = document.getElementById("chatWindow");
-const sendBtn = document.getElementById("sendBtn");
-const messageInput = document.getElementById("messageInput");
+const authRoutes = require("./routes/authRoutes");
+const authMiddleware = require("./middleware/auth");
+const messagesRoutes = require("./routes/messages");
 
-// --- Modal öffnen/schließen ---
-loginBtnHeader.onclick = () => modal.style.display = "block";
-closeModal.onclick = () => modal.style.display = "none";
-window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
-// --- Helper: Nachricht mit Uhrzeit anzeigen ---
-function appendMessage(sender, content, createdAt) {
-  const p = document.createElement("p");
-  const date = new Date(createdAt);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const time = `${hours}:${minutes}`;
-  p.innerHTML = `<strong>${sender}</strong> <span class="time">[${time}]</span>: ${content}`;
-  chatWindow.appendChild(p);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-}
 
-// --- Token & Socket ---
-let token = localStorage.getItem("token");
-let socket;
-
-// --- Socket.IO Verbindung ---
-function connectSocket() {
-  if (!token) return;
-
-  socket = io({ auth: { token } });
-
-  socket.on("connect_error", (err) => {
-    console.error("Socket.IO Fehler:", err.message);
-  });
-
-  socket.on("newMessage", msg => {
-    appendMessage(msg.sender, msg.content, msg.createdAt);
-  });
-}
-
-// --- Nachrichten laden ---
-async function loadMessages() {
-  if (!token) return;
-  try {
-    const res = await fetch("/api/messages", {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-    const messages = await res.json();
-    chatWindow.innerHTML = "";
-    messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content, msg.createdAt));
-
-    connectSocket(); // Socket.IO erst nach Laden der Nachrichten
-  } catch (err) {
-    console.error("Fehler beim Laden der Nachrichten:", err);
-  }
-}
-
-// --- Initialer Hinweis ---
-if (!token) {
-  chatWindow.innerHTML = "<p>Bitte zuerst einloggen oder registrieren.</p>";
-} else {
-  loadMessages();
-}
-
-// --- Login ---
-loginSubmit.addEventListener("click", async () => {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      token = data.token;
-      localStorage.setItem("token", token);
-      modal.style.display = "none";
-      alert("Login erfolgreich!");
-      loadMessages();
-    } else {
-      alert(data.error);
-    }
-  } catch (err) {
-    console.error(err);
-  }
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*", // später einschränken
+    },
 });
 
-// --- Registrierung ---
-registerSubmit.addEventListener("click", async () => {
-  const username = document.getElementById("newUser").value;
-  const password = document.getElementById("newPass").value;
-  const email = document.getElementById("email").value;
+// Middleware
+app.use(cors());
+app.use(express.json());
 
-  try {
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, email })
-    });
+//authRoute
+app.use("/api/auth", authRoutes);
+//MessageRoute
+app.use("/api/messages", messagesRoutes);
 
-    const data = await res.json();
-    if (res.ok) {
-      alert("Registrierung erfolgreich!");
-    } else {
-      alert(data.error);
-    }
-  } catch (err) {
-    console.error(err);
-  }
+// DB verbinden
+mongoose.connect(process.env.MONGO_URI, {
+})
+    .then(() => console.log("✅ MongoDB verbunden"))
+    .catch((err) => console.error("❌ MongoDB Fehler:", err));
+
+
+// Frontend-Ordner bereitstellen
+app.use(express.static(path.join(__dirname, "public")));
+
+
+//Socket.io
+io.on('connection', (socket) => {
+  console.log('🔌 Nutzer verbunden');
+
+  socket.on('chatMessage', (msg) => {
+    io.emit('newMessage', msg);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Nutzer getrennt:", socket.id);
+  });
 });
 
-// --- Nachricht senden ---
-async function sendMessage() {
-  const content = messageInput.value.trim();
-  if (!content) return;
-  if (!token) return alert("Bitte einloggen!");
 
-  try {
-    const res = await fetch("/api/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ content })
+//html seite laden
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+
+// Route: Nachrichten holen
+app.get('/messages', async (req, res) => {
+    const msgs = await Message.find().sort({ createdAt: -1 }).limit(20);
+    res.json(msgs);
+});
+
+// Route: Nachricht speichern
+app.post('/messages', async (req, res) => {
+    const msg = new Message(req.body);
+    await msg.save();
+    res.status(201).json(msg);
+});
+
+// Nachrichten speichern – nur für eingeloggte Nutzer
+app.post('/messages', authMiddleware, async (req, res) => {
+    const msg = new Message({
+        sender: req.user.username, // aus Token
+        content: req.body.content
     });
+    await msg.save();
+    res.status(201).json(msg);
+});
 
-    if (res.ok) {
-      const data = await res.json();
-      messageInput.value = "";
-      socket.emit("chatMessage", data); // Anzeige erfolgt via Socket.IO
-    } else {
-      const data = await res.json();
-      alert(data.error);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
 
-// --- Button & Enter ---
-sendBtn.onclick = sendMessage;
-messageInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendMessage();
+
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
 });
