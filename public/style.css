@@ -5,7 +5,10 @@ body {
   background: #121212;
   color: #e0e0e0;
 }
-.admin { color: red; }
+#userList li.admin {
+  color: red;
+  font-weight: 600;
+}
 
 
 /* ====== Header ====== */
