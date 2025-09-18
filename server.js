@@ -15,11 +15,15 @@ const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+  cors: { origin: "*" } // production: restrict allowed origins
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Auth routes
 app.use("/api/auth", authRoutes);
 
 // DB verbinden
@@ -30,24 +34,28 @@ mongoose.connect(process.env.MONGO_URI, {})
 // Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-// Active Users
+// ------- Active users management -------
 const activeUsers = new Map();
+
 function broadcastActiveUsers() {
-  const users = Array.from(activeUsers.entries()).map(([username, info]) => ({
-    username,
-    role: info.role
-  })).sort((a,b) => a.username.localeCompare(b.username));
+  const users = Array.from(activeUsers.keys()).sort();
   io.emit("activeUsers", users);
 }
-function addActiveUser(username, role, socketId) {
+
+function addActiveUser(username, socketId) {
   if (!username) return;
-  activeUsers.set(username, { role, socketId });
+  const set = activeUsers.get(username) || new Set();
+  set.add(socketId);
+  activeUsers.set(username, set);
   broadcastActiveUsers();
 }
+
 function removeActiveUserBySocket(socketId) {
-  for (const [username, info] of activeUsers.entries()) {
-    if (info.socketId === socketId) {
-      activeUsers.delete(username);
+  for (const [username, set] of activeUsers.entries()) {
+    if (set.has(socketId)) {
+      set.delete(socketId);
+      if (set.size === 0) activeUsers.delete(username);
+      else activeUsers.set(username, set);
       broadcastActiveUsers();
       return username;
     }
@@ -55,7 +63,7 @@ function removeActiveUserBySocket(socketId) {
   return null;
 }
 
-// Trim oldest messages
+// ------- Helper: trim oldest messages -------
 async function trimOldMessages(maxMessages = 100) {
   const count = await Message.countDocuments();
   if (count <= maxMessages) return [];
@@ -69,14 +77,14 @@ async function trimOldMessages(maxMessages = 100) {
   return idsToDelete;
 }
 
-// Socket.IO
+// ------- Socket.IO -------
 io.on("connection", (socket) => {
   const token = socket.handshake?.auth?.token;
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      addActiveUser(decoded.username, decoded.role || "user", socket.id);
-      socket.emit("identified", { username: decoded.username, role: decoded.role });
+      addActiveUser(decoded.username, socket.id);
+      socket.emit("identified", { username: decoded.username });
     } catch {}
   }
 
@@ -84,21 +92,20 @@ io.on("connection", (socket) => {
     try {
       if (payload?.token) {
         const decoded = jwt.verify(payload.token, JWT_SECRET);
-        addActiveUser(decoded.username, decoded.role || "user", socket.id);
-        socket.emit("identified", { username: decoded.username, role: decoded.role });
+        addActiveUser(decoded.username, socket.id);
+        socket.emit("identified", { username: decoded.username });
       } else if (payload?.username) {
-        addActiveUser(payload.username, "user", socket.id);
-        socket.emit("identified", { username: payload.username, role: "user" });
+        addActiveUser(payload.username, socket.id);
+        socket.emit("identified", { username: payload.username });
       }
     } catch {}
   });
 
   socket.on("chatMessage", (data) => io.emit("newMessage", data));
-
   socket.on("disconnect", () => removeActiveUserBySocket(socket.id));
 });
 
-// REST Messages
+// ------- REST: messages -------
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
@@ -112,8 +119,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   try {
     const msg = new Message({
       sender: req.user.username,
-      content: req.body.content,
-      role: req.user.role || "user"
+      content: req.body.content
     });
     await msg.save();
 
@@ -124,8 +130,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
       _id: msg._id.toString(),
       sender: msg.sender,
       content: msg.content,
-      createdAt: msg.createdAt,
-      role: msg.role
+      createdAt: msg.createdAt
     };
     io.emit("newMessage", payload);
     res.status(201).json(payload);
@@ -135,10 +140,12 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   }
 });
 
-// Fallback
+// Fallback to index.html
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public/index.html"));
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
+});
