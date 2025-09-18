@@ -10,7 +10,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const Message = require("./models/Message");
-const User = require("./models/User"); // <-- NEU
+const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
@@ -101,7 +101,7 @@ io.on("connection", (socket) => {
     } catch {}
   });
 
-  // --- NEU: Chatnachrichten inkl. /admin:passwort ---
+  // --- Chatnachrichten inkl. /admin:passwort ---
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
@@ -124,11 +124,17 @@ io.on("connection", (socket) => {
       } else {
         socket.emit("info", "❌ Falsches Admin-Passwort");
       }
-      return; // Nachricht wird nicht normal gesendet
+      return;
     }
 
     // Normale Nachricht
     let filteredContent = content;
+    let userRole = "user";
+    try {
+      const user = await User.findOne({ username });
+      if (user) userRole = user.role || "user";
+    } catch {}
+
     if (userFilters.get(username)) filteredContent = filterMessage(content);
 
     try {
@@ -142,7 +148,8 @@ io.on("connection", (socket) => {
         _id: msg._id.toString(),
         sender: msg.sender,
         content: msg.content,
-        createdAt: msg.createdAt
+        createdAt: msg.createdAt,
+        role: userRole // Rolle mitsenden
       });
     } catch {
       socket.emit("info", "Fehler beim Senden der Nachricht");
@@ -173,9 +180,13 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     let content = req.body.content;
     const username = req.user.username;
 
-    if (userFilters.get(username)) {
-      content = filterMessage(content);
-    }
+    let userRole = "user";
+    try {
+      const user = await User.findOne({ username });
+      if (user) userRole = user.role || "user";
+    } catch {}
+
+    if (userFilters.get(username)) content = filterMessage(content);
 
     const msg = new Message({ sender: username, content });
     await msg.save();
@@ -183,7 +194,13 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     const deletedIds = await trimOldMessages(100);
     if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
-    const payload = { _id: msg._id.toString(), sender: msg.sender, content: msg.content, createdAt: msg.createdAt };
+    const payload = { 
+      _id: msg._id.toString(), 
+      sender: msg.sender, 
+      content: msg.content, 
+      createdAt: msg.createdAt,
+      role: userRole
+    };
     io.emit("newMessage", payload);
 
     res.status(201).json(payload);
