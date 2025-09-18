@@ -1,24 +1,22 @@
-const express = require("express");
+﻿const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require('path');
 const mongoose = require("mongoose");
 const cors = require("cors");
-const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const messagesRoutes = require("./routes/messages");
-const Message = require("./models/Message"); // Schema für Nachrichten
 
-const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
+
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "*", // später einschränken
     },
 });
 
@@ -26,67 +24,70 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Routen
+//authRoute
 app.use("/api/auth", authRoutes);
+//MessageRoute
 app.use("/api/messages", messagesRoutes);
 
 // DB verbinden
-mongoose.connect(process.env.MONGO_URI, {})
+mongoose.connect(process.env.MONGO_URI, {
+})
     .then(() => console.log("✅ MongoDB verbunden"))
     .catch((err) => console.error("❌ MongoDB Fehler:", err));
 
-// Frontend bereitstellen
+
+// Frontend-Ordner bereitstellen
 app.use(express.static(path.join(__dirname, "public")));
-app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
-});
 
-// Socket.IO
+
+//Socket.io
 io.on('connection', (socket) => {
-    // Token vom Client
-    const token = socket.handshake.auth.token;
-    let username = "Unbekannt";
+  console.log('🔌 Nutzer verbunden');
 
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        username = decoded.username;
-        console.log(`🔌 Nutzer verbunden: ${username} (${socket.id})`);
-    } catch (err) {
-        console.log("⚠️ Ungültiger Token, Verbindung ohne Username");
-    }
+  socket.on('chatMessage', (msg) => {
+    io.emit('newMessage', msg);
+  });
 
-    // Nachrichten empfangen
-    socket.on('chatMessage', async (data) => {
-        try {
-            // Optional: Token nochmal prüfen
-            const decoded = jwt.verify(data.token, JWT_SECRET);
-            const sender = decoded.username;
-
-            const msg = new Message({
-                sender: sender,
-                content: data.content
-            });
-            await msg.save();
-
-            console.log(`💬 Nachricht von ${sender}: ${data.content}`);
-
-            io.emit('newMessage', {
-                sender: sender,
-                content: data.content,
-                createdAt: msg.createdAt
-            });
-        } catch (err) {
-            console.log("⚠️ Ungültiger Token bei Nachricht:", err.message);
-        }
-    });
-
-    socket.on("disconnect", () => {
-        console.log(`❌ Nutzer getrennt: ${username} (${socket.id})`);
-    });
+  socket.on("disconnect", () => {
+    console.log("Nutzer getrennt:", socket.id);
+  });
 });
 
-// Server starten
+
+//html seite laden
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+
+// Route: Nachrichten holen
+app.get('/messages', async (req, res) => {
+    const msgs = await Message.find().sort({ createdAt: -1 }).limit(20);
+    res.json(msgs);
+});
+
+// Route: Nachricht speichern
+app.post('/messages', async (req, res) => {
+    const msg = new Message(req.body);
+    await msg.save();
+    res.status(201).json(msg);
+});
+
+// Nachrichten speichern – nur für eingeloggte Nutzer
+app.post('/messages', authMiddleware, async (req, res) => {
+    const msg = new Message({
+        sender: req.user.username, // aus Token
+        content: req.body.content
+    });
+    await msg.save();
+    res.status(201).json(msg);
+});
+
+
+
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, "0.0.0.0", () => {
-    console.log(`✅ Server läuft auf Port ${PORT}`);
+  console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
