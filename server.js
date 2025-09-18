@@ -9,22 +9,20 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
-const Message = require("./models/Message"); // ensure this file exists and exports the model
+const Message = require("./models/Message"); // ensure this exists
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" } // production: restrict origin
+  cors: { origin: "*" }
 });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// Auth-Routes
 app.use("/api/auth", authRoutes);
 
-// DB verbinden
+// DB connect
 mongoose.connect(process.env.MONGO_URI, {})
   .then(() => console.log("✅ MongoDB verbunden"))
   .catch((err) => console.error("❌ MongoDB Fehler:", err));
@@ -32,40 +30,41 @@ mongoose.connect(process.env.MONGO_URI, {})
 // Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-// Helper: trim oldest messages so that at most maxMessages remain
+// HELPER: trim oldest messages and return array of deleted IDs (strings)
 async function trimOldMessages(maxMessages = 100) {
   const count = await Message.countDocuments();
-  if (count <= maxMessages) return 0;
+  if (count <= maxMessages) return []; // nothing deleted
+
   const excess = count - maxMessages;
   const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select('_id');
-  const idsToDelete = oldest.map(d => d._id);
+  const idsToDelete = oldest.map(d => d._id.toString()); // strings
+
   if (idsToDelete.length) {
     const { deletedCount } = await Message.deleteMany({ _id: { $in: idsToDelete } });
     console.log(`🗑️ ${deletedCount} alte Nachrichten gelöscht`);
-    return deletedCount;
   }
-  return 0;
+  return idsToDelete;
 }
 
-// Socket.IO: clients connect to receive broadcasts
+// Socket.IO: used for broadcasts
 io.on('connection', (socket) => {
-  // optional: console.log(`socket connected: ${socket.id}`);
+  // no auth required for simple broadcast; adjust if needed
   socket.on('disconnect', () => {
-    // optional: console.log(`socket disconnected: ${socket.id}`);
+    // nothing logged
   });
 });
 
-// REST: get messages (public; returns newest first)
+// GET messages (return newest first, up to 100)
 app.get('/api/messages', async (req, res) => {
   try {
-    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100); // deliver up to 100 newest
+    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
     res.json(msgs);
   } catch (err) {
     res.status(500).json({ error: "Fehler beim Laden der Nachrichten" });
   }
 });
 
-// REST: post message (protected) - saves, trims, broadcasts
+// POST messages (protected) -> save, trim old, emit deletions and newMessage
 app.post('/api/messages', authMiddleware, async (req, res) => {
   try {
     const msg = new Message({
@@ -74,20 +73,31 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
     });
     await msg.save();
 
-    // Trim DB to max 100 messages
-    await trimOldMessages(100);
+    // trim and gather deleted ids
+    const deletedIds = await trimOldMessages(100);
 
-    // Broadcast the saved message to all connected clients
-    io.emit('newMessage', msg);
+    // broadcast deletions first (so clients remove old items)
+    if (deletedIds.length) {
+      io.emit('deletedMessages', deletedIds); // array of string IDs
+    }
 
-    res.status(201).json(msg);
+    // broadcast the new saved message (send a plain object)
+    const payload = {
+      _id: msg._id.toString(),
+      sender: msg.sender,
+      content: msg.content,
+      createdAt: msg.createdAt
+    };
+    io.emit('newMessage', payload);
+
+    res.status(201).json(payload);
   } catch (err) {
     console.error("Fehler beim Speichern:", err);
     res.status(500).json({ error: "Fehler beim Speichern der Nachricht" });
   }
 });
 
-// Fallback to index.html for SPA
+// Fallback to index.html
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
