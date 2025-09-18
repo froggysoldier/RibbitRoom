@@ -21,24 +21,31 @@ function appendMessage(sender, content, createdAt) {
   const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const time = `${hours}:${minutes}`;
-
   p.innerHTML = `<strong>${sender}</strong> <span class="time">[${time}]</span>: ${content}`;
   chatWindow.appendChild(p);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// --- Token ---
+// --- Token & Socket ---
 let token = localStorage.getItem("token");
+let socket;
 
-// --- Socket.IO Verbindung mit Token ---
-const socket = io({
-  auth: { token }
-});
+// --- Socket.IO Verbindung ---
+function connectSocket() {
+  if (!token) return;
 
-// --- Nachrichten empfangen ---
-socket.on("newMessage", msg => {
-  appendMessage(msg.sender, msg.content, msg.createdAt);
-});
+  socket = io({
+    auth: { token }
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("Socket.IO Fehler:", err.message);
+  });
+
+  socket.on("newMessage", msg => {
+    appendMessage(msg.sender, msg.content, msg.createdAt);
+  });
+}
 
 // --- Nachrichten laden beim Start ---
 async function loadMessages() {
@@ -50,11 +57,14 @@ async function loadMessages() {
     const messages = await res.json();
     chatWindow.innerHTML = "";
     messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content, msg.createdAt));
+
+    // Socket.IO erst verbinden, nachdem Nachrichten geladen
+    connectSocket();
   } catch (err) {
     console.error("Fehler beim Laden der Nachrichten:", err);
   }
 }
-loadMessages();
+if (token) loadMessages();
 
 // --- Login ---
 loginSubmit.addEventListener("click", async () => {
@@ -72,14 +82,9 @@ loginSubmit.addEventListener("click", async () => {
     if (res.ok) {
       token = data.token;
       localStorage.setItem("token", token);
-      alert("Login erfolgreich!");
       modal.style.display = "none";
-
-      // Socket.IO erneut verbinden mit neuem Token
-      socket.auth = { token };
-      socket.connect();
-
-      loadMessages();
+      alert("Login erfolgreich!");
+      loadMessages(); // Nachrichten laden + Socket.IO verbinden
     } else {
       alert(data.error);
     }
@@ -129,9 +134,9 @@ async function sendMessage() {
     });
 
     if (res.ok) {
-      const data = await res.json();
       messageInput.value = "";
       // Socket.IO übernimmt die Anzeige → keine Doppelungen
+      const data = await res.json();
       socket.emit("chatMessage", data);
     } else {
       const data = await res.json();
