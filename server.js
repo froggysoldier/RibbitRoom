@@ -10,7 +10,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const Message = require("./models/Message");
-const filterMessage = require("./filter");
+const filterMessage = require(".utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
@@ -149,3 +149,4 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
