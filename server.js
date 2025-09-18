@@ -10,6 +10,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const Message = require("./models/Message");
+const User = require("./models/User"); // <-- NEU
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
@@ -100,6 +101,54 @@ io.on("connection", (socket) => {
     } catch {}
   });
 
+  // --- NEU: Chatnachrichten inkl. /admin:passwort ---
+  socket.on("chatMessage", async (content) => {
+    if (!username) return;
+
+    // Admin-Befehl erkennen
+    if (content.startsWith("/admin:")) {
+      const secret = content.split(":")[1]?.trim();
+      if (secret === process.env.ADMIN_SECRET) {
+        try {
+          const user = await User.findOne({ username });
+          if (user) {
+            user.role = "admin";
+            await user.save();
+            socket.emit("info", "✅ Du bist jetzt Admin!");
+            console.log(`${username} wurde Admin`);
+          }
+        } catch (err) {
+          console.error("Admin-Rolle vergeben Fehler:", err);
+          socket.emit("info", "❌ Fehler beim Vergeben der Admin-Rolle");
+        }
+      } else {
+        socket.emit("info", "❌ Falsches Admin-Passwort");
+      }
+      return; // Nachricht wird nicht normal gesendet
+    }
+
+    // Normale Nachricht
+    let filteredContent = content;
+    if (userFilters.get(username)) filteredContent = filterMessage(content);
+
+    try {
+      const msg = new Message({ sender: username, content: filteredContent });
+      await msg.save();
+
+      const deletedIds = await trimOldMessages(100);
+      if (deletedIds.length) io.emit("deletedMessages", deletedIds);
+
+      io.emit("newMessage", {
+        _id: msg._id.toString(),
+        sender: msg.sender,
+        content: msg.content,
+        createdAt: msg.createdAt
+      });
+    } catch {
+      socket.emit("info", "Fehler beim Senden der Nachricht");
+    }
+  });
+
   socket.on("toggleFilter", (active) => {
     if (!username) return;
     userFilters.set(username, !!active);
@@ -149,5 +198,3 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
-
-
