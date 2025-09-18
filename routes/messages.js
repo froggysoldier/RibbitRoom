@@ -6,7 +6,7 @@ const authMiddleware = require("../middleware/auth");
 // Nachrichten holen (öffentlich oder optional mit Auth)
 router.get("/", async (req, res) => {
   try {
-    const messages = await Message.find().sort({ createdAt: -1 }).limit(20);
+    const messages = await Message.find().sort({ createdAt: -1 });
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: "Fehler beim Laden der Nachrichten" });
@@ -28,3 +28,4 @@ router.post("/", authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
