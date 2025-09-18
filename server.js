@@ -16,6 +16,10 @@ const io = new Server(server, {
     },
 });
 
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -28,14 +32,8 @@ app.get("/", (req, res) => {
     res.send("Chatroom Backend läuft 🚀");
 });
 
-// Socket.IO
-io.on("connection", (socket) => {
-    console.log("Ein Nutzer verbunden:", socket.id);
 
-    socket.on("disconnect", () => {
-        console.log("Nutzer getrennt:", socket.id);
-    });
-});
+
 
 // DB verbinden
 mongoose.connect(process.env.MONGO_URI, {
@@ -47,10 +45,13 @@ mongoose.connect(process.env.MONGO_URI, {
 // Frontend-Ordner bereitstellen
 app.use(express.static(path.join(__dirname, '../client')));
 
+// Socket.IO
 io.on('connection', (socket) => {
   console.log('🔌 Nutzer verbunden');
   socket.on('chatMessage', (msg) => {
     io.emit('newMessage', msg);
+      socket.on("disconnect", () => {
+        console.log("Nutzer getrennt:", socket.id);
   });
 });
 
@@ -80,6 +81,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
