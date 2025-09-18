@@ -38,6 +38,11 @@ main {
   height: 400px;
   overflow-y: auto;
 }
+#chatWindow .time {
+  font-size: 0.8em;       /* kleiner als Standardtext */
+  color: gray;            /* optional: grau für dezenteren Look */
+  margin-left: 4px;
+}
 
 #inputArea {
   width: 70%;
