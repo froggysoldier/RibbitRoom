@@ -8,7 +8,6 @@ const usersListEl = document.getElementById("users");
 const chatWindow = document.getElementById("chatWindow");
 const sendBtn = document.getElementById("sendBtn");
 const messageInput = document.getElementById("messageInput");
-// --- Referenz auf den Button aus HTML ---
 const filterBtn = document.getElementById("filterBtn");
 
 // --- Helper / UI ---
@@ -30,10 +29,8 @@ function setSendEnabled(enabled) {
   messageInput.disabled = !enabled;
 }
 
-// --- Slide-In appendMessage ---
-let userRole = null; // Rolle des eingeloggten Benutzers
-
-function appendMessage(sender, content, createdAt, id, self=false, role="user") {
+// --- appendMessage ---
+function appendMessage(sender, content, createdAt, id, self=false) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -43,14 +40,14 @@ function appendMessage(sender, content, createdAt, id, self=false, role="user") 
   const hours = date.getHours().toString().padStart(2,"0");
   const minutes = date.getMinutes().toString().padStart(2,"0");
 
-  // Name rot, wenn Admin
-  const nameColor = role === "admin" ? "red" : "black";
-
-  p.innerHTML = `<strong style="color:${nameColor}">${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
 
   chatWindow.appendChild(p);
 
-  setTimeout(() => p.classList.add("show"), 50);
+  setTimeout(() => {
+    p.classList.add("show");
+  }, 50);
+
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -83,7 +80,7 @@ function initSocket() {
 
   socket.on("newMessage", msg => {
     const isSelf = msg.sender === username;
-    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf, msg.role || "user");
+    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf);
   });
 
   socket.on("deletedMessages", ids => ids.forEach(id => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
@@ -91,14 +88,7 @@ function initSocket() {
   socket.on("identified", data => {
     filterActive = data.filterActive || false;
     filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
-
-    // Rolle aus JWT auslesen
-    if (token) {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      userRole = payload.role || "user";
-    }
   });
-
   socket.on("disconnect", () => socketConnected = false);
 }
 
@@ -115,7 +105,7 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach(m => {
       const isSelf = m.sender === username;
-      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.role || "user");
+      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf);
     });
     setSendEnabled(!!token);
   } catch { showInfo("Fehler beim Laden der Nachrichten."); }
@@ -146,10 +136,6 @@ loginSubmit.addEventListener("click", async () => {
     username = u;
     localStorage.setItem("token", token);
     localStorage.setItem("username", username);
-
-    // Rolle aus JWT auslesen
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    userRole = payload.role || "user";
 
     modal.style.display = "none";
     setSendEnabled(true);
@@ -199,7 +185,7 @@ async function sendMessage() {
       const data = await res.json().catch(()=>({}));
       return alert(data.error || "Fehler beim Senden");
     }
-    appendMessage(username, content, new Date(), null, true, userRole); // eigene Nachricht
+    appendMessage(username, content, new Date(), null, true);
     messageInput.value = "";
   } catch(err){ alert("Fehler beim Senden"); }
 }
