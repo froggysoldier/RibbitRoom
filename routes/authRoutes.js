@@ -16,7 +16,7 @@ router.post("/register", async (req, res) => {
     const exists = await User.findOne({ username });
     if (exists) return res.status(400).json({ error: "Benutzername existiert bereits" });
 
-    const user = new User({ username, email, password }); // Plain-text Passwort
+    const user = new User({ username, email, password });
     await user.save();
 
     res.status(201).json({ message: "Registrierung erfolgreich" });
@@ -35,10 +35,8 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({ username });
     if (!user) return res.status(400).json({ error: "Benutzer nicht gefunden" });
 
-    // Passwortprüfung ohne Hashing
-    if (user.password !== password) {
-      return res.status(400).json({ error: "Falsches Passwort" });
-    }
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) return res.status(400).json({ error: "Falsches Passwort" });
 
     const token = jwt.sign(
       { username: user.username, role: user.role },
