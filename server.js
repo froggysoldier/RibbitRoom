@@ -1,6 +1,7 @@
 ﻿const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const path = require('path');
 const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv").config();
@@ -49,7 +50,17 @@ app.get("/", (req, res) => {
   res.send("Server läuft 🚀");
 });
 
-// WICHTIG: an 0.0.0.0 binden
+// Frontend-Ordner bereitstellen
+app.use(express.static(path.join(__dirname, '../client')));
+
+io.on('connection', (socket) => {
+  console.log('🔌 Nutzer verbunden');
+  socket.on('chatMessage', (msg) => {
+    io.emit('newMessage', msg);
+  });
+});
+
+//an 0.0.0.0 binden
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
@@ -74,6 +85,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
