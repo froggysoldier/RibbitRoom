@@ -2,7 +2,7 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require('path');
+const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
@@ -16,10 +16,10 @@ const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" } // production: restrict allowed origins
-});
 
+// ----- CORS -----
+// erlaubt nur CLIENT_ORIGIN oder localhost (für Entwicklung)
+const allowedOrigins = [process.env.CLIENT_ORIGIN, "http://localhost:3000"];
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) callback(null, true);
@@ -27,8 +27,9 @@ app.use(cors({
   }
 }));
 
+// ----- Socket.IO -----
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_ORIGIN }
+  cors: { origin: allowedOrigins }
 });
 
 // Middleware
@@ -85,7 +86,7 @@ async function trimOldMessages(maxMessages = 100) {
   return idsToDelete;
 }
 
-// ------- Socket.IO -------
+// ------- Socket.IO Events -------
 io.on("connection", (socket) => {
   const token = socket.handshake?.auth?.token;
   if (token) {
@@ -93,7 +94,7 @@ io.on("connection", (socket) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       addActiveUser(decoded.username, socket.id);
       socket.emit("identified", { username: decoded.username });
-    } catch { /* invalid token */ }
+    } catch {}
   }
 
   socket.on("identify", payload => {
@@ -106,7 +107,7 @@ io.on("connection", (socket) => {
         addActiveUser(payload.username, socket.id);
         socket.emit("identified", { username: payload.username });
       }
-    } catch { }
+    } catch {}
   });
 
   socket.on("disconnect", () => removeActiveUserBySocket(socket.id));
@@ -131,7 +132,6 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     await msg.save();
 
     const deletedIds = await trimOldMessages(100);
-
     if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
     const payload = {
@@ -149,7 +149,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
   }
 });
 
-// Fallback für SPA
+// Fallback SPA
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
