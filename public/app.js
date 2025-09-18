@@ -39,6 +39,12 @@ function appendMessage(sender, content, createdAt, id) {
   p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
   chatWindow.appendChild(p);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+  
+  // Slide-In Animation auslösen
+  setTimeout(() => {
+    p.classList.add("show");
+  }, 50); // kurzer Delay, damit Transition greift
+
 }
 
 function renderActiveUsers(users) {
