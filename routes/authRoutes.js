@@ -2,43 +2,33 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+require("dotenv").config();
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
+const ADMIN_CODE = process.env.ADMIN_CODE || "MeinGeheimerAdminCode123";
 
 // --- Registrierung ---
 router.post("/register", async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, adminCode } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: "Alle Felder sind erforderlich" });
     }
 
-    // prüfen, ob Benutzername oder E-Mail schon vergeben ist
-    const existing = await User.findOne({
-      $or: [{ username }, { email }],
-    });
+    const existing = await User.findOne({ $or: [{ username }, { email }] });
+    if (existing) return res.status(400).json({ error: "Benutzername oder E-Mail bereits vergeben." });
 
-    if (existing) {
-      return res
-        .status(400)
-        .json({ error: "Benutzername oder E-Mail bereits vergeben." });
-    }
-
-    // Passwort hashen
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // neuen User speichern
-    const user = new User({
-      username,
-      email,
-      password: hashedPassword,
-    });
+    // Admin-Code prüfen
+    const role = (adminCode && adminCode === ADMIN_CODE) ? "admin" : "user";
 
+    const user = new User({ username, email, password: hashedPassword, role });
     await user.save();
 
-    res.status(201).json({ message: "Registrierung erfolgreich" });
+    res.status(201).json({ message: "Registrierung erfolgreich", role });
   } catch (err) {
     console.error("❌ Fehler bei Registrierung:", err);
     res.status(500).json({ error: "Interner Fehler bei Registrierung" });
@@ -50,36 +40,22 @@ router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Prüfen ob Felder gesendet wurden
-    if (!username || !password) {
-      return res.status(400).json({ error: "Benutzername und Passwort erforderlich" });
-    }
+    if (!username || !password) return res.status(400).json({ error: "Benutzername und Passwort erforderlich" });
 
-    // User suchen
     const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ error: "Benutzer nicht gefunden" });
-    }
+    if (!user) return res.status(400).json({ error: "Benutzer nicht gefunden" });
+    if (!user.password) return res.status(500).json({ error: "Dieser Benutzer hat kein Passwort gesetzt" });
 
-    // Prüfen ob Passwort vorhanden ist
-    if (!user.password) {
-      return res.status(500).json({ error: "Dieser Benutzer hat kein Passwort gesetzt" });
-    }
-
-    // Passwort prüfen
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      return res.status(400).json({ error: "Falsches Passwort" });
-    }
+    if (!valid) return res.status(400).json({ error: "Falsches Passwort" });
 
-    // Token erstellen
     const token = jwt.sign(
-      { userId: user._id, username: user.username },
+      { userId: user._id, username: user.username, role: user.role },
       JWT_SECRET,
       { expiresIn: "2h" }
     );
 
-    res.json({ token });
+    res.json({ token, role: user.role });
   } catch (err) {
     console.error("❌ Fehler beim Login:", err);
     res.status(500).json({ error: "Interner Fehler beim Login" });
