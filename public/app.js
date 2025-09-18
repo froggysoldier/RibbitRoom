@@ -1,17 +1,16 @@
-// --- DOM Elemente ---
+// DOM Elemente
 const loginBtnHeader = document.getElementById("loginBtn");
 const modal = document.getElementById("loginModal");
 const closeModal = document.querySelector(".close");
 const loginSubmit = document.getElementById("loginSubmit");
 const registerSubmit = document.getElementById("registerSubmit");
+
 const usersListEl = document.getElementById("users");
 const chatWindow = document.getElementById("chatWindow");
 const sendBtn = document.getElementById("sendBtn");
 const messageInput = document.getElementById("messageInput");
-// --- Referenz auf den Button aus HTML ---
-const filterBtn = document.getElementById("filterBtn");
 
-// --- Helper / UI ---
+// Helper
 function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -20,173 +19,85 @@ function escapeHtml(str = "") {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
 function showInfo(text) {
   chatWindow.innerHTML = `<p class="info">${escapeHtml(text)}</p>`;
 }
-
 function setSendEnabled(enabled) {
   sendBtn.disabled = !enabled;
   messageInput.disabled = !enabled;
 }
 
-function appendMessage(sender, content, createdAt, id, isSelf = false) {
+// append message mit Admin-Farbcode
+function appendMessage(sender, content, createdAt, id, role) {
   const p = document.createElement("p");
-  
-  // Wichtige Klassen für Slide-In
-  p.classList.add("message");
-  if (isSelf) p.classList.add("self");  // Optional: eigene Nachrichten
-
   if (id) p.dataset.id = id.toString();
 
   const date = createdAt ? new Date(createdAt) : new Date();
-  const hours = date.getHours().toString().padStart(2,"0");
-  const minutes = date.getMinutes().toString().padStart(2,"0");
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
 
-  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+  let displayName = sender;
+  if (role === "admin") displayName = `<span style="color:red">${escapeHtml(sender)} (Admin)</span>`;
 
+  p.innerHTML = `<strong>${displayName}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
   chatWindow.appendChild(p);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-
-  // Slide-In Animation auslösen
-  setTimeout(() => {
-    p.classList.add("show");
-  }, 50);
 }
 
+// Active Users
 function renderActiveUsers(users) {
   usersListEl.innerHTML = "";
-  users.forEach(username => {
+  users.forEach(u => {
     const li = document.createElement("li");
-    li.textContent = username;
+    if(u.role === "admin") li.innerHTML = `<span style="color:red">${escapeHtml(u.username)} (Admin)</span>`;
+    else li.textContent = u.username;
     usersListEl.appendChild(li);
   });
 }
 
-// --- Token & Socket ---
+// Token & Socket
 let token = localStorage.getItem("token") || null;
 let socket = null;
-let socketConnected = false;
-let filterActive = false;
 
 function initSocket() {
   if (socket && socket.connected) return;
   socket = io({ auth: { token } });
 
-  socket.on("connect", () => {
-    socketConnected = true;
-    if (token) socket.emit("identify", { token });
-  });
-
-  socket.on("connect_error", err => console.warn("Socket connect error:", err?.message || err));
-  socket.on("newMessage", msg => appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id));
-  socket.on("deletedMessages", ids => ids.forEach(id => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
-  socket.on("activeUsers", users => renderActiveUsers(Array.isArray(users) ? users : []));
-  socket.on("identified", data => {
-    filterActive = data.filterActive || false;
-    filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
-  });
-  socket.on("disconnect", () => socketConnected = false);
+  socket.on("connect", () => { if(token) socket.emit("identify", { token }); });
+  socket.on("newMessage", (msg) => appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, msg.role));
+  socket.on("deletedMessages", (ids) => ids.forEach(id => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
+  socket.on("activeUsers", (users) => renderActiveUsers(Array.isArray(users) ? users : []));
+  socket.on("identified", (data) => {});
+  socket.on("disconnect", () => {});
 }
-
 initSocket();
 
-// --- load messages ---
+// Messages laden
 async function loadMessages() {
   try {
     const headers = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch("/api/messages", { headers });
-    if (!res.ok) return showInfo("Verlauf kann nicht geladen werden.");
+    if (!res.ok) { showInfo("Verlauf kann nicht geladen werden."); return; }
     const messages = await res.json();
     chatWindow.innerHTML = "";
-    messages.reverse().forEach(m => appendMessage(m.sender, m.content, m.createdAt, m._id));
+    messages.reverse().forEach(m => appendMessage(m.sender, m.content, m.createdAt, m._id, m.role));
     setSendEnabled(!!token);
-  } catch { showInfo("Fehler beim Laden der Nachrichten."); }
+  } catch (err) { showInfo("Fehler beim Laden der Nachrichten."); console.error(err); }
 }
 loadMessages();
 
-// --- Modal open/close ---
+// Modal open/close
 loginBtnHeader.onclick = () => modal.style.display = "block";
 closeModal.onclick = () => modal.style.display = "none";
-window.onclick = e => { if(e.target === modal) modal.style.display = "none"; };
+window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 
-// --- Login ---
-loginSubmit.addEventListener("click", async () => {
+// Login
+loginSubmit.onclick = async () => {
   const username = document.getElementById("username").value.trim();
   const password = document.getElementById("password").value.trim();
-  if(!username || !password) return alert("Bitte Benutzername und Passwort eingeben.");
+  if (!username || !password) return alert("Bitte Benutzername und Passwort eingeben.");
 
   try {
     const res = await fetch("/api/auth/login", {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ username, password })
-    });
-    const data = await res.json();
-    if(!res.ok) return alert(data.error || "Login fehlgeschlagen");
-
-    token = data.token;
-    localStorage.setItem("token", token);
-    modal.style.display = "none";
-    setSendEnabled(true);
-    await loadMessages();
-
-    if(socket){
-      socket.auth = { token };
-      socket.disconnect();
-      socket.connect();
-    } else initSocket();
-  } catch(err){ alert("Login-Fehler"); }
-});
-
-// --- Register ---
-registerSubmit.addEventListener("click", async () => {
-  const username = document.getElementById("newUser").value.trim();
-  const password = document.getElementById("newPass").value.trim();
-  const email = document.getElementById("email").value.trim();
-  if(!username || !password || !email) return alert("Bitte alle Felder ausfüllen.");
-
-  try {
-    const res = await fetch("/api/auth/register", {
-      method:"POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({ username, password, email })
-    });
-    const data = await res.json();
-    if(!res.ok) return alert(data.error || "Registrierung fehlgeschlagen");
-    alert("Registrierung erfolgreich — bitte einloggen.");
-  } catch(err){ alert("Registrieren-Fehler"); }
-});
-
-// --- send message ---
-async function sendMessage() {
-  const content = messageInput.value.trim();
-  if(!content) return;
-  if(!token) return alert("Bitte einloggen!");
-
-  try {
-    const res = await fetch("/api/messages", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${token}` },
-      body: JSON.stringify({ content })
-    });
-    if(!res.ok){
-      if(res.status===401||res.status===403) return alert("Nicht autorisiert. Bitte einloggen.");
-      const data = await res.json().catch(()=>({}));
-      return alert(data.error || "Fehler beim Senden");
-    }
-    messageInput.value = "";
-  } catch(err){ alert("Fehler beim Senden"); }
-}
-
-sendBtn.onclick = sendMessage;
-messageInput.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); sendMessage(); }});
-
-// --- Filter Button ---
-filterBtn.addEventListener("click", () => {
-  if(!socketConnected) return;
-  filterActive = !filterActive;
-  filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
-  socket.emit("toggleFilter", filterActive);
-});
+      method: "P
