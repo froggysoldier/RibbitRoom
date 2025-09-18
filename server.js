@@ -93,23 +93,3 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-mach da rein
