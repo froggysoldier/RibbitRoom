@@ -30,21 +30,28 @@ function setSendEnabled(enabled) {
   messageInput.disabled = !enabled;
 }
 
-function appendMessage(sender, content, createdAt, id) {
+function appendMessage(sender, content, createdAt, id, isSelf = false) {
   const p = document.createElement("p");
+  
+  // Wichtige Klassen für Slide-In
+  p.classList.add("message");
+  if (isSelf) p.classList.add("self");  // Optional: eigene Nachrichten
+
   if (id) p.dataset.id = id.toString();
+
   const date = createdAt ? new Date(createdAt) : new Date();
   const hours = date.getHours().toString().padStart(2,"0");
   const minutes = date.getMinutes().toString().padStart(2,"0");
+
   p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+
   chatWindow.appendChild(p);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-  
+
   // Slide-In Animation auslösen
   setTimeout(() => {
     p.classList.add("show");
-  }, 50); // kurzer Delay, damit Transition greift
-
+  }, 50);
 }
 
 function renderActiveUsers(users) {
