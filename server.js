@@ -33,7 +33,7 @@ mongoose.connect(process.env.MONGO_URI, {
 
 
 // Frontend-Ordner bereitstellen
-app.use(express.static(path.join(__dirname, '../client')));
+app.use(express.static(path.join(__dirname, "public")));
 
 
 //Socket.io
@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
 
 //html seite laden
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/index.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 // Schema für Nachrichten
@@ -82,6 +82,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
 
 
