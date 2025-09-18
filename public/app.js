@@ -10,6 +10,13 @@ const chatWindow = document.getElementById("chatWindow");
 const sendBtn = document.getElementById("sendBtn");
 const messageInput = document.getElementById("messageInput");
 
+// --- Global ---
+let token = localStorage.getItem("token") || null;
+let socket = null;
+let socketConnected = false;
+let filterActive = false;
+let currentUser = null; // aktueller Benutzername
+
 // --- Helper / UI ---
 function escapeHtml(str = "") {
   return String(str)
@@ -29,21 +36,27 @@ function setSendEnabled(enabled) {
   messageInput.disabled = !enabled;
 }
 
-// initial UI state
+// --- initial UI state ---
 setSendEnabled(false);
 showInfo("Bitte zuerst einloggen oder registrieren.");
 
-// --- append message ---
+// --- append message mit Slide-In ---
 function appendMessage(sender, content, createdAt, id) {
-  const p = document.createElement("p");
-  if (id) p.dataset.id = id.toString();
+  const div = document.createElement("div");
+  div.classList.add("message");
+
+  if (sender === currentUser) div.classList.add("self"); // eigene Nachricht hervorheben
+  if (id) div.dataset.id = id.toString();
 
   const date = createdAt ? new Date(createdAt) : new Date();
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
 
-  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
-  chatWindow.appendChild(p);
+  div.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+
+  chatWindow.appendChild(div);
+
+  // Scrollen, damit die neue Nachricht sichtbar ist
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -57,12 +70,7 @@ function renderActiveUsers(users) {
   });
 }
 
-// --- Token & Socket ---
-let token = localStorage.getItem("token") || null;
-let socket = null;
-let socketConnected = false;
-let filterActive = false;
-
+// --- Socket.io initialisieren ---
 function initSocket() {
   if (socket && socket.connected) return;
 
@@ -148,6 +156,7 @@ loginSubmit.addEventListener("click", async () => {
     if (!res.ok) return alert(data.error || "Login fehlgeschlagen");
 
     token = data.token;
+    currentUser = username; // aktuellen Benutzer merken
     localStorage.setItem("token", token);
     modal.style.display = "none";
     setSendEnabled(true);
