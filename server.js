@@ -62,7 +62,7 @@ app.get("*", (req, res) => {
 
 // Route: Nachrichten holen
 app.get('/messages', async (req, res) => {
-    const msgs = await Message.find().sort({ createdAt: -1 }).limit(20);
+    const msgs = await Message.find().sort({ createdAt: -1 })/*.limit(20)*/;
     res.json(msgs);
 });
 
@@ -90,4 +90,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
