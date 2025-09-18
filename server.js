@@ -7,6 +7,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
+const authMiddleware = require("./middleware/auth");
 
 const app = express();
 const server = http.createServer(app);
@@ -76,9 +77,6 @@ app.post('/messages', async (req, res) => {
     res.status(201).json(msg);
 });
 
-
-const authMiddleware = require("./middleware/auth");
-
 // Nachrichten speichern – nur für eingeloggte Nutzer
 app.post('/messages', authMiddleware, async (req, res) => {
     const msg = new Message({
@@ -96,6 +94,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
 
 
