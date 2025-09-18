@@ -1,5 +1,3 @@
-// public/app.js
-
 // --- DOM Elemente ---
 const loginBtnHeader = document.getElementById("loginBtn");
 const modal = document.getElementById("loginModal");
@@ -21,9 +19,11 @@ function escapeHtml(str = "") {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
 function showInfo(text) {
   chatWindow.innerHTML = `<p class="info">${escapeHtml(text)}</p>`;
 }
+
 function setSendEnabled(enabled) {
   sendBtn.disabled = !enabled;
   messageInput.disabled = !enabled;
@@ -33,7 +33,7 @@ function setSendEnabled(enabled) {
 setSendEnabled(false);
 showInfo("Bitte zuerst einloggen oder registrieren.");
 
-// --- append message with data-id for deletions ---
+// --- append message ---
 function appendMessage(sender, content, createdAt, id) {
   const p = document.createElement("p");
   if (id) p.dataset.id = id.toString();
@@ -61,21 +61,20 @@ function renderActiveUsers(users) {
 let token = localStorage.getItem("token") || null;
 let socket = null;
 let socketConnected = false;
+let filterActive = false;
 
 function initSocket() {
   if (socket && socket.connected) return;
 
-  // pass token in handshake auth if available
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
     socketConnected = true;
-    // if server didn't know identity, we can emit identify explicitly
     if (token) socket.emit("identify", { token });
   });
 
   socket.on("connect_error", (err) => {
-    console.warn("Socket connect error:", err && err.message ? err.message : err);
+    console.warn("Socket connect error:", err?.message || err);
   });
 
   socket.on("newMessage", (msg) => {
@@ -83,7 +82,6 @@ function initSocket() {
   });
 
   socket.on("deletedMessages", (ids) => {
-    if (!Array.isArray(ids) || ids.length === 0) return;
     ids.forEach(id => {
       const el = chatWindow.querySelector(`[data-id="${id}"]`);
       if (el) el.remove();
@@ -95,8 +93,8 @@ function initSocket() {
   });
 
   socket.on("identified", (data) => {
-    // optional: display small toast or set UI state
-    // console.log("identified:", data.username);
+    filterActive = data.filterActive || false;
+    filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
   });
 
   socket.on("disconnect", () => {
@@ -104,10 +102,9 @@ function initSocket() {
   });
 }
 
-// ensure socket present to receive broadcasts even if not logged in
 initSocket();
 
-// --- load messages (public get) ---
+// --- load messages ---
 async function loadMessages() {
   try {
     const headers = { "Content-Type": "application/json" };
@@ -118,13 +115,10 @@ async function loadMessages() {
       showInfo("Verlauf kann nicht geladen werden.");
       return;
     }
+
     const messages = await res.json();
     chatWindow.innerHTML = "";
-    messages.reverse().forEach(m => {
-      const id = m._id ? m._id.toString() : undefined;
-      appendMessage(m.sender, m.content, m.createdAt, id);
-    });
-    // Enable send if logged in
+    messages.reverse().forEach(m => appendMessage(m.sender, m.content, m.createdAt, m._id));
     setSendEnabled(!!token);
   } catch (err) {
     console.error("Fehler beim Laden der Nachrichten:", err);
@@ -151,10 +145,7 @@ loginSubmit.addEventListener("click", async () => {
       body: JSON.stringify({ username, password })
     });
     const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || "Login fehlgeschlagen");
-      return;
-    }
+    if (!res.ok) return alert(data.error || "Login fehlgeschlagen");
 
     token = data.token;
     localStorage.setItem("token", token);
@@ -162,7 +153,6 @@ loginSubmit.addEventListener("click", async () => {
     setSendEnabled(true);
     await loadMessages();
 
-    // reconnect socket with new auth so server will mark user active
     if (socket) {
       socket.auth = { token };
       socket.disconnect();
@@ -190,10 +180,7 @@ registerSubmit.addEventListener("click", async () => {
       body: JSON.stringify({ username, password, email })
     });
     const data = await res.json();
-    if (!res.ok) {
-      alert(data.error || "Registrierung fehlgeschlagen");
-      return;
-    }
+    if (!res.ok) return alert(data.error || "Registrierung fehlgeschlagen");
     alert("Registrierung erfolgreich — bitte einloggen.");
   } catch (err) {
     console.error("Registrieren-Fehler:", err);
@@ -201,7 +188,7 @@ registerSubmit.addEventListener("click", async () => {
   }
 });
 
-// --- send message (POST) ---
+// --- send message ---
 async function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
@@ -224,7 +211,6 @@ async function sendMessage() {
     }
 
     messageInput.value = "";
-    // Server will broadcast newMessage and deletedMessages
   } catch (err) {
     console.error("Fehler beim Senden:", err);
     alert("Fehler beim Senden");
@@ -233,9 +219,22 @@ async function sendMessage() {
 
 // --- UI bindings ---
 sendBtn.onclick = sendMessage;
-messageInput.addEventListener("keydown", (e) => {
+messageInput.addEventListener("keydown", e => {
   if (e.key === "Enter") {
     e.preventDefault();
     sendMessage();
   }
+});
+
+// --- Filter-Knopf ---
+const filterBtn = document.createElement("button");
+filterBtn.id = "filterBtn";
+filterBtn.textContent = "Filter AUS";
+document.querySelector("header").appendChild(filterBtn);
+
+filterBtn.addEventListener("click", () => {
+  if (!socketConnected) return;
+  filterActive = !filterActive;
+  filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
+  socket.emit("toggleFilter", filterActive);
 });
