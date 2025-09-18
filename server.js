@@ -55,26 +55,10 @@ io.on('connection', (socket) => {
   // Keine ausführlichen Logs hier (nur Verbindung/Trennung if wanted)
   socket.on('chatMessage', async (data) => {
     try {
-      // data sollte { content, sender? } oder wenn du auth per token nutzt: { content, token }
-      // Hier gehen wir davon aus, dass der Client bereits über REST POST '/api/messages' 
-      // gespeichert hat und uns das gespeicherte Objekt (mit createdAt) sendet.
-      // Falls du möchtest, dass Socket das Speichern übernimmt, speichere hier:
-      // const newMsg = new Message({ sender: data.sender, content: data.content });
-      // await newMsg.save();
-      //
-      // Für Sicherheit und Auth-Flow empfehle ich: speichere per POST /api/messages (authMiddleware)
-      // und sende anschließend per socket.emit das gespeicherte Objekt an server -> server broadcastet.
-      //
-      // Zum robusten Fall: falls data enthält ein vollständiges Message-Objekt (z.B. aus POST-Response),
-      // dann speichern wir es hier nochmal falls nötig. Wir behandeln beide Fälle:
-
       let newMsg;
       if (data._id) {
-        // wenn Client das gespeicherte Objekt mitsendet, verwende es direkt
-        // (aber sicherheitshalber: wir können trotzdem up-to-date DB-Fassung holen)
         newMsg = await Message.findById(data._id) || data;
       } else {
-        // falls nicht vorhanden: speichern wir hier (falls Client direkt per socket sendet)
         newMsg = new Message({
           sender: data.sender || "Unbekannt",
           content: data.content
@@ -93,17 +77,14 @@ io.on('connection', (socket) => {
         createdAt: newMsg.createdAt
       });
     } catch (err) {
-      // Fehlerbehandlung: du kannst hier optional socket.emit eine Fehlermeldung senden
       console.error("Fehler beim Verarbeiten der chatMessage:", err.message);
     }
   });
 
   socket.on("disconnect", () => {
-    // keine Logs erforderlich
   });
 });
 
-// html seite laden (falls keine API-Route passt)
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -141,3 +122,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
