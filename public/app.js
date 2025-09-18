@@ -45,3 +45,15 @@ loginBtn.addEventListener("click", async () => {
     alert(data.error);
   }
 });
+
+
+const token = localStorage.getItem("token");
+
+fetch("/messages", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  },
+  body: JSON.stringify({ content: "Hallo Welt" })
+});
