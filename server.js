@@ -10,7 +10,6 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const Message = require("./models/Message");
-const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
@@ -101,40 +100,10 @@ io.on("connection", (socket) => {
     } catch {}
   });
 
-  // --- Chatnachrichten inkl. /admin:passwort ---
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
-    // Admin-Befehl erkennen
-    if (content.startsWith("/admin:")) {
-      const secret = content.split(":")[1]?.trim();
-      if (secret === process.env.ADMIN_SECRET) {
-        try {
-          const user = await User.findOne({ username });
-          if (user) {
-            user.role = "admin";
-            await user.save();
-            socket.emit("info", "✅ Du bist jetzt Admin!");
-            console.log(`${username} wurde Admin`);
-          }
-        } catch (err) {
-          console.error("Admin-Rolle vergeben Fehler:", err);
-          socket.emit("info", "❌ Fehler beim Vergeben der Admin-Rolle");
-        }
-      } else {
-        socket.emit("info", "❌ Falsches Admin-Passwort");
-      }
-      return;
-    }
-
-    // Normale Nachricht
     let filteredContent = content;
-    let userRole = "user";
-    try {
-      const user = await User.findOne({ username });
-      if (user) userRole = user.role || "user";
-    } catch {}
-
     if (userFilters.get(username)) filteredContent = filterMessage(content);
 
     try {
@@ -148,8 +117,7 @@ io.on("connection", (socket) => {
         _id: msg._id.toString(),
         sender: msg.sender,
         content: msg.content,
-        createdAt: msg.createdAt,
-        role: userRole // Rolle mitsenden
+        createdAt: msg.createdAt
       });
     } catch {
       socket.emit("info", "Fehler beim Senden der Nachricht");
@@ -180,13 +148,9 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     let content = req.body.content;
     const username = req.user.username;
 
-    let userRole = "user";
-    try {
-      const user = await User.findOne({ username });
-      if (user) userRole = user.role || "user";
-    } catch {}
-
-    if (userFilters.get(username)) content = filterMessage(content);
+    if (userFilters.get(username)) {
+      content = filterMessage(content);
+    }
 
     const msg = new Message({ sender: username, content });
     await msg.save();
@@ -194,13 +158,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     const deletedIds = await trimOldMessages(100);
     if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
-    const payload = { 
-      _id: msg._id.toString(), 
-      sender: msg.sender, 
-      content: msg.content, 
-      createdAt: msg.createdAt,
-      role: userRole
-    };
+    const payload = { _id: msg._id.toString(), sender: msg.sender, content: msg.content, createdAt: msg.createdAt };
     io.emit("newMessage", payload);
 
     res.status(201).json(payload);
