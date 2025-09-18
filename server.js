@@ -16,6 +16,8 @@ const io = new Server(server, {
     },
 });
 
+const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
@@ -37,13 +39,17 @@ mongoose.connect(process.env.MONGO_URI, {
 // Frontend-Ordner bereitstellen
 app.use(express.static(path.join(__dirname, '../client')));
 
-// Socket.IO
+
+//Socket.io
 io.on('connection', (socket) => {
   console.log('🔌 Nutzer verbunden');
+
   socket.on('chatMessage', (msg) => {
     io.emit('newMessage', msg);
-      socket.on("disconnect", () => {
-        console.log("Nutzer getrennt:", socket.id);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Nutzer getrennt:", socket.id);
   });
 });
 
@@ -73,6 +79,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
