@@ -17,6 +17,9 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+//authRoute
+app.use("/api/auth", authRoutes);
+
 // Testroute
 app.get("/", (req, res) => {
     res.send("Chatroom Backend läuft 🚀");
@@ -69,6 +72,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
