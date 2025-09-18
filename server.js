@@ -60,6 +60,12 @@ io.on('connection', (socket) => {
   });
 });
 
+
+//html seite laden
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/index.html"));
+});
+
 //an 0.0.0.0 binden
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
@@ -85,6 +91,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
