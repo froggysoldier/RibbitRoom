@@ -1,7 +1,7 @@
 // filter.js
 const wordReplacements = {
   "hallo": "ribbit",
-  "test": "****",
+  "Keno": "KePa",
   // hier weitere Wörter hinzufügen
 };
 
