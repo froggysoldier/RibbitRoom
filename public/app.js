@@ -31,6 +31,8 @@ function setSendEnabled(enabled) {
 }
 
 // --- Slide-In appendMessage ---
+let userRole = null; // NEU: Rolle des eingeloggten Benutzers
+
 function appendMessage(sender, content, createdAt, id, self=false) {
   const p = document.createElement("p");
   p.classList.add("message"); // wichtig für Slide-In
@@ -40,7 +42,14 @@ function appendMessage(sender, content, createdAt, id, self=false) {
   const date = createdAt ? new Date(createdAt) : new Date();
   const hours = date.getHours().toString().padStart(2,"0");
   const minutes = date.getMinutes().toString().padStart(2,"0");
-  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+
+  // NEU: Name rot, wenn Admin
+  let nameColor = "black";
+  if (sender === username && userRole === "admin") {
+    nameColor = "red";
+  }
+
+  p.innerHTML = `<strong style="color:${nameColor}">${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
 
   chatWindow.appendChild(p);
 
@@ -89,6 +98,12 @@ function initSocket() {
   socket.on("identified", data => {
     filterActive = data.filterActive || false;
     filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
+
+    // NEU: Rolle aus JWT auslesen
+    if (token) {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      userRole = payload.role || "user";
+    }
   });
   socket.on("disconnect", () => socketConnected = false);
 }
@@ -137,6 +152,11 @@ loginSubmit.addEventListener("click", async () => {
     username = u;
     localStorage.setItem("token", token);
     localStorage.setItem("username", username);
+
+    // NEU: Rolle aus JWT auslesen
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    userRole = payload.role || "user";
+
     modal.style.display = "none";
     setSendEnabled(true);
     await loadMessages();
