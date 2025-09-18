@@ -10,7 +10,6 @@ const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const messagesRoutes = require("./routes/messages");
 
-app.use("/api/messages", messagesRoutes);
 
 
 const app = express();
@@ -29,6 +28,8 @@ app.use(express.json());
 
 //authRoute
 app.use("/api/auth", authRoutes);
+//MessageRoute
+app.use("/api/messages", messagesRoutes);
 
 // DB verbinden
 mongoose.connect(process.env.MONGO_URI, {
@@ -91,6 +92,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
 
 
