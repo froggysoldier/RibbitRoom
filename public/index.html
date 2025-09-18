@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Chatroom</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
   </div>
 </main>
 
-<!-- Modal -->
+<!-- Modal für Login/Register -->
 <div id="loginModal" class="modal">
   <div class="modal-content">
     <span class="close">&times;</span>
@@ -39,35 +39,8 @@
   </div>
 </div>
 
-<script>
-  const loginBtn = document.getElementById("loginBtn");
-  const modal = document.getElementById("loginModal");
-  const span = document.querySelector(".close");
-  const chatWindow = document.getElementById("chatWindow");
-  const sendBtn = document.getElementById("sendBtn");
-  const messageInput = document.getElementById("messageInput");
-
-  // Modal öffnen
-  loginBtn.onclick = () => modal.style.display = "block";
-
-  // Modal schließen
-  span.onclick = () => modal.style.display = "none";
-  window.onclick = (e) => { if (e.target == modal) modal.style.display = "none"; };
-
-  // Nachricht senden
-  sendBtn.onclick = () => {
-    if (messageInput.value.trim() !== "") {
-      let p = document.createElement("p");
-      p.innerHTML = "<strong>Du:</strong> " + messageInput.value;
-      chatWindow.appendChild(p);
-      chatWindow.scrollTop = chatWindow.scrollHeight;
-      messageInput.value = "";
-    }
-  };
-</script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
 
 </body>
 </html>
-
-
-
