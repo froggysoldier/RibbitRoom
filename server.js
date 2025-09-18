@@ -16,11 +16,7 @@ const io = new Server(server, {
     },
 });
 
-const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Server läuft auf Port ${PORT}`);
-});
 
 // Middleware
 app.use(cors());
@@ -78,6 +74,13 @@ app.post('/messages', async (req, res) => {
     const msg = new Message(req.body);
     await msg.save();
     res.status(201).json(msg);
+});
+
+
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
 });
 
 
