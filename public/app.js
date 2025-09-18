@@ -31,11 +31,11 @@ function setSendEnabled(enabled) {
 }
 
 // --- Slide-In appendMessage ---
-let userRole = null; // NEU: Rolle des eingeloggten Benutzers
+let userRole = null; // Rolle des eingeloggten Benutzers
 
-function appendMessage(sender, content, createdAt, id, self=false) {
+function appendMessage(sender, content, createdAt, id, self=false, role="user") {
   const p = document.createElement("p");
-  p.classList.add("message"); // wichtig für Slide-In
+  p.classList.add("message");
   if (self) p.classList.add("self");
   if (id) p.dataset.id = id.toString();
 
@@ -43,21 +43,14 @@ function appendMessage(sender, content, createdAt, id, self=false) {
   const hours = date.getHours().toString().padStart(2,"0");
   const minutes = date.getMinutes().toString().padStart(2,"0");
 
-  // NEU: Name rot, wenn Admin
-  let nameColor = "black";
-  if (sender === username && userRole === "admin") {
-    nameColor = "red";
-  }
+  // Name rot, wenn Admin
+  const nameColor = role === "admin" ? "red" : "black";
 
   p.innerHTML = `<strong style="color:${nameColor}">${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
 
   chatWindow.appendChild(p);
 
-  // Slide-In Animation
-  setTimeout(() => {
-    p.classList.add("show");
-  }, 50);
-
+  setTimeout(() => p.classList.add("show"), 50);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -90,7 +83,7 @@ function initSocket() {
 
   socket.on("newMessage", msg => {
     const isSelf = msg.sender === username;
-    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf);
+    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf, msg.role || "user");
   });
 
   socket.on("deletedMessages", ids => ids.forEach(id => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
@@ -99,12 +92,13 @@ function initSocket() {
     filterActive = data.filterActive || false;
     filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
 
-    // NEU: Rolle aus JWT auslesen
+    // Rolle aus JWT auslesen
     if (token) {
       const payload = JSON.parse(atob(token.split(".")[1]));
       userRole = payload.role || "user";
     }
   });
+
   socket.on("disconnect", () => socketConnected = false);
 }
 
@@ -121,7 +115,7 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach(m => {
       const isSelf = m.sender === username;
-      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf);
+      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.role || "user");
     });
     setSendEnabled(!!token);
   } catch { showInfo("Fehler beim Laden der Nachrichten."); }
@@ -153,7 +147,7 @@ loginSubmit.addEventListener("click", async () => {
     localStorage.setItem("token", token);
     localStorage.setItem("username", username);
 
-    // NEU: Rolle aus JWT auslesen
+    // Rolle aus JWT auslesen
     const payload = JSON.parse(atob(token.split(".")[1]));
     userRole = payload.role || "user";
 
@@ -205,7 +199,7 @@ async function sendMessage() {
       const data = await res.json().catch(()=>({}));
       return alert(data.error || "Fehler beim Senden");
     }
-    appendMessage(username, content, new Date(), null, true); // eigene Nachricht sofort anzeigen
+    appendMessage(username, content, new Date(), null, true, userRole); // eigene Nachricht
     messageInput.value = "";
   } catch(err){ alert("Fehler beim Senden"); }
 }
