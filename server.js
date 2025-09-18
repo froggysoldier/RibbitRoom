@@ -77,11 +77,26 @@ app.post('/messages', async (req, res) => {
 });
 
 
+const authMiddleware = require("./middleware/auth");
+
+// Nachrichten speichern – nur für eingeloggte Nutzer
+app.post('/messages', authMiddleware, async (req, res) => {
+    const msg = new Message({
+        sender: req.user.username, // aus Token
+        content: req.body.content
+    });
+    await msg.save();
+    res.status(201).json(msg);
+});
+
+
+
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
 
 
