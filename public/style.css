@@ -101,6 +101,11 @@ main {
   cursor: pointer;
 }
 
+.logo {
+    max-width: 200px;
+    height: auto;
+}
+
 /* Modal Styles */
 .modal {
   display: none; 
