@@ -65,19 +65,39 @@ function removeActiveUserBySocket(socketId) {
   return null;
 }
 
-// ------- Helper: trim oldest messages to keep maxMessages in DB -------
+// sicherere trim-Funktion
 async function trimOldMessages(maxMessages = 100) {
-  const count = await Message.countDocuments();
-  if (count <= maxMessages) return [];
-  const excess = count - maxMessages;
-  const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select('_id');
-  const idsToDelete = oldest.map(d => d._id.toString());
-  if (idsToDelete.length) {
-    const { deletedCount } = await Message.deleteMany({ _id: { $in: idsToDelete } });
-    // optional minimal logging
-    console.log(`🗑️ ${deletedCount} alte Nachrichten gelöscht`);
+  // Anzahl prüfen (nur als frühe Abkürzung)
+  const total = await Message.countDocuments();
+  if (total <= maxMessages) return 0;
+
+  // finde das (maxMessages)-te neueste Dokument (index maxMessages-1 bei sort desc)
+  const nth = await Message.find()
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(maxMessages - 1)
+    .limit(1)
+    .select('createdAt _id');
+
+  if (!nth || nth.length === 0) {
+    // seltsamer Fall: keine Dokumente gefunden — nichts tun
+    return 0;
   }
-  return idsToDelete;
+
+  const thresholdDate = nth[0].createdAt;
+  const thresholdId = nth[0]._id;
+
+  // Lösche alles, das älter ist als thresholdDate,
+  // oder bei gleichem createdAt solche mit _id < thresholdId
+  const res = await Message.deleteMany({
+    $or: [
+      { createdAt: { $lt: thresholdDate } },
+      { createdAt: thresholdDate, _id: { $lt: thresholdId } }
+    ]
+  });
+
+  const deleted = res.deletedCount || 0;
+  if (deleted > 0) console.log(`🗑️ ${deleted} alte Nachrichten gelöscht (threshold ${thresholdDate.toISOString()})`);
+  return deleted;
 }
 
 // ------- Socket.IO -------
@@ -174,3 +194,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
