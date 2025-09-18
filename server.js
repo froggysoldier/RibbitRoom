@@ -27,14 +27,6 @@ app.use(express.json());
 //authRoute
 app.use("/api/auth", authRoutes);
 
-// Testroute
-app.get("/", (req, res) => {
-    res.send("Chatroom Backend läuft 🚀");
-});
-
-
-
-
 // DB verbinden
 mongoose.connect(process.env.MONGO_URI, {
 })
@@ -81,6 +73,7 @@ app.post('/messages', async (req, res) => {
     await msg.save();
     res.status(201).json(msg);
 });
+
 
 
 
