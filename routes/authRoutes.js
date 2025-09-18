@@ -1,39 +1,75 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const router = express.Router();
 
+const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
-// REGISTRIEREN
+// --- Registrierung ---
 router.post("/register", async (req, res) => {
-  const { username, password } = req.body;
-  const existing = await User.findOne({ username });
-  if (existing) return res.status(400).json({ error: "Username vergeben" });
+  try {
+    const { username, email, password } = req.body;
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const user = new User({ username, passwordHash });
-  await user.save();
-  res.json({ message: "User registriert" });
+    // prüfen, ob Benutzername oder E-Mail schon vergeben ist
+    const existing = await User.findOne({
+      $or: [{ username }, { email }],
+    });
+
+    if (existing) {
+      return res
+        .status(400)
+        .json({ error: "Benutzername oder E-Mail bereits vergeben." });
+    }
+
+    // Passwort hashen
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // neuen User speichern
+    const user = new User({
+      username,
+      email,
+      password: hashedPassword,
+    });
+
+    await user.save();
+
+    res.status(201).json({ message: "Registrierung erfolgreich" });
+  } catch (err) {
+    console.error("❌ Fehler bei Registrierung:", err);
+    res.status(500).json({ error: "Interner Fehler bei Registrierung" });
+  }
 });
 
-// LOGIN
+// --- Login ---
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ username });
-  if (!user) return res.status(400).json({ error: "User nicht gefunden" });
+  try {
+    const { username, password } = req.body;
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) return res.status(400).json({ error: "Falsches Passwort" });
+    // User suchen
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ error: "Benutzer nicht gefunden" });
+    }
 
-  const token = jwt.sign(
-    { userId: user._id, username: user.username },
-    JWT_SECRET,
-    { expiresIn: "2h" }
-  );
+    // Passwort prüfen
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      return res.status(400).json({ error: "Falsches Passwort" });
+    }
 
-  res.json({ token });
+    // Token erstellen
+    const token = jwt.sign(
+      { userId: user._id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+
+    res.json({ token });
+  } catch (err) {
+    console.error("❌ Fehler beim Login:", err);
+    res.status(500).json({ error: "Interner Fehler beim Login" });
+  }
 });
 
 module.exports = router;
