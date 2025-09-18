@@ -1,6 +1,3 @@
-// --- Socket.IO ---
-const socket = io();
-
 // --- DOM Elemente ---
 const loginBtnHeader = document.getElementById("loginBtn");
 const modal = document.getElementById("loginModal");
@@ -20,7 +17,6 @@ window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 // --- Helper: Nachricht mit Uhrzeit anzeigen ---
 function appendMessage(sender, content, createdAt) {
   const p = document.createElement("p");
-
   const date = new Date(createdAt);
   const hours = date.getHours().toString().padStart(2, '0');
   const minutes = date.getMinutes().toString().padStart(2, '0');
@@ -31,10 +27,26 @@ function appendMessage(sender, content, createdAt) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+// --- Token ---
+let token = localStorage.getItem("token");
+
+// --- Socket.IO Verbindung mit Token ---
+const socket = io({
+  auth: { token }
+});
+
+// --- Nachrichten empfangen ---
+socket.on("newMessage", msg => {
+  appendMessage(msg.sender, msg.content, msg.createdAt);
+});
+
 // --- Nachrichten laden beim Start ---
 async function loadMessages() {
+  if (!token) return;
   try {
-    const res = await fetch("/api/messages");
+    const res = await fetch("/api/messages", {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
     const messages = await res.json();
     chatWindow.innerHTML = "";
     messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content, msg.createdAt));
@@ -58,9 +70,16 @@ loginSubmit.addEventListener("click", async () => {
 
     const data = await res.json();
     if (res.ok) {
-      localStorage.setItem("token", data.token);
+      token = data.token;
+      localStorage.setItem("token", token);
       alert("Login erfolgreich!");
       modal.style.display = "none";
+
+      // Socket.IO erneut verbinden mit neuem Token
+      socket.auth = { token };
+      socket.connect();
+
+      loadMessages();
     } else {
       alert(data.error);
     }
@@ -97,8 +116,6 @@ registerSubmit.addEventListener("click", async () => {
 async function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
-
-  const token = localStorage.getItem("token");
   if (!token) return alert("Bitte einloggen!");
 
   try {
@@ -114,7 +131,6 @@ async function sendMessage() {
     if (res.ok) {
       const data = await res.json();
       messageInput.value = "";
-      // NICHT direkt appendMessage aufrufen
       // Socket.IO übernimmt die Anzeige → keine Doppelungen
       socket.emit("chatMessage", data);
     } else {
@@ -130,9 +146,4 @@ async function sendMessage() {
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
-});
-
-// --- Echtzeit Nachrichten empfangen ---
-socket.on("newMessage", msg => {
-  appendMessage(msg.sender, msg.content, msg.createdAt);
 });
