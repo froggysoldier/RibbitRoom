@@ -31,7 +31,7 @@ function appendMessage(sender, content, createdAt) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// --- Nachrichten laden ---
+// --- Nachrichten laden beim Start ---
 async function loadMessages() {
   try {
     const res = await fetch("/api/messages");
@@ -114,8 +114,9 @@ async function sendMessage() {
     if (res.ok) {
       const data = await res.json();
       messageInput.value = "";
-      appendMessage(data.sender, data.content, data.createdAt); // direkt anzeigen
-      socket.emit("chatMessage", data); // Echtzeit an andere Nutzer
+      // NICHT direkt appendMessage aufrufen
+      // Socket.IO übernimmt die Anzeige → keine Doppelungen
+      socket.emit("chatMessage", data);
     } else {
       const data = await res.json();
       alert(data.error);
@@ -135,4 +136,3 @@ messageInput.addEventListener("keydown", (e) => {
 socket.on("newMessage", msg => {
   appendMessage(msg.sender, msg.content, msg.createdAt);
 });
-
