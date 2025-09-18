@@ -9,100 +9,64 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
-const messagesRoutes = require("./routes/messages");
-const Message = require("./models/Message"); // <-- sicherstellen, dass dieses Model existiert
+const Message = require("./models/Message"); // ensure this file exists and exports the model
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*", // später einschränken
-  },
+  cors: { origin: "*" } // production: restrict origin
 });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Auth- & Message-Routen (falls messagesRoutes eigene Routen hat)
+// Auth-Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/messages", messagesRoutes);
 
 // DB verbinden
 mongoose.connect(process.env.MONGO_URI, {})
   .then(() => console.log("✅ MongoDB verbunden"))
   .catch((err) => console.error("❌ MongoDB Fehler:", err));
 
-// Frontend-Ordner bereitstellen
+// Serve frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-// Hilfsfunktion: alte Nachrichten trimmen, so dass maxMessages übrig bleiben
+// Helper: trim oldest messages so that at most maxMessages remain
 async function trimOldMessages(maxMessages = 100) {
   const count = await Message.countDocuments();
-  if (count <= maxMessages) return;
-
+  if (count <= maxMessages) return 0;
   const excess = count - maxMessages;
-  // finde die ältesten 'excess' Dokumente und lösche sie
   const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select('_id');
   const idsToDelete = oldest.map(d => d._id);
   if (idsToDelete.length) {
-    await Message.deleteMany({ _id: { $in: idsToDelete } });
-    console.log(`🗑️ ${idsToDelete.length} alte Nachrichten gelöscht`);
+    const { deletedCount } = await Message.deleteMany({ _id: { $in: idsToDelete } });
+    console.log(`🗑️ ${deletedCount} alte Nachrichten gelöscht`);
+    return deletedCount;
   }
+  return 0;
 }
 
-// Socket.io
+// Socket.IO: clients connect to receive broadcasts
 io.on('connection', (socket) => {
-  // Keine ausführlichen Logs hier (nur Verbindung/Trennung if wanted)
-  socket.on('chatMessage', async (data) => {
-    try {
-      let newMsg;
-      if (data._id) {
-        newMsg = await Message.findById(data._id) || data;
-      } else {
-        newMsg = new Message({
-          sender: data.sender || "Unbekannt",
-          content: data.content
-        });
-        await newMsg.save();
-      }
-
-      // trim die DB auf max 100
-      await trimOldMessages(100);
-
-      // Broadcast an alle Clients (inkl. createdAt, _id)
-      io.emit('newMessage', {
-        _id: newMsg._id,
-        sender: newMsg.sender,
-        content: newMsg.content,
-        createdAt: newMsg.createdAt
-      });
-    } catch (err) {
-      console.error("Fehler beim Verarbeiten der chatMessage:", err.message);
-    }
-  });
-
-  socket.on("disconnect", () => {
+  // optional: console.log(`socket connected: ${socket.id}`);
+  socket.on('disconnect', () => {
+    // optional: console.log(`socket disconnected: ${socket.id}`);
   });
 });
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// Route: Nachrichten holen (liefere die neuesten 100, sortiert newest first)
-app.get('/messages', async (req, res) => {
+// REST: get messages (public; returns newest first)
+app.get('/api/messages', async (req, res) => {
   try {
-    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
+    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100); // deliver up to 100 newest
     res.json(msgs);
   } catch (err) {
     res.status(500).json({ error: "Fehler beim Laden der Nachrichten" });
   }
 });
 
-// Route: Nachricht speichern (nur für eingeloggte Nutzer, REST)
-// Diese Route speichert die Nachricht, trimmt und gibt das gespeicherte Objekt zurück
-app.post('/messages', authMiddleware, async (req, res) => {
+// REST: post message (protected) - saves, trims, broadcasts
+app.post('/api/messages', authMiddleware, async (req, res) => {
   try {
     const msg = new Message({
       sender: req.user.username,
@@ -110,18 +74,25 @@ app.post('/messages', authMiddleware, async (req, res) => {
     });
     await msg.save();
 
-    // max 100 behalten
+    // Trim DB to max 100 messages
     await trimOldMessages(100);
+
+    // Broadcast the saved message to all connected clients
+    io.emit('newMessage', msg);
 
     res.status(201).json(msg);
   } catch (err) {
+    console.error("Fehler beim Speichern:", err);
     res.status(500).json({ error: "Fehler beim Speichern der Nachricht" });
   }
+});
+
+// Fallback to index.html for SPA
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
-
-
