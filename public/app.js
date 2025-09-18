@@ -34,9 +34,7 @@ let socket;
 function connectSocket() {
   if (!token) return;
 
-  socket = io({
-    auth: { token }
-  });
+  socket = io({ auth: { token } });
 
   socket.on("connect_error", (err) => {
     console.error("Socket.IO Fehler:", err.message);
@@ -47,7 +45,7 @@ function connectSocket() {
   });
 }
 
-// --- Nachrichten laden beim Start ---
+// --- Nachrichten laden ---
 async function loadMessages() {
   if (!token) return;
   try {
@@ -58,13 +56,18 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach(msg => appendMessage(msg.sender, msg.content, msg.createdAt));
 
-    // Socket.IO erst verbinden, nachdem Nachrichten geladen
-    connectSocket();
+    connectSocket(); // Socket.IO erst nach Laden der Nachrichten
   } catch (err) {
     console.error("Fehler beim Laden der Nachrichten:", err);
   }
 }
-if (token) loadMessages();
+
+// --- Initialer Hinweis ---
+if (!token) {
+  chatWindow.innerHTML = "<p>Bitte zuerst einloggen oder registrieren.</p>";
+} else {
+  loadMessages();
+}
 
 // --- Login ---
 loginSubmit.addEventListener("click", async () => {
@@ -84,7 +87,7 @@ loginSubmit.addEventListener("click", async () => {
       localStorage.setItem("token", token);
       modal.style.display = "none";
       alert("Login erfolgreich!");
-      loadMessages(); // Nachrichten laden + Socket.IO verbinden
+      loadMessages();
     } else {
       alert(data.error);
     }
@@ -134,10 +137,9 @@ async function sendMessage() {
     });
 
     if (res.ok) {
-      messageInput.value = "";
-      // Socket.IO übernimmt die Anzeige → keine Doppelungen
       const data = await res.json();
-      socket.emit("chatMessage", data);
+      messageInput.value = "";
+      socket.emit("chatMessage", data); // Anzeige erfolgt via Socket.IO
     } else {
       const data = await res.json();
       alert(data.error);
