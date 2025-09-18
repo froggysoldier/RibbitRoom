@@ -99,22 +99,22 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 15px; /* mehr Abstand zwischen Chatfenster und Input */
 }
 
 /* Chatfenster */
 #chatWindow {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px; /* Abstand zwischen Nachrichten */
   background: #1e1e1e;
   border-radius: 12px;
-  padding: 15px;
-  height: 400px;
+  padding: 20px; /* mehr Innenabstand */
+  height: 600px; /* größer als vorher */
   overflow-y: auto;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-  font-size: 14px;
-  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  font-size: 16px; /* größere Schrift */
+  line-height: 1.6;
   color: #e0e0e0;
 }
 
@@ -177,20 +177,19 @@ main {
   user-select: none;
 }
 
-
 /* ====== Nachrichten mit Slide-In ====== */
 .message {
   background: #2a2a2a;
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
-  max-width: 75%;
-  opacity: 0;                  /* unsichtbar am Anfang */
-  transform: translateX(-50px); /* Start links */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  border-radius: 14px;
+  padding: 14px 18px; /* größerer Block */
+  margin-bottom: 10px;
+  max-width: 80%;
+  opacity: 0; /* unsichtbar am Anfang */
+  transform: translateX(-60px); /* Start links */
+  box-shadow: 0 3px 8px rgba(0,0,0,0.5);
   color: #e0e0e0;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 16px; /* größere Schrift */
+  line-height: 1.5;
   transition: transform 0.4s ease, opacity 0.4s ease;
 }
 
@@ -207,7 +206,7 @@ main {
 }
 
 .message:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  box-shadow: 0 5px 14px rgba(0,0,0,0.6);
   transform: translateX(2px);
   transition: all 0.2s ease;
 }
@@ -215,19 +214,20 @@ main {
 /* ====== Eingabe-Bereich ====== */
 #inputArea {
   display: flex;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 15px;
 }
 
 #messageInput {
   flex: 1;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid #333;
   border-radius: 8px;
   outline: none;
   background: #121212;
   color: #e0e0e0;
   font-family: 'Poppins', sans-serif;
+  font-size: 16px; /* größere Schrift */
   transition: border 0.2s, box-shadow 0.2s;
 }
 
@@ -238,7 +238,8 @@ main {
 
 /* Senden-Button */
 #sendBtn {
-  padding: 12px 20px;
+  padding: 14px 24px;
+  font-size: 16px;
   border: none;
   background: linear-gradient(135deg, #4CAF50, #00C9A7);
   border-radius: 8px;
@@ -328,3 +329,4 @@ main {
 .close:hover {
   color: #ff4c4c;
 }
+
