@@ -8,6 +8,10 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
+const messagesRoutes = require("./routes/messages");
+
+app.use("/api/messages", messagesRoutes);
+
 
 const app = express();
 const server = http.createServer(app);
@@ -94,6 +98,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
 
 
