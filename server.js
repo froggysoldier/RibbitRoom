@@ -60,13 +60,6 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// Schema für Nachrichten
-const messageSchema = new mongoose.Schema({
-    sender: String,
-    content: String,
-    createdAt: { type: Date, default: Date.now }
-});
-const Message = mongoose.model("Message", messageSchema);
 
 // Route: Nachrichten holen
 app.get('/messages', async (req, res) => {
@@ -98,6 +91,7 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
 
 
 
