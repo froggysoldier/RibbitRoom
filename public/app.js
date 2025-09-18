@@ -13,7 +13,7 @@ const messageInput = document.getElementById("messageInput");
 
 // --- Helper / UI ---
 function showInfo(text) {
-  chatWindow.innerHTML = `<p class="info">${text}</p>`;
+  chatWindow.innerHTML = `<p class="info">${escapeHtml(text)}</p>`;
 }
 
 function setSendEnabled(enabled) {
@@ -25,21 +25,7 @@ function setSendEnabled(enabled) {
 setSendEnabled(false);
 showInfo("Bitte zuerst einloggen oder registrieren.");
 
-// --- Nachricht mit Uhrzeit anzeigen ---
-function appendMessage(sender, content, createdAt) {
-  const p = document.createElement("p");
-
-  // Falls createdAt fehlt, benutze jetzt
-  const date = createdAt ? new Date(createdAt) : new Date();
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-
-  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
-  chatWindow.appendChild(p);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
-// Kurze HTML-Escaperoutine für Sicherheit (XSS)
+// --- Escape helper to avoid XSS in messages ---
 function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -49,17 +35,26 @@ function escapeHtml(str = "") {
     .replaceAll("'", "&#039;");
 }
 
+// --- append message with time ---
+function appendMessage(sender, content, createdAt) {
+  const p = document.createElement("p");
+  const date = createdAt ? new Date(createdAt) : new Date();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+  chatWindow.appendChild(p);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
 // --- Token & Socket ---
 let token = localStorage.getItem("token") || null;
 let socket = null;
 let socketConnected = false;
 
-// --- Socket.IO Verbindung (optional: verbinden sofort, Server broadcastet newMessage) ---
+// Ensure socket connected (no auth on socket handshake required for this setup)
 function ensureSocketConnected() {
   if (socketConnected) return;
-
-  // socket.io client must be loaded on the page via <script src="/socket.io/socket.io.js"></script>
-  socket = io(); // no auth sent here (server currently broadcasts without socket-auth)
+  socket = io(); // make sure <script src="/socket.io/socket.io.js"></script> is in index.html
   socket.on("connect", () => {
     socketConnected = true;
     console.log("Socket connected:", socket.id);
@@ -67,46 +62,27 @@ function ensureSocketConnected() {
   socket.on("connect_error", (err) => {
     console.warn("Socket connect error:", err && err.message ? err.message : err);
   });
-
   socket.on("newMessage", (msg) => {
-    // msg expected { sender, content, createdAt }
+    // msg expected to be saved object { sender, content, createdAt }
     appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt);
   });
-
   socket.on("disconnect", () => {
     socketConnected = false;
-    console.log("Socket disconnected");
   });
 }
-
-// Verbindet Socket ohne Token (sicher, denn server broadcastet)
-// Falls dein Server verlangt, Token beim Socket-Handshake, diese Zeile anpassen.
 ensureSocketConnected();
 
-// --- Nachrichten laden (via REST, benötigt Token if backend protected) ---
+// --- load messages (public) ---
 async function loadMessages() {
   try {
-    const headers = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-
-    const res = await fetch("/api/messages", { headers });
+    const res = await fetch("/api/messages");
     if (!res.ok) {
-      // wenn 401/403 -> nicht eingeloggt; zeige Hinweistexte
-      if (res.status === 401 || res.status === 403) {
-        showInfo("Bitte einloggen, um den Chatverlauf zu sehen.");
-        setSendEnabled(false);
-        return;
-      }
-      throw new Error(`HTTP ${res.status}`);
+      showInfo("Verlauf kann nicht geladen werden.");
+      return;
     }
-
     const messages = await res.json();
     chatWindow.innerHTML = "";
-    // messages coming newest-first (server sorts by createdAt -1)
-    // wir möchten älteste zuerst anzeigen -> reverse()
     messages.reverse().forEach(m => appendMessage(m.sender, m.content, m.createdAt));
-
-    // Falls eingeloggt, enable send
     if (token) setSendEnabled(true);
     else setSendEnabled(false);
   } catch (err) {
@@ -114,13 +90,9 @@ async function loadMessages() {
     showInfo("Fehler beim Laden der Nachrichten.");
   }
 }
+loadMessages(); // load on page open
 
-// Wenn bereits eingeloggt beim Laden der Seite -> lade Nachrichten
-if (token) {
-  loadMessages();
-}
-
-// --- Modal öffnen/schließen ---
+// --- Modal open/close ---
 loginBtnHeader.onclick = () => modal.style.display = "block";
 closeModal.onclick = () => modal.style.display = "none";
 window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
@@ -137,28 +109,24 @@ loginSubmit.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
     });
-
     const data = await res.json();
     if (!res.ok) {
       alert(data.error || "Login fehlgeschlagen");
       return;
     }
-
     token = data.token;
     localStorage.setItem("token", token);
     modal.style.display = "none";
     setSendEnabled(true);
-    await loadMessages(); // lädt Verlauf und stellt sicher, dass Authorization header funktioniert
-
-    // socket existiert bereits; falls dein server braucht, dass client beim socket auth token mitschickt,
-    // müsste man socket.disconnect(); socket = io({ auth: { token } }); ... das ist nur nötig, wenn server socket-auth verlangt.
+    await loadMessages(); // refresh history (optional)
+    // No need to re-create socket in current setup (server emits broadcasts to all sockets)
   } catch (err) {
     console.error("Login-Fehler:", err);
     alert("Login-Fehler");
   }
 });
 
-// --- Registrierung ---
+// --- Register ---
 registerSubmit.addEventListener("click", async () => {
   const username = document.getElementById("newUser").value.trim();
   const password = document.getElementById("newPass").value.trim();
@@ -171,13 +139,11 @@ registerSubmit.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password, email })
     });
-
     const data = await res.json();
     if (!res.ok) {
       alert(data.error || "Registrierung fehlgeschlagen");
       return;
     }
-
     alert("Registrierung erfolgreich — bitte einloggen.");
   } catch (err) {
     console.error("Registrieren-Fehler:", err);
@@ -185,7 +151,7 @@ registerSubmit.addEventListener("click", async () => {
   }
 });
 
-// --- Nachricht senden (via REST POST). Server speichert, trimmt und broadcastet newMessage -->
+// --- send message (POST) ---
 async function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
@@ -207,18 +173,15 @@ async function sendMessage() {
       return alert(data.error || "Fehler beim Senden");
     }
 
-    // Server speichert und broadcastet -> wir müssen NICHT selbst per socket.emit senden
+    // Server saves and broadcasts -> do not append locally (broadcast will deliver)
     messageInput.value = "";
-    // (Option) optional: direkt die Antwort anzeigen, aber Broadcast vom Server wird das übernehmen
-    // const saved = await res.json();
-    // appendMessage(saved.sender, saved.content, saved.createdAt);
   } catch (err) {
     console.error("Fehler beim Senden:", err);
     alert("Fehler beim Senden");
   }
 }
 
-// --- Button & Enter ---
+// --- UI bindings ---
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
