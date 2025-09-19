@@ -188,7 +188,20 @@ io.on("connection", (socket) => {
       } else {
         socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
       }
-      return; // do not treat as normal chat message (not visible to others)
+      return; 
+      // do not treat as normal chat message (not visible to others)
+            // --- Clear Server (alle Nachrichten) nur für Admins, ohne Passwort ---
+        const clearMatch = trimmed.match(/^\/clear$/i);
+        if (clearMatch) {
+          if (role !== "admin") {
+            socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+            return;
+          }
+          await Message.deleteMany({});
+          io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
+          io.emit("forceReload");
+          return;
+        }
     }
 
     // --- Other admin-only commands (example): /deleteAllUsers <pwd>
@@ -223,18 +236,6 @@ io.on("connection", (socket) => {
           } else {
             socket.emit("systemMessage", { text: "Falsches Admin-Lösch-Passwort.", type: "error" });
           }
-          return;
-        }
-        // --- Clear Server (alle Nachrichten) nur für Admins, ohne Passwort ---
-        const clearMatch = trimmed.match(/^\/clear$/i);
-        if (clearMatch) {
-          if (role !== "admin") {
-            socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-            return;
-          }
-          await Message.deleteMany({});
-          io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
-          io.emit("forceReload");
           return;
         }
         // --- Reset Server (alle User + Messages) ---
@@ -344,5 +345,6 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
+
 
 
