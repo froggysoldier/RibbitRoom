@@ -29,7 +29,7 @@ function showInfo(text) {
   p.classList.add("info");
   p.textContent = text;
   chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 3500);
+  setTimeout(() => p.remove(), 4000);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -38,7 +38,7 @@ function showError(text) {
   p.classList.add("error");
   p.textContent = text;
   chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 3000);
+  setTimeout(() => p.remove(), 5000);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -47,13 +47,15 @@ function setSendEnabled(enabled) {
   messageInput.disabled = !enabled;
 }
 
-// --- appendMessage (mit senderRole Support) ---
+// --- appendMessage (with type and senderRole support) ---
 function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
   const p = document.createElement("p");
   p.classList.add("message");
-  if (self) p.classList.add("self");
+
   if (type === "system") p.classList.add("system");
-  if (senderRole === "admin") p.classList.add("admin-msg");
+  if (senderRole === "admin") p.classList.add("admin-msg"); // admin immer zuerst
+  if (self) p.classList.add("self"); // self zuletzt
+
   if (id) p.dataset.id = id.toString();
 
   const date = createdAt ? new Date(createdAt) : new Date();
@@ -62,7 +64,7 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
 
   p.innerHTML = `
   <div class="msg-header">
-    <strong class="${senderRole === 'admin' ? 'admin-name' : ''}">${escapeHtml(sender)}</strong>
+    <strong>${escapeHtml(sender)}</strong>
     <span class="time">[${hours}:${minutes}]</span>
   </div>
   <div class="msg-content">${formatMessage(content)}</div>
@@ -73,13 +75,13 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// --- renderActiveUsers ---
+// --- renderActiveUsers (receives array of {username, role}) ---
 function renderActiveUsers(users) {
   usersListEl.innerHTML = "";
   users.forEach((u) => {
     const li = document.createElement("li");
     li.textContent = u.username;
-    if (u.role === "admin") li.classList.add("admin-user");
+    if (u.role === "admin") li.classList.add("admin-user"); // red styling
     usersListEl.appendChild(li);
   });
 }
@@ -90,34 +92,37 @@ let socket = null;
 let socketConnected = false;
 let filterActive = false;
 let username = localStorage.getItem("username") || null;
-let myRole = "user";
+let myRole = "user"; // updated on identify or role change
 
 // --- Spam-Schutz ---
-const lastMessageTime = new Map();
-const MIN_MSG_INTERVAL = 1000;
+const lastMessageTime = new Map(); // username -> timestamp
+const MIN_MSG_INTERVAL = 1000; // 1 Sekunde
 
-// --- userRoles Map für alte Nachrichten ---
+// --- userRoles Map (für alte Nachrichten und reload) ---
 const userRoles = new Map();
 
-// --- update login button ---
+// --- update login button text ---
 function refreshLoginButton() {
   if (token && username) loginBtnHeader.textContent = "Abmelden";
   else loginBtnHeader.textContent = "Login / Registrieren";
 }
 refreshLoginButton();
 
-// --- init Socket ---
+// --- init socket & attach listeners ---
 function initSocket() {
   if (socket && socket.connected) return;
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
+    console.log("[SOCKET] connected", socket.id);
     socketConnected = true;
     if (token) socket.emit("identify", { token });
     setSendEnabled(!!token);
   });
 
-  socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
+  socket.on("connect_error", (err) => {
+    console.warn("[SOCKET] connect_error", err?.message || err);
+  });
 
   socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === username;
@@ -144,20 +149,28 @@ function initSocket() {
     refreshLoginButton();
   });
 
-  socket.on("activeUsers", (users) => renderActiveUsers(Array.isArray(users) ? users : []));
+  socket.on("activeUsers", (users) => {
+    renderActiveUsers(Array.isArray(users) ? users : []);
+  });
 
-  socket.on("deletedMessages", (ids) => ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
+  socket.on("deletedMessages", (ids) => {
+    ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
+  });
 
-  socket.on("forceReload", () => window.location.reload());
+  socket.on("forceReload", () => {
+    window.location.reload();
+  });
 
   socket.on("disconnect", () => {
+    console.log("[SOCKET] disconnected");
     socketConnected = false;
     setSendEnabled(false);
   });
 }
+
 initSocket();
 
-// --- load messages via REST ---
+// --- load messages via REST (history) ---
 async function loadMessages() {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -168,7 +181,7 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach((m) => {
       const isSelf = m.sender === username;
-      const senderRole = userRoles.get(m.sender) || m.senderRole || "user";
+      const senderRole = m.senderRole || userRoles.get(m.sender) || "user";
       if (m.sender && m.senderRole) userRoles.set(m.sender, m.senderRole);
       appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", senderRole);
     });
@@ -179,20 +192,26 @@ async function loadMessages() {
 }
 loadMessages();
 
-// --- Login/Register/Logout ---
+// --- Login/Register/Logout UI ---
 loginBtnHeader.onclick = () => {
   if (token) {
+    // logout
     token = null;
     username = null;
     myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
-    if (socket) { try { socket.auth = {}; socket.disconnect(); } catch {} socket = null; }
+    if (socket) {
+      try { socket.auth = {}; socket.disconnect(); } catch {}
+      socket = null;
+    }
     renderActiveUsers([]);
     refreshLoginButton();
     showInfo("Abgemeldet");
-    window.location.reload();
-  } else modal.style.display = "block";
+    window.location.reload(); // reload on logout
+  } else {
+    modal.style.display = "block";
+  }
 };
 
 closeModal.onclick = () => (modal.style.display = "none");
@@ -202,6 +221,7 @@ loginSubmit.addEventListener("click", async () => {
   const u = document.getElementById("username").value.trim();
   const p = document.getElementById("password").value.trim();
   if (!u || !p) return showError("Bitte Benutzername und Passwort eingeben.");
+
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -232,6 +252,7 @@ registerSubmit.addEventListener("click", async () => {
   const newP = document.getElementById("newPass").value.trim();
   const email = document.getElementById("email").value.trim();
   const adminPassField = document.getElementById("adminPass") ? document.getElementById("adminPass").value.trim() : null;
+
   if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.");
   try {
     const body = { username: newU, password: newP, email };
@@ -253,7 +274,9 @@ registerSubmit.addEventListener("click", async () => {
       if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
       else initSocket();
       await loadMessages();
-    } else showInfo("Registrierung erfolgreich — bitte einloggen.");
+    } else {
+      showInfo("Registrierung erfolgreich — bitte einloggen.");
+    }
     modal.style.display = "none";
     refreshLoginButton();
   } catch (err) {
@@ -262,15 +285,20 @@ registerSubmit.addEventListener("click", async () => {
   }
 });
 
-// --- send message ---
+// --- send message via socket ---
 function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
   if (!socket || !socket.connected) return showError("Nicht verbunden");
+
   const now = Date.now();
   const lastTime = lastMessageTime.get(username) || 0;
-  if (now - lastTime < MIN_MSG_INTERVAL) { showError("Langsamer! Bitte nicht spammen."); return; }
+  if (now - lastTime < MIN_MSG_INTERVAL) {
+    showError("Langsamer! Bitte nicht spammen.");
+    return;
+  }
   lastMessageTime.set(username, now);
+
   socket.emit("chatMessage", content);
   messageInput.value = "";
   sendBtn.disabled = true;
@@ -278,7 +306,9 @@ function sendMessage() {
 }
 
 // --- input handling ---
-messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+messageInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
 messageInput.addEventListener("input", () => { sendBtn.disabled = !messageInput.value.trim(); });
 sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
 
