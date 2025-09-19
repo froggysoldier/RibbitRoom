@@ -73,13 +73,13 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// --- renderActiveUsers (receives array of {username, role}) ---
+// --- renderActiveUsers ---
 function renderActiveUsers(users) {
   usersListEl.innerHTML = "";
   users.forEach((u) => {
     const li = document.createElement("li");
     li.textContent = u.username;
-    if (u.role === "admin") li.classList.add("admin-user"); // red styling
+    if (u.role === "admin") li.classList.add("admin-user");
     usersListEl.appendChild(li);
   });
 }
@@ -90,30 +90,26 @@ let socket = null;
 let socketConnected = false;
 let filterActive = false;
 let username = localStorage.getItem("username") || null;
-let myRole = "user"; // updated on identify or role change
+let myRole = "user";
 
-// --- update login button text ---
 function refreshLoginButton() {
   if (token && username) loginBtnHeader.textContent = "Abmelden";
   else loginBtnHeader.textContent = "Login / Registrieren";
 }
 refreshLoginButton();
 
-// --- init socket & attach listeners ---
+// --- init socket & listeners ---
 function initSocket() {
   if (socket && socket.connected) return;
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
-    console.log("[SOCKET] connected", socket.id);
     socketConnected = true;
     if (token) socket.emit("identify", { token });
     setSendEnabled(!!token);
   });
 
-  socket.on("connect_error", (err) => {
-    console.warn("[SOCKET] connect_error", err?.message || err);
-  });
+  socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
   socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === username;
@@ -138,22 +134,24 @@ function initSocket() {
     refreshLoginButton();
   });
 
-  socket.on("activeUsers", (users) => {
-    renderActiveUsers(Array.isArray(users) ? users : []);
-  });
+  socket.on("activeUsers", (users) => renderActiveUsers(Array.isArray(users) ? users : []));
 
   socket.on("deletedMessages", (ids) => {
     ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- force page reload (server clear/reset) ---
-  socket.on("forceReload", () => {
-    console.log("Server hat Reload ausgelöst, Seite wird neu geladen...");
-    window.location.reload();
+  socket.on("forceReload", () => window.location.reload());
+
+  // --- NEU: Neues Token speichern ---
+  socket.on("newToken", (data) => {
+    if (data?.token) {
+      token = data.token;
+      localStorage.setItem("token", token);
+      console.log("[INFO] Neues Admin-Token gespeichert");
+    }
   });
 
   socket.on("disconnect", () => {
-    console.log("[SOCKET] disconnected");
     socketConnected = false;
     setSendEnabled(false);
   });
@@ -161,7 +159,7 @@ function initSocket() {
 
 initSocket();
 
-// --- load messages via REST (history) ---
+// --- load messages via REST ---
 async function loadMessages() {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -175,16 +173,13 @@ async function loadMessages() {
       appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", m.senderRole || "user");
     });
     setSendEnabled(!!token);
-  } catch (err) {
-    console.error(err);
-  }
+  } catch (err) { console.error(err); }
 }
 loadMessages();
 
-// --- Login/Register/Logout UI ---
+// --- Login/Register/Logout ---
 loginBtnHeader.onclick = () => {
   if (token) {
-    // logout
     token = null;
     username = null;
     myRole = "user";
@@ -199,12 +194,8 @@ loginBtnHeader.onclick = () => {
     renderActiveUsers([]);
     refreshLoginButton();
     showInfo("Abgemeldet");
-
-    // reload page nach logout
     window.location.reload();
-  } else {
-    modal.style.display = "block";
-  }
+  } else modal.style.display = "block";
 };
 
 closeModal.onclick = () => (modal.style.display = "none");
@@ -234,10 +225,7 @@ loginSubmit.addEventListener("click", async () => {
     if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
     else initSocket();
     await loadMessages();
-  } catch (err) {
-    console.error(err);
-    showError("Login-Fehler");
-  }
+  } catch { showError("Login-Fehler"); }
 });
 
 registerSubmit.addEventListener("click", async () => {
@@ -267,18 +255,13 @@ registerSubmit.addEventListener("click", async () => {
       if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
       else initSocket();
       await loadMessages();
-    } else {
-      showInfo("Registrierung erfolgreich — bitte einloggen.");
-    }
+    } else showInfo("Registrierung erfolgreich — bitte einloggen.");
     modal.style.display = "none";
     refreshLoginButton();
-  } catch (err) {
-    console.error(err);
-    showError("Registrieren-Fehler");
-  }
+  } catch { showError("Registrieren-Fehler"); }
 });
 
-// --- send message via socket ---
+// --- send message ---
 function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
@@ -290,7 +273,6 @@ function sendMessage() {
   setTimeout(() => messageInput.focus(), 50);
 }
 
-// --- input handling ---
 messageInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -300,7 +282,6 @@ messageInput.addEventListener("keydown", (e) => {
 messageInput.addEventListener("input", () => { sendBtn.disabled = !messageInput.value.trim(); });
 sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
 
-// --- filter toggle ---
 filterBtn.addEventListener("change", () => {
   if (!socket || !socket.connected) return;
   filterActive = filterBtn.checked;
