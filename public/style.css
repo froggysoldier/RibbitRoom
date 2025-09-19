@@ -55,11 +55,11 @@ main {
 
 /* ====== Sidebar (User List) ====== */
 #userList {
-  width: 220px;
+  flex: 0 0 220px;   /* fix auf 220px, schrumpft nicht mehr */
   background: #1e1e1e;
   border-radius: 12px;
   padding: 15px;
-  height: 500px;
+  height: 600px;     /* gleich hoch wie Chat */
   overflow-y: auto;
   box-shadow: 0 4px 10px rgba(0,0,0,0.6);
 }
@@ -96,10 +96,10 @@ main {
 
 /* ====== Chat Area ====== */
 #chatArea {
-  flex: 1;
+  flex: 1;              /* nimmt restlichen Platz */
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Abstand zwischen Chatfenster und Input */
+  gap: 15px;
 }
 
 /* Chatfenster */
@@ -183,26 +183,23 @@ main {
 }
 
 /* ====== Nachrichten ====== */
+/* Nachrichten-Bubbles */
 .message {
-  background: #2a2a2a;
-  margin: 4px 0;
-  padding: 8px 12px;
-  border-radius: 8px;
-  display: inline-block;
-  max-width: 80%;
+  max-width: 60%;       /* kleiner, wirkt besser */
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
+  background: #2a2a2a;
+  padding: 10px 14px;
+  margin: 6px 0;
+  border-radius: 8px;
   box-shadow: 0 3px 8px rgba(0,0,0,0.5);
-  color: #e0e0e0;
-  font-size: 16px;
-  line-height: 1.5;
-  
-  /* Animation Start */
-  opacity: 0;
-  transform: translateY(20px);
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  font-size: 15px;
+  line-height: 1.4;
+  display: inline-block;
 }
+  /* Animation Start */
+
 
 .message.show {
   opacity: 1;
