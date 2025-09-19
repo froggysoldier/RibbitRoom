@@ -20,6 +20,11 @@ function escapeHtml(str = "") {
     .replaceAll("'", "&#039;");
 }
 
+function formatMessage(content = "") {
+  // HTML escapen und Zeilenumbrüche sichtbar machen
+  return escapeHtml(content).replace(/\n/g, "<br>");
+}
+
 function showInfo(text) {
   chatWindow.innerHTML = `<p class="info">${escapeHtml(text)}</p>`;
 }
@@ -40,7 +45,7 @@ function appendMessage(sender, content, createdAt, id, self=false) {
   const hours = date.getHours().toString().padStart(2,"0");
   const minutes = date.getMinutes().toString().padStart(2,"0");
 
-  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${formatMessage(content)}`;
 
   chatWindow.appendChild(p);
 
@@ -201,7 +206,14 @@ async function sendMessage() {
   }
 }
 
-messageInput.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); sendMessage(); }});
+// --- Eingabe-Steuerung ---
+// Enter = senden, Shift+Enter = Zeilenumbruch
+messageInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
 
 // --- Filter Button ---
 filterBtn.addEventListener("click", () => {
