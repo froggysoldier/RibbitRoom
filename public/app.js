@@ -116,24 +116,20 @@ function initSocket() {
   });
 
   socket.on("newMessage", (msg) => {
-    // msg may include senderRole, type
     const isSelf = msg.sender === username;
     appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
   });
 
   socket.on("systemMessage", (data) => {
-    // system messages can be objects {text,type}
     if (typeof data === "string") appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
     else appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
   });
 
   socket.on("adminNotice", (data) => {
-    // only admins should receive adminNotice; show it as system message
     appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
   socket.on("identified", (data) => {
-    // data: { username, filterActive, role }
     if (data.username) username = data.username;
     myRole = data.role || myRole;
     filterActive = data.filterActive || false;
@@ -148,6 +144,12 @@ function initSocket() {
 
   socket.on("deletedMessages", (ids) => {
     ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
+  });
+
+  // --- force page reload (server clear/reset) ---
+  socket.on("forceReload", () => {
+    console.log("Server hat Reload ausgelöst, Seite wird neu geladen...");
+    window.location.reload();
   });
 
   socket.on("disconnect", () => {
@@ -170,7 +172,6 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach((m) => {
       const isSelf = m.sender === username;
-      // messages from REST currently have senderRole=user; future DB could store role
       appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", m.senderRole || "user");
     });
     setSendEnabled(!!token);
@@ -189,13 +190,18 @@ loginBtnHeader.onclick = () => {
     myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+
     if (socket) {
       try { socket.auth = {}; socket.disconnect(); } catch {}
       socket = null;
     }
+
     renderActiveUsers([]);
     refreshLoginButton();
     showInfo("Abgemeldet");
+
+    // reload page nach logout
+    window.location.reload();
   } else {
     modal.style.display = "block";
   }
@@ -225,7 +231,6 @@ loginSubmit.addEventListener("click", async () => {
     modal.style.display = "none";
     showInfo(`Eingeloggt als ${username}`);
     refreshLoginButton();
-    // reconnect socket with token
     if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
     else initSocket();
     await loadMessages();
@@ -239,7 +244,6 @@ registerSubmit.addEventListener("click", async () => {
   const newU = document.getElementById("newUser").value.trim();
   const newP = document.getElementById("newPass").value.trim();
   const email = document.getElementById("email").value.trim();
-  // optional adminPass field? (if you allow admin during register)
   const adminPassField = document.getElementById("adminPass") ? document.getElementById("adminPass").value.trim() : null;
 
   if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.");
@@ -253,7 +257,6 @@ registerSubmit.addEventListener("click", async () => {
     });
     const data = await res.json();
     if (!res.ok) return showError(data.error || "Registrierung fehlgeschlagen");
-    // server returns token on register (as we changed earlier)
     if (data.token) {
       token = data.token;
       username = newU;
@@ -275,7 +278,7 @@ registerSubmit.addEventListener("click", async () => {
   }
 });
 
-// --- send message via socket (Variante A) ---
+// --- send message via socket ---
 function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
