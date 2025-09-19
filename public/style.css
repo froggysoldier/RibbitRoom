@@ -115,10 +115,16 @@ main {
   gap: 8px;
 }
 
-/* Admin-Namen rot */
-#userList li.admin {
-  color: #ff4c4c;
-  font-weight: 600;
+/* Admin-Namen in Userliste */
+.admin-user {
+  color: red;
+  font-weight: bold;
+}
+
+/* Admin-Nachrichten im Chat */
+.admin-msg {
+  color: red;
+  font-weight: bold;
 }
 
 #userList li:hover {
