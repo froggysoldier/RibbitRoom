@@ -99,29 +99,30 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* mehr Abstand zwischen Chatfenster und Input */
+  gap: 15px; /* Abstand zwischen Chatfenster und Input */
 }
 
 /* Chatfenster */
 #chatWindow {
- #chatWindow {
   display: flex;
   flex-direction: column;
-  gap: 10px;                  /* Abstand zwischen Nachrichten */
+  gap: 10px;                  
   background: #1e1e1e;
   border-radius: 12px;
   padding: 20px;
   height: 600px;
-  width: 100%;                /* passt sich dem Container an */
-  max-width: 100%;            /* niemals breiter als sein Container */
-  overflow-y: auto;           /* vertikal scrollen */
-  overflow-x: hidden;         /* horizontales Scrollen verhindern */
+  width: 100%;                
+  max-width: 100%;            
+  overflow-y: auto;           
+  overflow-x: hidden;         
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   font-size: 16px;
   line-height: 1.6;
   color: #e0e0e0;
-  box-sizing: border-box;     /* Padding wird mit eingerechnet */
+  box-sizing: border-box;     
 }
+
+/* ====== Filter Toggle ====== */
 #filterContainer {
   margin-top: 10px;
   display: flex;
@@ -174,50 +175,53 @@ main {
   transform: translateX(26px);
 }
 
-/* Optional Label */
+/* Label */
 .filterLabel {
   font-size: 14px;
   color: #e0e0e0;
   user-select: none;
 }
 
-/* ====== Nachrichten mit Slide-In ====== */
+/* ====== Nachrichten ====== */
 .message {
   background: #2a2a2a;
   margin: 4px 0;
   padding: 8px 12px;
   border-radius: 8px;
   display: inline-block;
-  max-width: 80%;                /* Nachricht nimmt max. 80% der Breite */
+  max-width: 80%;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  white-space: pre-wrap;          /* Zeilenumbrüche bleiben erhalten */
+  white-space: pre-wrap;
   box-shadow: 0 3px 8px rgba(0,0,0,0.5);
   color: #e0e0e0;
   font-size: 16px;
   line-height: 1.5;
   
-/* Animation starten */
-   opacity: 0;
-  transform: translateY(20px);    /* statt X → von unten rein */
+  /* Animation Start */
+  opacity: 0;
+  transform: translateY(20px);
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
+
 .message.show {
   opacity: 1;
-  transform: translateX(0);
+  transform: translateY(0);
 }
+
 .message.self {
   background: linear-gradient(135deg, #4CAF50, #00C9A7);
   color: #121212;
-  margin-left: auto;              /* rechtsbündig */
+  margin-left: auto;              
 }
 
 .message:not(.self) {
-  margin-right: auto;             /* linksbündig */
+  margin-right: auto;             
 }
+
 .message:hover {
   box-shadow: 0 5px 14px rgba(0,0,0,0.6);
-  transform: translateX(2px);
+  transform: scale(1.02);
   transition: all 0.2s ease;
 }
 
@@ -237,7 +241,7 @@ main {
   background: #121212;
   color: #e0e0e0;
   font-family: 'Poppins', sans-serif;
-  font-size: 16px; /* größere Schrift */
+  font-size: 16px;
   transition: border 0.2s, box-shadow 0.2s;
 }
 
