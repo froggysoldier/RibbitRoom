@@ -153,15 +153,16 @@ socket.on("forceReload", (resetAll = true) => {
     renderActiveUsers([]);
     chatWindow.innerHTML = "";
     showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000); // 2000ms = 2 Sekunden
 
   } else {
     // nur Nachrichten gelöscht, Nutzer bleiben eingeloggt
     chatWindow.innerHTML = "";
-    showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
+    window.location.reload();
   }
-  setTimeout(() => {
-      window.location.reload();
-    }, 200); // 2000ms = 2 Sekunden
+
 });
 
   // --- NEU: Neues Token speichern ---
