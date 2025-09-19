@@ -1,4 +1,3 @@
-// server.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -140,7 +139,12 @@ io.on("connection", async (socket) => {
           await dbUser.save();
         }
         userRoles.set(username, "admin");
+
+        // Neues JWT ausstellen
+        const newToken = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
         socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
+        socket.emit("newToken", { token: newToken }); // Client speichert Token
+
         broadcastActiveUsers();
         emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
       } else {
