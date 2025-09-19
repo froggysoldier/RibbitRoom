@@ -159,7 +159,7 @@ socket.on("forceReload", (resetAll = true) => {
     chatWindow.innerHTML = "";
      setTimeout(() => {
       window.location.reload();
-    }, 2000); // 2000ms = 2 Sekunden
+    }, 200); // 2000ms = 2 Sekunden
     showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
   }
 });
