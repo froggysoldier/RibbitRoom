@@ -92,6 +92,10 @@ let filterActive = false;
 let username = localStorage.getItem("username") || null;
 let myRole = "user"; // updated on identify or role change
 
+// --- Spam-Schutz ---
+const lastMessageTime = new Map(); // username -> timestamp
+const MIN_MSG_INTERVAL = 1000; // 1 Sekunde
+
 // --- update login button text ---
 function refreshLoginButton() {
   if (token && username) loginBtnHeader.textContent = "Abmelden";
@@ -126,7 +130,7 @@ function initSocket() {
   });
 
   socket.on("adminNotice", (data) => {
-    appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
+    appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system", "admin");
   });
 
   socket.on("identified", (data) => {
@@ -146,9 +150,7 @@ function initSocket() {
     ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- force page reload (server clear/reset) ---
   socket.on("forceReload", () => {
-    console.log("Server hat Reload ausgelöst, Seite wird neu geladen...");
     window.location.reload();
   });
 
@@ -190,18 +192,14 @@ loginBtnHeader.onclick = () => {
     myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
-
     if (socket) {
       try { socket.auth = {}; socket.disconnect(); } catch {}
       socket = null;
     }
-
     renderActiveUsers([]);
     refreshLoginButton();
     showInfo("Abgemeldet");
-
-    // reload page nach logout
-    window.location.reload();
+    window.location.reload(); // reload on logout
   } else {
     modal.style.display = "block";
   }
@@ -284,6 +282,14 @@ function sendMessage() {
   if (!content) return;
   if (!socket || !socket.connected) return showError("Nicht verbunden");
 
+  const now = Date.now();
+  const lastTime = lastMessageTime.get(username) || 0;
+  if (now - lastTime < MIN_MSG_INTERVAL) {
+    showError("Langsamer! Bitte nicht spammen.");
+    return;
+  }
+  lastMessageTime.set(username, now);
+
   socket.emit("chatMessage", content);
   messageInput.value = "";
   sendBtn.disabled = true;
@@ -292,10 +298,7 @@ function sendMessage() {
 
 // --- input handling ---
 messageInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
 messageInput.addEventListener("input", () => { sendBtn.disabled = !messageInput.value.trim(); });
 sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
