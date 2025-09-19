@@ -139,31 +139,31 @@ function initSocket() {
     ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- force page reload mit Logout aller Nutzer ---
-  socket.on("forceReload", () => {
+// --- force page reload ---
+socket.on("forceReload", (resetAll = true) => {
+  if (resetAll) {
     console.log("Server hat einen Reset ausgelöst, alle Nutzer werden abgemeldet...");
 
-    // Token & Username löschen
     token = null;
     username = null;
     myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
 
-    // Socket trennen
-    if (socket) {
-      try { socket.auth = {}; socket.disconnect(); } catch {}
-      socket = null;
-    }
+    if (socket) { try { socket.auth = {}; socket.disconnect(); } catch {} socket = null; }
 
-    // UI zurücksetzen
     renderActiveUsers([]);
     chatWindow.innerHTML = "";
     showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
 
-    // Seite reloaden nach kurzer Verzögerung
-    setTimeout(() => window.location.reload(), 2000);
-  });
+  } else {
+    console.log("Alle Nachrichten gelöscht, Nutzer bleiben eingeloggt.");
+    chatWindow.innerHTML = ""; // nur Chat leeren
+    showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
+  }
+
+  setTimeout(() => window.scrollTo(0, chatWindow.scrollHeight), 200); // optional scrollen
+});
 
   // --- NEU: Neues Token speichern ---
   socket.on("newToken", (data) => {
