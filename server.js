@@ -121,100 +121,97 @@ io.on("connection", async (socket) => {
   });
 
   socket.on("chatMessage", async (content) => {
-  if (!username) return;
-  const dbUser = await User.findOne({ username });
-  let role = dbUser?.role || userRoles.get(username) || "user";
-  userRoles.set(username, role);
+    if (!username) return;
+    const dbUser = await User.findOne({ username });
+    let role = dbUser?.role || userRoles.get(username) || "user";
+    userRoles.set(username, role);
 
-  let finalContent = content.trim();
+    let finalContent = content.trim();
 
-  // --- /admin [passwort] ---
-  const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
-  if (adminMatch) {
-    const provided = (adminMatch[1] || "").trim();
-    if (provided && provided === ADMIN_PASS) {
-      if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
-      role = "admin";
-      userRoles.set(username, role);
+    // --- /admin [passwort] ---
+    const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
+    if (adminMatch) {
+      const provided = (adminMatch[1] || "").trim();
+      if (provided && provided === ADMIN_PASS) {
+        if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
+        role = "admin";
+        userRoles.set(username, role);
 
-      const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
-      socket.emit("newToken", { token: newToken });
+        const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
+        socket.emit("newToken", { token: newToken });
 
-      socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
-      broadcastActiveUsers();
-      emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
-    } else socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-    return;
-  }
-
-  // --- /clear ---
-  if (finalContent === "/clear") {
-    if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-    await Message.deleteMany({});
-    io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
-    io.emit("forceReload");
-    return;
-  }
-
-  // --- /deleteAllUsers [passwort] ---
-  if (finalContent.startsWith("/deleteAllUsers")) {
-    if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-    const provided = finalContent.split(" ")[1]?.trim();
-    if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-
-    await User.deleteMany({ role: "user" });
-    for (const uname of userRoles.keys()) {
-      const dbu = await User.findOne({ username: uname });
-      if (dbu) userRoles.set(uname, dbu.role);
-      else userRoles.delete(uname);
+        socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
+        broadcastActiveUsers();
+        emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
+      } else socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+      return;
     }
-    broadcastActiveUsers();
-    socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
-    emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
-    return;
-  }
 
-  // --- /reset [passwort] --- NEW
-  if (finalContent.startsWith("/reset")) {
-    if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-    const provided = finalContent.split(" ")[1]?.trim();
-    if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+    // --- /clear ---
+    if (finalContent === "/clear") {
+      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
 
-    // Alle User und Admins löschen
-    await User.deleteMany({});
-    userRoles.clear();
-    activeUsers.clear();
-    userFilters.clear();
+      await Message.deleteMany({});
+      io.emit("deletedMessages", []); // Clients löschen alle Messages
+      io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
 
-    // Alle Nachrichten löschen
-    await Message.deleteMany({});
+      return;
+    }
 
-    // Force reload aller Clients
-    io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
-    io.emit("forceReload");
+    // --- /deleteAllUsers [passwort] ---
+    if (finalContent.startsWith("/deleteAllUsers")) {
+      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+      const provided = finalContent.split(" ")[1]?.trim();
+      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
 
-    return;
-  }
+      await User.deleteMany({ role: "user" });
+      for (const uname of userRoles.keys()) {
+        const dbu = await User.findOne({ username: uname });
+        if (dbu) userRoles.set(uname, dbu.role);
+        else userRoles.delete(uname);
+      }
+      broadcastActiveUsers();
+      socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
+      emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+      return;
+    }
 
-  // --- normale Nachricht ---
-  if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
-  if (userFilters.get(username)) finalContent = filterMessage(finalContent);
+    // --- /reset [passwort] ---
+    if (finalContent.startsWith("/reset")) {
+      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+      const provided = finalContent.split(" ")[1]?.trim();
+      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
 
-  const msg = new Message({ sender: username, content: finalContent, senderRole: role });
-  await msg.save();
-  const deletedIds = await trimOldMessages(100);
-  if (deletedIds.length) io.emit("deletedMessages", deletedIds);
+      await User.deleteMany({});
+      userRoles.clear();
+      activeUsers.clear();
+      userFilters.clear();
+      await Message.deleteMany({});
 
-  io.emit("newMessage", {
-    _id: msg._id.toString(),
-    sender: msg.sender,
-    content: msg.content,
-    createdAt: msg.createdAt,
-    senderRole: role,
-    type: "user"
+      io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
+      io.emit("forceReload", true); // true signalisiert: Logout aller Nutzer
+
+      return;
+    }
+
+    // --- normale Nachricht ---
+    if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
+    if (userFilters.get(username)) finalContent = filterMessage(finalContent);
+
+    const msg = new Message({ sender: username, content: finalContent, senderRole: role });
+    await msg.save();
+    const deletedIds = await trimOldMessages(100);
+    if (deletedIds.length) io.emit("deletedMessages", deletedIds);
+
+    io.emit("newMessage", {
+      _id: msg._id.toString(),
+      sender: msg.sender,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      senderRole: role,
+      type: "user"
+    });
   });
-});
-
 
   socket.on("toggleFilter", (active) => {
     if (!username) return;
