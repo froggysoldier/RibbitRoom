@@ -1,7 +1,7 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require('path');
+const path = require("path");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
@@ -10,6 +10,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
 const Message = require("./models/Message");
+const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
@@ -32,7 +33,7 @@ const activeUsers = new Map();
 const userFilters = new Map(); // username -> filter aktiv?
 
 function broadcastActiveUsers() {
-  const users = Array.from(activeUsers.keys()).sort();
+  const users = Array.from(activeUsers.keys()).sort().map(username => ({ username }));
   io.emit("activeUsers", users);
 }
 
@@ -63,11 +64,10 @@ async function trimOldMessages(maxMessages = 100) {
   const count = await Message.countDocuments();
   if (count <= maxMessages) return [];
   const excess = count - maxMessages;
-  const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select('_id');
+  const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select("_id");
   const idsToDelete = oldest.map(d => d._id.toString());
   if (idsToDelete.length) {
-    const { deletedCount } = await Message.deleteMany({ _id: { $in: idsToDelete } });
-    console.log(`🗑️ ${deletedCount} alte Nachrichten gelöscht`);
+    await Message.deleteMany({ _id: { $in: idsToDelete } });
   }
   return idsToDelete;
 }
@@ -102,6 +102,11 @@ io.on("connection", (socket) => {
 
   socket.on("chatMessage", async (content) => {
     if (!username) return;
+
+    const maxLength = 200;
+    if (content.length > maxLength) {
+      content = content.slice(0, maxLength);
+    }
 
     let filteredContent = content;
     if (userFilters.get(username)) filteredContent = filterMessage(content);
@@ -148,6 +153,11 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     let content = req.body.content;
     const username = req.user.username;
 
+    const maxLength = 200;
+    if (content.length > maxLength) {
+      content = content.slice(0, maxLength);
+    }
+
     if (userFilters.get(username)) {
       content = filterMessage(content);
     }
@@ -158,7 +168,12 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     const deletedIds = await trimOldMessages(100);
     if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
-    const payload = { _id: msg._id.toString(), sender: msg.sender, content: msg.content, createdAt: msg.createdAt };
+    const payload = { 
+      _id: msg._id.toString(), 
+      sender: msg.sender, 
+      content: msg.content, 
+      createdAt: msg.createdAt
+    };
     io.emit("newMessage", payload);
 
     res.status(201).json(payload);
