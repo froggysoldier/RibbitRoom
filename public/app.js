@@ -138,12 +138,10 @@ function initSocket() {
   socket.on("deletedMessages", (ids) => {
     ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
-
-// --- force page reload ---
+//forceload
 socket.on("forceReload", (resetAll = true) => {
   if (resetAll) {
-    console.log("Server hat einen Reset ausgelöst, alle Nutzer werden abgemeldet...");
-
+    // komplettes Reset wie vorher
     token = null;
     username = null;
     myRole = "user";
@@ -157,12 +155,15 @@ socket.on("forceReload", (resetAll = true) => {
     showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
 
   } else {
-    console.log("Alle Nachrichten gelöscht, Nutzer bleiben eingeloggt.");
-    chatWindow.innerHTML = ""; // nur Chat leeren
+    // nur Nachrichten gelöscht, Nutzer bleiben eingeloggt
+    chatWindow.innerHTML = "";
     showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
   }
 
-  setTimeout(() => window.location.reload(), 1000);
+  setTimeout(() => {
+    if (socket) { try { socket.disconnect(); } catch {} }
+    window.location.href = window.location.href;
+  }, 500);
 });
 
   // --- NEU: Neues Token speichern ---
