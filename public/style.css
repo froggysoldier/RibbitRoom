@@ -154,11 +154,14 @@ main {
   color: #e0e0e0;
 }
 
+/* Admin-Nachrichten */
 .message.admin-msg {
+  background: #330000;
   color: red;
   font-weight: bold;
 }
 
+/* Systemnachrichten */
 .message.system {
   background: #888;
   color: #121212;
@@ -189,6 +192,7 @@ main {
   align-self: flex-end;
 }
 
+/* Slide-In Show */
 .message.show {
   opacity: 1;
   transform: translateX(0);
@@ -318,7 +322,7 @@ main {
   color: #ff4c4c;
 }
 
-/* ====== Slide Toggle für FroschFilter ====== */
+/* ====== Slide Toggle für Filter ====== */
 #filterContainer {
   display: flex;
   align-items: center;
