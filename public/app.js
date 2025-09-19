@@ -283,9 +283,13 @@ sendBtn.addEventListener("click", (e) => {
 });
 
 // --- Filter Button ---
+socket.on("identified", data => {
+  filterActive = data.filterActive || false;
+  filterBtn.checked = filterActive;
+});
+
 filterBtn.addEventListener("change", () => {
   if (!socketConnected) return;
   filterActive = filterBtn.checked;
-  console.log("[FILTER] Status geändert:", filterActive);
   socket.emit("toggleFilter", filterActive);
 });
