@@ -29,9 +29,9 @@ function showInfo(text) {
   p.classList.add("info");
   p.textContent = text;
   chatWindow.appendChild(p);
+
   setTimeout(() => p.remove(), 4000);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-  console.info("[UI] INFO:", text);
 }
 
 function showError(text) {
@@ -39,9 +39,9 @@ function showError(text) {
   p.classList.add("error");
   p.textContent = text;
   chatWindow.appendChild(p);
+
   setTimeout(() => p.remove(), 5000);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-  console.warn("[UI] ERROR:", text);
 }
 
 function setSendEnabled(enabled) {
@@ -66,7 +66,7 @@ function appendMessage(sender, content, createdAt, id, self = false) {
     <span class="time">[${hours}:${minutes}]</span>
   </div>
   <div class="msg-content">${formatMessage(content)}</div>
-  `;
+`;
 
   chatWindow.appendChild(p);
 
@@ -87,92 +87,67 @@ function renderActiveUsers(users) {
   });
 }
 
-// --- Token & Socket state ---
+// --- Token & Socket ---
 let token = localStorage.getItem("token") || null;
 let socket = null;
 let socketConnected = false;
 let filterActive = false;
 let username = localStorage.getItem("username") || null;
 
-// --- Update login button text depending on auth state ---
-function refreshLoginButton() {
-  if (token && username) {
-    loginBtnHeader.textContent = "Abmelden";
-  } else {
-    loginBtnHeader.textContent = "Login / Registrieren";
-  }
-}
-refreshLoginButton();
-
-// --- Socket init & Event-Listener (re-attach safe) ---
 function initSocket() {
-  // if socket exists and is connected, nothing to do
   if (socket && socket.connected) return;
-
-  // create socket (auth may be null)
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
-    console.log("[SOCKET] verbunden:", socket.id);
+    console.log("[SOCKET] Verbunden mit Server");
     socketConnected = true;
     if (token) socket.emit("identify", { token });
-    setSendEnabled(!!token);
   });
 
   socket.on("connect_error", (err) => {
-    console.warn("[SOCKET] connect_error:", err?.message || err);
+    console.warn("[SOCKET] Verbindungsfehler:", err?.message || err);
   });
 
   socket.on("newMessage", (msg) => {
-    console.log("[SOCKET] newMessage:", msg);
+    console.log("[SOCKET] Neue Nachricht:", msg);
     const isSelf = msg.sender === username;
-    appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf);
+    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf);
   });
 
   socket.on("deletedMessages", (ids) => {
-    console.log("[SOCKET] deletedMessages:", ids);
-    ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
+    console.log("[SOCKET] Nachrichten gelöscht:", ids);
+    ids.forEach((id) =>
+      chatWindow.querySelector(`[data-id="${id}"]`)?.remove()
+    );
   });
 
   socket.on("activeUsers", (users) => {
-    console.log("[SOCKET] activeUsers:", users);
+    console.log("[SOCKET] Aktive Nutzer:", users);
     renderActiveUsers(Array.isArray(users) ? users : []);
   });
 
   socket.on("identified", (data) => {
-    console.log("[SOCKET] identified:", data);
+    console.log("[SOCKET] Identifiziert:", data);
     filterActive = data.filterActive || false;
     filterBtn.checked = filterActive;
-    // if server returned username update local username (in case token had username)
-    if (data.username) {
-      username = data.username;
-      localStorage.setItem("username", username);
-      refreshLoginButton();
-    }
   });
 
-  socket.on("disconnect", (reason) => {
-    console.log("[SOCKET] disconnected:", reason);
+  socket.on("disconnect", () => {
+    console.log("[SOCKET] Verbindung getrennt");
     socketConnected = false;
-    setSendEnabled(false);
   });
 }
 
-// start socket on load
 initSocket();
 
-// --- load messages via REST for history ---
+// --- load messages ---
 async function loadMessages() {
   console.log("[MESSAGES] Lade Nachrichten...");
   try {
     const headers = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch("/api/messages", { headers });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      showError(err.error || "Verlauf kann nicht geladen werden.");
-      return;
-    }
+    if (!res.ok) return showError("Verlauf kann nicht geladen werden.");
     const messages = await res.json();
     console.log("[MESSAGES] Anzahl:", messages.length);
     chatWindow.innerHTML = "";
@@ -181,54 +156,25 @@ async function loadMessages() {
       appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf);
     });
     setSendEnabled(!!token);
-  } catch (err) {
-    console.error(err);
+  } catch {
     showError("Fehler beim Laden der Nachrichten.");
   }
 }
 loadMessages();
 
-// --- Modal open/close & login button behavior ---
-loginBtnHeader.onclick = () => {
-  if (token) {
-    // logout flow
-    logout();
-  } else {
-    modal.style.display = "block";
-  }
-};
+// --- Modal open/close ---
+loginBtnHeader.onclick = () => (modal.style.display = "block");
 closeModal.onclick = () => (modal.style.display = "none");
 window.onclick = (e) => {
   if (e.target === modal) modal.style.display = "none";
 };
-
-// --- Logout ---
-function logout() {
-  // Clear auth
-  token = null;
-  username = null;
-  localStorage.removeItem("token");
-  localStorage.removeItem("username");
-  setSendEnabled(false);
-  refreshLoginButton();
-  showInfo("Abgemeldet");
-  // disconnect socket
-  if (socket) {
-    try {
-      socket.auth = {};
-      socket.disconnect();
-    } catch (e) { /* ignore */ }
-    socket = null;
-  }
-  renderActiveUsers([]);
-}
 
 // --- Login ---
 loginSubmit.addEventListener("click", async () => {
   const u = document.getElementById("username").value.trim();
   const p = document.getElementById("password").value.trim();
   if (!u || !p) return showError("Bitte Benutzername und Passwort eingeben.");
-  console.log("[LOGIN] Versuch:", u);
+  console.log("[LOGIN] Versuch Login:", u);
 
   try {
     const res = await fetch("/api/auth/login", {
@@ -236,15 +182,8 @@ loginSubmit.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: u, password: p }),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return showError(data.error || "Login fehlgeschlagen");
-    }
-
-    if (!data.token) {
-      return showError("Kein Token erhalten");
-    }
+    const data = await res.json();
+    if (!res.ok) return showError(data.error || "Login fehlgeschlagen");
 
     token = data.token;
     username = u;
@@ -254,26 +193,15 @@ loginSubmit.addEventListener("click", async () => {
     console.log("[LOGIN] Erfolg:", username);
 
     modal.style.display = "none";
-    showInfo(`Eingeloggt als ${username}`);
-    refreshLoginButton();
+    setSendEnabled(true);
     await loadMessages();
 
-    // reconnect socket with token and re-attach listeners
     if (socket) {
       socket.auth = { token };
       socket.disconnect();
-      // re-init after a short delay to ensure clean reconnect
-      setTimeout(() => {
-        initSocket();
-      }, 50);
-    } else {
-      initSocket();
-    }
-
-    // focus the input
-    setTimeout(() => messageInput.focus(), 150);
+      socket.connect();
+    } else initSocket();
   } catch (err) {
-    console.error(err);
     showError("Login-Fehler");
   }
 });
@@ -284,7 +212,7 @@ registerSubmit.addEventListener("click", async () => {
   const newP = document.getElementById("newPass").value.trim();
   const email = document.getElementById("email").value.trim();
   if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.");
-  console.log("[REGISTER] Versuch:", newU);
+  console.log("[REGISTER] Versuch Registrierung:", newU);
 
   try {
     const res = await fetch("/api/auth/register", {
@@ -292,35 +220,48 @@ registerSubmit.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: newU, password: newP, email }),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return showError(data.error || "Registrierung fehlgeschlagen");
-    }
-
+    const data = await res.json();
+    if (!res.ok) return showError(data.error || "Registrierung fehlgeschlagen");
     console.log("[REGISTER] Erfolg:", data);
     showInfo("Registrierung erfolgreich — bitte einloggen.");
-    // optionally auto-fill login fields
-    document.getElementById("username").value = newU;
-    document.getElementById("password").value = newP;
   } catch (err) {
-    console.error(err);
     showError("Registrieren-Fehler");
   }
 });
 
-// --- send message (via Socket) ---
-function sendMessage() {
-  const content = messageInput.value.trim();
+// --- send message ---
+async function sendMessage() {
+  let content = messageInput.value.trim();
   if (!content) return;
-  if (!socket || !socket.connected) return showError("Nicht verbunden zum Server");
+  if (!token) return showError("Bitte einloggen!");
 
-  // send via socket (Variante A)
-  socket.emit("chatMessage", content);
-  messageInput.value = "";
-  sendBtn.disabled = true;
-  // focus back after send
-  setTimeout(() => messageInput.focus(), 50);
+  const maxLength = 150;
+  if (content.length > maxLength) {
+    return showError(`Nachricht zu lang! Maximal ${maxLength} Zeichen.`);
+  }
+
+  console.log("[SEND] Nachricht senden:", content);
+
+  try {
+    const res = await fetch("/api/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403)
+        return showError("Nicht autorisiert. Bitte einloggen.");
+      const data = await res.json().catch(() => ({}));
+      return showError(data.error || "Fehler beim Senden");
+    }
+    messageInput.value = "";
+    sendBtn.disabled = true;
+  } catch (err) {
+    showError("Fehler beim Senden");
+  }
 }
 
 // --- Eingabe-Steuerung ---
@@ -331,7 +272,6 @@ messageInput.addEventListener("keydown", (e) => {
   }
 });
 
-// Button aktivieren/deaktivieren je nach Input
 messageInput.addEventListener("input", () => {
   sendBtn.disabled = !messageInput.value.trim();
 });
@@ -343,8 +283,13 @@ sendBtn.addEventListener("click", (e) => {
 });
 
 // --- Filter Button ---
+socket.on("identified", data => {
+  filterActive = data.filterActive || false;
+  filterBtn.checked = filterActive;
+});
+
 filterBtn.addEventListener("change", () => {
-  if (!socket || !socket.connected) return;
+  if (!socketConnected) return;
   filterActive = filterBtn.checked;
   socket.emit("toggleFilter", filterActive);
 });
