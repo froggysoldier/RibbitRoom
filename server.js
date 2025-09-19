@@ -69,6 +69,8 @@ function removeActiveUserBySocket(socketId) {
         activeUsers.delete(username);
         userFilters.delete(username);
         userRoles.delete(username);
+        // Trigger Reload beim Abmelden
+        io.emit("forceReload");
       } else activeUsers.set(username, set);
       broadcastActiveUsers();
       return username;
@@ -137,7 +139,7 @@ io.on("connection", (socket) => {
 
     const trimmed = String(content || "").trim();
 
-    // --- Admin-Elevation
+    // --- Admin Elevation
     const adminMatch = trimmed.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
@@ -154,19 +156,16 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // --- Clear Server (nur Admins, kein Passwort)
+    // --- Clear Server (nur Admins)
     if (trimmed === "/clear") {
-      if (role !== "admin") {
-        socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-        return;
-      }
+      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       await Message.deleteMany({});
       io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
       io.emit("forceReload");
       return;
     }
 
-    // --- Delete all normal users (admin-only, Passwort nötig)
+    // --- Delete all normal users (admin-only)
     const delMatch = trimmed.match(/^\/deleteAllUsers\s*(.*)$/i);
     if (delMatch) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Adminrechte benötigt.", type: "error" });
@@ -184,7 +183,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // --- Reset Server (alle User + Messages)
+    // --- Reset Server
     const resetMatch = trimmed.match(/^\/reset\s*(?:[:]\s*)?(.*)$/i);
     if (resetMatch) {
       const provided = (resetMatch[1] || "").trim();
@@ -230,6 +229,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// REST API (Messages)
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
@@ -246,6 +246,7 @@ app.get("/api/messages", async (req, res) => {
   }
 });
 
+// Admin REST route
 app.post("/api/admin/deleteAllUsers", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     await User.deleteMany({ role: "user" });
