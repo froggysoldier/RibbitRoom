@@ -59,7 +59,7 @@ main {
   background: #1e1e1e;
   border-radius: 12px;
   padding: 15px;
-  height: 500px;
+  height: 600px;              /* feste Höhe */
   overflow-y: auto;
   box-shadow: 0 4px 10px rgba(0,0,0,0.6);
 }
@@ -109,12 +109,14 @@ main {
   background: #1e1e1e;
   border-radius: 12px;
   padding: 20px;
-  height: 600px;
+  height: 600px;              /* feste Höhe */
   overflow-y: auto;
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   font-size: 16px;
   line-height: 1.6;
   color: #e0e0e0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 #filterContainer {
@@ -138,6 +140,8 @@ main {
   font-size: 15px;
   line-height: 1.5;
   transition: transform 0.4s ease, opacity 0.4s ease;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .message.self {
@@ -179,7 +183,9 @@ main {
 .msg-content {
   font-size: 1em;
   line-height: 1.4;
-  white-space: pre-wrap; /* damit Umbrüche erhalten bleiben */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ====== Eingabe-Bereich ====== */
@@ -303,3 +309,4 @@ main {
 .close:hover {
   color: #ff4c4c;
 }
+
