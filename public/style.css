@@ -55,11 +55,11 @@ main {
 
 /* ====== Sidebar (User List) ====== */
 #userList {
-  flex: 0 0 220px;   /* fix auf 220px, schrumpft nicht mehr */
+  width: 220px;
   background: #1e1e1e;
   border-radius: 12px;
   padding: 15px;
-  height: 600px;     /* gleich hoch wie Chat */
+  height: 500px;
   overflow-y: auto;
   box-shadow: 0 4px 10px rgba(0,0,0,0.6);
 }
@@ -96,23 +96,28 @@ main {
 
 /* ====== Chat Area ====== */
 #chatArea {
-  flex: 1;              /* nimmt restlichen Platz */
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 15px; /* mehr Abstand zwischen Chatfenster und Input */
 }
 
 /* Chatfenster */
 #chatWindow {
-   flex: 1;                  /* füllt den ganzen Platz zwischen Header und Input */
-  min-height: 0;            /* verhindert Scroll-Bugs */
-  overflow-y: auto;         /* nur Chat scrollt */
-  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Abstand zwischen Nachrichten */
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 20px; /* mehr Innenabstand */
+  height: 600px; /* größer als vorher */
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  font-size: 16px; /* größere Schrift */
+  line-height: 1.6;
+  color: #e0e0e0;
 }
-#inputArea {
-  margin-top: auto;         /* bleibt am unteren Rand */
-}
-/* ====== Filter Toggle ====== */
+
 #filterContainer {
   margin-top: 10px;
   display: flex;
@@ -165,50 +170,44 @@ main {
   transform: translateX(26px);
 }
 
-/* Label */
+/* Optional Label */
 .filterLabel {
   font-size: 14px;
   color: #e0e0e0;
   user-select: none;
 }
 
-/* ====== Nachrichten ====== */
-/* Nachrichten-Bubbles */
+/* ====== Nachrichten mit Slide-In ====== */
 .message {
-  max-width: 60%;       /* kleiner, wirkt besser */
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;
   background: #2a2a2a;
-  padding: 8px 12px;
-  margin: 6px 0;
-  border-radius: 6px;
+  border-radius: 14px;
+  padding: 14px 18px; /* größerer Block */
+  margin-bottom: 10px;
+  max-width: 80%;
+  opacity: 0; /* unsichtbar am Anfang */
+  transform: translateX(-60px); /* Start links */
   box-shadow: 0 3px 8px rgba(0,0,0,0.5);
-  font-size: 15px;
-  line-height: 1.3;
-  display: inline-block;
-}
-  /* Animation Start */
-
-
-.message.show {
-  opacity: 1;
-  transform: translateY(0);
+  color: #e0e0e0;
+  font-size: 16px; /* größere Schrift */
+  line-height: 1.5;
+  transition: transform 0.4s ease, opacity 0.4s ease;
 }
 
 .message.self {
   background: linear-gradient(135deg, #4CAF50, #00C9A7);
   color: #121212;
-  margin-left: auto;              
+  align-self: flex-end;
 }
 
-.message:not(.self) {
-  margin-right: auto;             
+/* Animation starten */
+.message.show {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .message:hover {
   box-shadow: 0 5px 14px rgba(0,0,0,0.6);
-  transform: scale(1.02);
+  transform: translateX(2px);
   transition: all 0.2s ease;
 }
 
@@ -228,7 +227,7 @@ main {
   background: #121212;
   color: #e0e0e0;
   font-family: 'Poppins', sans-serif;
-  font-size: 16px;
+  font-size: 16px; /* größere Schrift */
   transition: border 0.2s, box-shadow 0.2s;
 }
 
@@ -258,7 +257,7 @@ main {
 
 /* ====== Logo ====== */
 .logo {
-  max-width: 300px;
+  max-width: 200px;
   height: auto;
 }
 
@@ -330,5 +329,4 @@ main {
 .close:hover {
   color: #ff4c4c;
 }
-
 
