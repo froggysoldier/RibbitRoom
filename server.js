@@ -154,6 +154,7 @@ io.on("connection", async (socket) => {
       await Message.deleteMany({});
       io.emit("deletedMessages", []); // Clients löschen alle Messages
       io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
+      io.emit("forceReload",false);
 
       return;
     }
@@ -241,3 +242,4 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html"
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
