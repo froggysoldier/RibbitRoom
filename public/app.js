@@ -246,6 +246,7 @@ async function sendMessage() {
       return showError(data.error || "Fehler beim Senden");
     }
     messageInput.value = "";
+    sendBtn.disabled = true; // nach Senden Button wieder deaktivieren
   } catch (err) {
     showError("Fehler beim Senden");
   }
@@ -257,6 +258,17 @@ messageInput.addEventListener("keydown", (e) => {
     e.preventDefault();
     sendMessage();
   }
+});
+
+// Button aktivieren/deaktivieren je nach Input
+messageInput.addEventListener("input", () => {
+  sendBtn.disabled = !messageInput.value.trim();
+});
+
+// --- Sende-Button ---
+sendBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  sendMessage();
 });
 
 // --- Filter Button ---
