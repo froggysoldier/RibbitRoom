@@ -223,9 +223,13 @@ messageInput.addEventListener("keydown", e => {
 });
 
 // --- Filter Button ---
-filterBtn.addEventListener("click", () => {
-  if(!socketConnected) return;
-  filterActive = !filterActive;
-  filterBtn.textContent = filterActive ? "Filter AN" : "Filter AUS";
+socket.on("identified", data => {
+  filterActive = data.filterActive || false;
+  filterBtn.checked = filterActive;
+});
+
+filterBtn.addEventListener("change", () => {
+  if (!socketConnected) return;
+  filterActive = filterBtn.checked;
   socket.emit("toggleFilter", filterActive);
 });
