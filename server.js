@@ -145,7 +145,7 @@ io.on("connection", async (socket) => {
     // --- Anti-Spam: nur alle 2 Sekunden eine Nachricht ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 1250) {
+    if (now - lastTime < 800) {
       socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
       return;
     }
@@ -270,6 +270,7 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html"
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
 
 
