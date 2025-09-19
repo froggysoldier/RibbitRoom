@@ -183,7 +183,10 @@ main {
   border-radius: 14px;
   padding: 14px 18px; /* größerer Block */
   margin-bottom: 10px;
-  max-width: 80%;
+  word-wrap: break-word;      /* bricht lange Wörter */
+  overflow-wrap: break-word;  /* moderner Standard */
+  white-space: pre-wrap;      /* Zeilenumbrüche & Spaces bleiben erhalten */
+  max-width: 100%;            /* Nachricht bleibt im Container */
   opacity: 0; /* unsichtbar am Anfang */
   transform: translateX(-60px); /* Start links */
   box-shadow: 0 3px 8px rgba(0,0,0,0.5);
