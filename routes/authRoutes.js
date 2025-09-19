@@ -19,7 +19,14 @@ router.post("/register", async (req, res) => {
     const user = new User({ username, email, password });
     await user.save();
 
-    res.status(201).json({ message: "Registrierung erfolgreich" });
+    // Token direkt ausgeben, damit Frontend automatisch login kann
+    const token = jwt.sign(
+      { username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(201).json({ message: "Registrierung erfolgreich", token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Fehler bei der Registrierung" });
