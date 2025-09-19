@@ -104,23 +104,24 @@ main {
 
 /* Chatfenster */
 #chatWindow {
+ #chatWindow {
   display: flex;
   flex-direction: column;
-  gap: 10px; /* Abstand zwischen Nachrichten */
+  gap: 10px;                  /* Abstand zwischen Nachrichten */
   background: #1e1e1e;
   border-radius: 12px;
-  padding: 20px; /* mehr Innenabstand */
-  height: 600px; /* größer als vorher */
-  overflow-y: auto;
-   overflow-wrap: break-word;
-  word-wrap: break-word;
-  white-space: normal;
+  padding: 20px;
+  height: 600px;
+  width: 100%;                /* passt sich dem Container an */
+  max-width: 100%;            /* niemals breiter als sein Container */
+  overflow-y: auto;           /* vertikal scrollen */
+  overflow-x: hidden;         /* horizontales Scrollen verhindern */
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-  font-size: 16px; /* größere Schrift */
+  font-size: 16px;
   line-height: 1.6;
   color: #e0e0e0;
+  box-sizing: border-box;     /* Padding wird mit eingerechnet */
 }
-
 #filterContainer {
   margin-top: 10px;
   display: flex;
@@ -183,38 +184,37 @@ main {
 /* ====== Nachrichten mit Slide-In ====== */
 .message {
   background: #2a2a2a;
-  margin-bottom: 10px;
-  max-width: 80%;            /* Nachricht bleibt im Container */
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: pre-wrap;    /* Zeilenumbrüche bleiben erhalten */
   margin: 4px 0;
   padding: 8px 12px;
   border-radius: 8px;
-  display: inline-block;    /* verhindert, dass sie unendlich breit wird */
-  opacity: 0; /* unsichtbar am Anfang */
-  transform: translateX(-60px); /* Start links */
+  display: inline-block;
+  max-width: 80%;                /* Nachricht nimmt max. 80% der Breite */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;          /* Zeilenumbrüche bleiben erhalten */
   box-shadow: 0 3px 8px rgba(0,0,0,0.5);
   color: #e0e0e0;
-  font-size: 16px; /* größere Schrift */
+  font-size: 16px;
   line-height: 1.5;
-  transition: transform 0.4s ease, opacity 0.4s ease;
-}
-
-.message.self {
-  background: linear-gradient(135deg, #4CAF50, #00C9A7);
-  color: #121212;
-  margin-left: auto;  /* rechtsbündig */
-}
-.message:not(.self) {
-  margin-right: auto; /* linksbündig */
-}
+  
 /* Animation starten */
+   opacity: 0;
+  transform: translateY(20px);    /* statt X → von unten rein */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
 .message.show {
   opacity: 1;
   transform: translateX(0);
 }
+.message.self {
+  background: linear-gradient(135deg, #4CAF50, #00C9A7);
+  color: #121212;
+  margin-left: auto;              /* rechtsbündig */
+}
 
+.message:not(.self) {
+  margin-right: auto;             /* linksbündig */
+}
 .message:hover {
   box-shadow: 0 5px 14px rgba(0,0,0,0.6);
   transform: translateX(2px);
