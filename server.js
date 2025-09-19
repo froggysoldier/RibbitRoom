@@ -103,7 +103,7 @@ io.on("connection", (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
-    const maxLength = 200;
+    const maxLength = 150;
     if (content.length > maxLength) {
       content = content.slice(0, maxLength);
     }
@@ -153,7 +153,7 @@ app.post("/api/messages", authMiddleware, async (req, res) => {
     let content = req.body.content;
     const username = req.user.username;
 
-    const maxLength = 200;
+    const maxLength = 150;
     if (content.length > maxLength) {
       content = content.slice(0, maxLength);
     }
@@ -188,3 +188,4 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
