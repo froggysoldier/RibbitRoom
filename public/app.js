@@ -96,6 +96,9 @@ let myRole = "user"; // updated on identify or role change
 const lastMessageTime = new Map(); // username -> timestamp
 const MIN_MSG_INTERVAL = 1000; // 1 Sekunde
 
+// --- userRoles Map (für alte Nachrichten) ---
+const userRoles = new Map();
+
 // --- update login button text ---
 function refreshLoginButton() {
   if (token && username) loginBtnHeader.textContent = "Abmelden";
@@ -121,6 +124,7 @@ function initSocket() {
 
   socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === username;
+    if (msg.sender && msg.senderRole) userRoles.set(msg.sender, msg.senderRole);
     appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
   });
 
@@ -139,6 +143,7 @@ function initSocket() {
     filterActive = data.filterActive || false;
     filterBtn.checked = filterActive;
     localStorage.setItem("username", username || "");
+    if (data.username && data.role) userRoles.set(data.username, data.role);
     refreshLoginButton();
   });
 
@@ -174,7 +179,9 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach((m) => {
       const isSelf = m.sender === username;
-      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", m.senderRole || "user");
+      const senderRole = userRoles.get(m.sender) || m.senderRole || "user";
+      if (m.sender && m.senderRole) userRoles.set(m.sender, m.senderRole);
+      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", senderRole);
     });
     setSendEnabled(!!token);
   } catch (err) {
