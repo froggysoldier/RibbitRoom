@@ -123,12 +123,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("chatMessage", async (content) => {
-    if (content === "/delete all users : geheimesPasswort123") {
-    console.log("[ADMIN] Alle User werden gelöscht...");
-    await User.deleteMany({}); // Alle User löschen
-    socket.emit("info", "✅ Alle User wurden gelöscht (ACHTUNG: einmalig!)");
-    return; // keine normale Nachricht senden
-}
     if (!username) return;
 
     if (content.length > 150) content = content.slice(0, 150);
@@ -207,4 +201,5 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
+
 
