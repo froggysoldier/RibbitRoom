@@ -87,7 +87,8 @@ function emitToAdmins(event, payload) {
   }
 }
 
-io.on("connection", (socket) => {
+// --- SOCKET.IO ---
+io.on("connection", async (socket) => {
   let username = null;
   const token = socket.handshake?.auth?.token;
 
@@ -108,7 +109,7 @@ io.on("connection", (socket) => {
         const decoded = jwt.verify(payload.token, JWT_SECRET);
         username = decoded.username;
         const dbUser = await User.findOne({ username });
-        const role = dbUser?.role || "user";
+        const role = dbUser?.role || decoded.role || "user";
         addActiveUser(username, socket.id, role);
         socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
       } else if (payload?.username) {
@@ -124,9 +125,8 @@ io.on("connection", (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
     const dbUser = await User.findOne({ username });
-    if (!dbUser) return;
-
-    let role = dbUser.role || "user";
+    const role = dbUser?.role || userRoles.get(username) || "user";
+    userRoles.set(username, role);
 
     let finalContent = content.trim();
 
@@ -135,10 +135,11 @@ io.on("connection", (socket) => {
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
       if (provided && provided === ADMIN_PASS) {
-        dbUser.role = "admin";
-        await dbUser.save();
-        role = "admin";
-        userRoles.set(username, role);
+        if (dbUser) {
+          dbUser.role = "admin";
+          await dbUser.save();
+        }
+        userRoles.set(username, "admin");
         socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
         broadcastActiveUsers();
         emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
@@ -148,7 +149,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // --- Clear Server (nur Admins)
+    // --- Clear Messages (Admin) ---
     if (finalContent === "/clear") {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       await Message.deleteMany({});
@@ -163,7 +164,6 @@ io.on("connection", (socket) => {
 
     const msg = new Message({ sender: username, content: finalContent, senderRole: role });
     await msg.save();
-
     const deletedIds = await trimOldMessages(100);
     if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
@@ -187,7 +187,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// REST API (Messages)
+// --- REST API (Messages) ---
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
@@ -204,7 +204,7 @@ app.get("/api/messages", async (req, res) => {
   }
 });
 
-// Admin REST route
+// --- Admin REST route ---
 app.post("/api/admin/deleteAllUsers", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     await User.deleteMany({ role: "user" });
@@ -220,6 +220,7 @@ app.post("/api/admin/deleteAllUsers", authMiddleware, adminMiddleware, async (re
   }
 });
 
+// --- Catch-All Route ---
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "public/index.html"));
 });
