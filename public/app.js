@@ -47,7 +47,7 @@ function setSendEnabled(enabled) {
   messageInput.disabled = !enabled;
 }
 
-// --- appendMessage (with type and senderRole support) ---
+// --- appendMessage (mit senderRole Support) ---
 function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
   const p = document.createElement("p");
   p.classList.add("message");
@@ -62,7 +62,7 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
 
   p.innerHTML = `
   <div class="msg-header">
-    <strong>${escapeHtml(sender)}</strong>
+    <strong class="${senderRole === 'admin' ? 'admin-name' : ''}">${escapeHtml(sender)}</strong>
     <span class="time">[${hours}:${minutes}]</span>
   </div>
   <div class="msg-content">${formatMessage(content)}</div>
@@ -73,13 +73,13 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// --- renderActiveUsers (receives array of {username, role}) ---
+// --- renderActiveUsers ---
 function renderActiveUsers(users) {
   usersListEl.innerHTML = "";
   users.forEach((u) => {
     const li = document.createElement("li");
     li.textContent = u.username;
-    if (u.role === "admin") li.classList.add("admin-user"); // red styling
+    if (u.role === "admin") li.classList.add("admin-user");
     usersListEl.appendChild(li);
   });
 }
@@ -90,37 +90,34 @@ let socket = null;
 let socketConnected = false;
 let filterActive = false;
 let username = localStorage.getItem("username") || null;
-let myRole = "user"; // updated on identify or role change
+let myRole = "user";
 
 // --- Spam-Schutz ---
-const lastMessageTime = new Map(); // username -> timestamp
-const MIN_MSG_INTERVAL = 1000; // 1 Sekunde
+const lastMessageTime = new Map();
+const MIN_MSG_INTERVAL = 1000;
 
-// --- userRoles Map (für alte Nachrichten) ---
+// --- userRoles Map für alte Nachrichten ---
 const userRoles = new Map();
 
-// --- update login button text ---
+// --- update login button ---
 function refreshLoginButton() {
   if (token && username) loginBtnHeader.textContent = "Abmelden";
   else loginBtnHeader.textContent = "Login / Registrieren";
 }
 refreshLoginButton();
 
-// --- init socket & attach listeners ---
+// --- init Socket ---
 function initSocket() {
   if (socket && socket.connected) return;
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
-    console.log("[SOCKET] connected", socket.id);
     socketConnected = true;
     if (token) socket.emit("identify", { token });
     setSendEnabled(!!token);
   });
 
-  socket.on("connect_error", (err) => {
-    console.warn("[SOCKET] connect_error", err?.message || err);
-  });
+  socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
   socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === username;
@@ -147,28 +144,20 @@ function initSocket() {
     refreshLoginButton();
   });
 
-  socket.on("activeUsers", (users) => {
-    renderActiveUsers(Array.isArray(users) ? users : []);
-  });
+  socket.on("activeUsers", (users) => renderActiveUsers(Array.isArray(users) ? users : []));
 
-  socket.on("deletedMessages", (ids) => {
-    ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
-  });
+  socket.on("deletedMessages", (ids) => ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
 
-  socket.on("forceReload", () => {
-    window.location.reload();
-  });
+  socket.on("forceReload", () => window.location.reload());
 
   socket.on("disconnect", () => {
-    console.log("[SOCKET] disconnected");
     socketConnected = false;
     setSendEnabled(false);
   });
 }
-
 initSocket();
 
-// --- load messages via REST (history) ---
+// --- load messages via REST ---
 async function loadMessages() {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -190,26 +179,20 @@ async function loadMessages() {
 }
 loadMessages();
 
-// --- Login/Register/Logout UI ---
+// --- Login/Register/Logout ---
 loginBtnHeader.onclick = () => {
   if (token) {
-    // logout
     token = null;
     username = null;
     myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
-    if (socket) {
-      try { socket.auth = {}; socket.disconnect(); } catch {}
-      socket = null;
-    }
+    if (socket) { try { socket.auth = {}; socket.disconnect(); } catch {} socket = null; }
     renderActiveUsers([]);
     refreshLoginButton();
     showInfo("Abgemeldet");
-    window.location.reload(); // reload on logout
-  } else {
-    modal.style.display = "block";
-  }
+    window.location.reload();
+  } else modal.style.display = "block";
 };
 
 closeModal.onclick = () => (modal.style.display = "none");
@@ -219,7 +202,6 @@ loginSubmit.addEventListener("click", async () => {
   const u = document.getElementById("username").value.trim();
   const p = document.getElementById("password").value.trim();
   if (!u || !p) return showError("Bitte Benutzername und Passwort eingeben.");
-
   try {
     const res = await fetch("/api/auth/login", {
       method: "POST",
@@ -250,7 +232,6 @@ registerSubmit.addEventListener("click", async () => {
   const newP = document.getElementById("newPass").value.trim();
   const email = document.getElementById("email").value.trim();
   const adminPassField = document.getElementById("adminPass") ? document.getElementById("adminPass").value.trim() : null;
-
   if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.");
   try {
     const body = { username: newU, password: newP, email };
@@ -272,9 +253,7 @@ registerSubmit.addEventListener("click", async () => {
       if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
       else initSocket();
       await loadMessages();
-    } else {
-      showInfo("Registrierung erfolgreich — bitte einloggen.");
-    }
+    } else showInfo("Registrierung erfolgreich — bitte einloggen.");
     modal.style.display = "none";
     refreshLoginButton();
   } catch (err) {
@@ -283,20 +262,15 @@ registerSubmit.addEventListener("click", async () => {
   }
 });
 
-// --- send message via socket ---
+// --- send message ---
 function sendMessage() {
   const content = messageInput.value.trim();
   if (!content) return;
   if (!socket || !socket.connected) return showError("Nicht verbunden");
-
   const now = Date.now();
   const lastTime = lastMessageTime.get(username) || 0;
-  if (now - lastTime < MIN_MSG_INTERVAL) {
-    showError("Langsamer! Bitte nicht spammen.");
-    return;
-  }
+  if (now - lastTime < MIN_MSG_INTERVAL) { showError("Langsamer! Bitte nicht spammen."); return; }
   lastMessageTime.set(username, now);
-
   socket.emit("chatMessage", content);
   messageInput.value = "";
   sendBtn.disabled = true;
@@ -304,9 +278,7 @@ function sendMessage() {
 }
 
 // --- input handling ---
-messageInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-});
+messageInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 messageInput.addEventListener("input", () => { sendBtn.disabled = !messageInput.value.trim(); });
 sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
 
