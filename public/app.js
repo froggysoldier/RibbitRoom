@@ -29,7 +29,7 @@ function showInfo(text) {
   p.classList.add("info");
   p.textContent = text;
   chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 4000);
+  setTimeout(() => p.remove(), 3500);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
@@ -38,7 +38,7 @@ function showError(text) {
   p.classList.add("error");
   p.textContent = text;
   chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 5000);
+  setTimeout(() => p.remove(), 3000);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
