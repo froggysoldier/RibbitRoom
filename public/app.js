@@ -52,9 +52,10 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
   const p = document.createElement("p");
   p.classList.add("message");
 
+  // Admin-Nachrichten immer rot, auch für self
+  if (senderRole === "admin") p.classList.add("admin-msg");
+  else if (self) p.classList.add("self");
   if (type === "system") p.classList.add("system");
-  if (senderRole === "admin") p.classList.add("admin-msg"); // admin immer zuerst
-  if (self) p.classList.add("self"); // self zuletzt
 
   if (id) p.dataset.id = id.toString();
 
@@ -98,7 +99,7 @@ let myRole = "user"; // updated on identify or role change
 const lastMessageTime = new Map(); // username -> timestamp
 const MIN_MSG_INTERVAL = 1000; // 1 Sekunde
 
-// --- userRoles Map (für alte Nachrichten und reload) ---
+// --- userRoles Map (für alte Nachrichten) ---
 const userRoles = new Map();
 
 // --- update login button text ---
@@ -127,7 +128,15 @@ function initSocket() {
   socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === username;
     if (msg.sender && msg.senderRole) userRoles.set(msg.sender, msg.senderRole);
-    appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
+    appendMessage(
+      msg.sender || "SYSTEM",
+      msg.content || "",
+      msg.createdAt,
+      msg._id,
+      isSelf,
+      msg.type || "user",
+      msg.senderRole || "user"
+    );
   });
 
   socket.on("systemMessage", (data) => {
@@ -181,7 +190,7 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach((m) => {
       const isSelf = m.sender === username;
-      const senderRole = m.senderRole || userRoles.get(m.sender) || "user";
+      const senderRole = userRoles.get(m.sender) || m.senderRole || "user";
       if (m.sender && m.senderRole) userRoles.set(m.sender, m.senderRole);
       appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", senderRole);
     });
