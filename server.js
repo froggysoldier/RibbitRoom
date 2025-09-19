@@ -209,7 +209,7 @@ io.on("connection", (socket) => {
         // handle specific admin commands
         if (cmd === "deleteAllUsers") {
           // require password as arg
-          if (args === process.env.ADMIN_DELETE_PASS) {
+          if (args === process.env.ADMIN_PASS) {
             await User.deleteMany({ role: "user" }); // keep admins
             // inform only admins (and requester)
             emitToAdmins("systemMessage", { text: "Admins: Alle normalen Nutzer wurden gelöscht." });
@@ -316,3 +316,4 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
+
