@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -124,41 +125,55 @@ io.on("connection", async (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
     const dbUser = await User.findOne({ username });
-    const role = dbUser?.role || userRoles.get(username) || "user";
+    let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
     let finalContent = content.trim();
 
-    // --- Admin Elevation ---
+    // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
       if (provided && provided === ADMIN_PASS) {
-        if (dbUser) {
-          dbUser.role = "admin";
-          await dbUser.save();
-        }
-        userRoles.set(username, "admin");
+        if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
+        role = "admin";
+        userRoles.set(username, role);
 
         // Neues JWT ausstellen
-        const newToken = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
-        socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
-        socket.emit("newToken", { token: newToken }); // Client speichert Token
+        const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
+        socket.emit("newToken", { token: newToken });
 
+        socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
         broadcastActiveUsers();
         emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
-      } else {
-        socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-      }
+      } else socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
       return;
     }
 
-    // --- Clear Messages (Admin) ---
+    // --- /clear ---
     if (finalContent === "/clear") {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       await Message.deleteMany({});
       io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
       io.emit("forceReload");
+      return;
+    }
+
+    // --- /deleteAllUsers [passwort] ---
+    if (finalContent.startsWith("/deleteAllUsers")) {
+      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+      const provided = finalContent.split(" ")[1]?.trim();
+      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+
+      await User.deleteMany({ role: "user" });
+      for (const uname of userRoles.keys()) {
+        const dbu = await User.findOne({ username: uname });
+        if (dbu) userRoles.set(uname, dbu.role);
+        else userRoles.delete(uname);
+      }
+      broadcastActiveUsers();
+      socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
+      emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
       return;
     }
 
@@ -186,9 +201,7 @@ io.on("connection", async (socket) => {
     userFilters.set(username, !!active);
   });
 
-  socket.on("disconnect", () => {
-    removeActiveUserBySocket(socket.id);
-  });
+  socket.on("disconnect", () => removeActiveUserBySocket(socket.id));
 });
 
 // --- REST API (Messages) ---
@@ -203,9 +216,7 @@ app.get("/api/messages", async (req, res) => {
       senderRole: m.senderRole || "user",
       type: "user"
     })));
-  } catch {
-    res.status(500).json({ error: "Fehler beim Laden der Nachrichten" });
-  }
+  } catch { res.status(500).json({ error: "Fehler beim Laden der Nachrichten" }); }
 });
 
 // --- Admin REST route ---
@@ -219,15 +230,11 @@ app.post("/api/admin/deleteAllUsers", authMiddleware, adminMiddleware, async (re
     }
     broadcastActiveUsers();
     res.json({ message: "Alle normalen Nutzer gelöscht" });
-  } catch (err) {
-    res.status(500).json({ error: "Fehler beim Löschen der User" });
-  }
+  } catch { res.status(500).json({ error: "Fehler beim Löschen der User" }); }
 });
 
 // --- Catch-All Route ---
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"));
-});
+app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
