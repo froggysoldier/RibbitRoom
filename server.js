@@ -14,8 +14,8 @@ const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const DELETE_PASS = process.env.DELETE_PASS || "geheimesPasswort123"; // einmaliges Löschen
-const DEBUG = false; // true = ausführliche Logs
+const DELETE_PASS = process.env.DELETE_PASS || "admin123"; // Passwort für Delete
+const DEBUG = false; // true = ausführliche Logs, false = leise
 
 // Farben für Logs
 const colors = {
@@ -41,7 +41,7 @@ mongoose.connect(process.env.MONGO_URI, {})
 app.use(express.static(path.join(__dirname, "public")));
 
 const activeUsers = new Map();
-const userFilters = new Map();
+const userFilters = new Map(); // username -> filter aktiv?
 
 function broadcastActiveUsers() {
   const users = Array.from(activeUsers.keys())
@@ -95,6 +95,7 @@ io.on("connection", (socket) => {
   let username = null;
   const token = socket.handshake?.auth?.token;
 
+  // Auto-Identifikation via Token
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
@@ -124,14 +125,19 @@ io.on("connection", (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
-    // --- Einmaliger Admin-Delete Command ---
+    // --- Admin-Command prüfen ---
     if (content === `/delete all users : ${DELETE_PASS}`) {
-      console.log(`${colors.fgRed}[ADMIN] Alle User werden gelöscht!${colors.reset}`);
-      await User.deleteMany({});
-      socket.emit("info", "✅ Alle User wurden gelöscht (einmalig!)");
-      return; // Keine normale Nachricht senden
+      try {
+        await User.deleteMany({});
+        io.emit("newMessage", { sender: "SYSTEM", content: "✅ Alle User wurden gelöscht!", createdAt: new Date(), _id: "system" });
+        console.log(`${colors.fgRed}[ADMIN] Alle User gelöscht${colors.reset}`);
+      } catch (err) {
+        socket.emit("info", "Fehler beim Löschen der User");
+      }
+      return; // Nachricht wird nicht normal gesendet
     }
 
+    // normale Nachricht
     if (content.length > 150) content = content.slice(0, 150);
     if (userFilters.get(username)) content = filterMessage(content);
 
@@ -164,6 +170,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// Routes
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
