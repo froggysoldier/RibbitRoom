@@ -71,6 +71,15 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
   chatWindow.appendChild(p);
   setTimeout(() => p.classList.add("show"), 50);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+
+  // NEU: system-Nachrichten automatisch nach 4s entfernen
+  if (type === "system") {
+    setTimeout(() => {
+      if (p.parentNode) {
+        p.parentNode.removeChild(p);
+      }
+    }, 4000);
+  }
 }
 
 // --- renderActiveUsers ---
