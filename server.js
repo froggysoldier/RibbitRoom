@@ -13,7 +13,7 @@ const Message = require("./models/Message");
 const User = require("./models/User");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const ADMIN_PASS = "DEIN_MAIN_ADMIN_PASSWORT"; // dein Main Admin Passwort
+const ADMIN_PASS = "touchingDowniesadmins"; // dein Main Admin Passwort
 
 const app = express();
 const server = http.createServer(app);
@@ -157,3 +157,4 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
