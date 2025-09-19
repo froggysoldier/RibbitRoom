@@ -2,9 +2,9 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>Chatroom</title>
+  <title>Ribbit Room</title>
   <link rel="stylesheet" href="style.css">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -18,9 +18,7 @@
     <!-- Sidebar für aktive Nutzer -->
     <div id="userList">
       <h3><span class="highlight">Aktive Nutzer</span></h3>
-      <ul id="users">
-        <!-- Dynamisch gefüllte Nutzerliste -->
-      </ul>
+      <ul id="users"></ul>
     </div>
 
     <!-- Chatbereich -->
@@ -33,14 +31,16 @@
         <textarea id="messageInput" placeholder="Nachricht eingeben..." rows="2"></textarea>
         <button id="sendBtn">Senden</button>
       </div>
+
       <!-- Filter Switch unter dem Input-Bereich -->
-<div id="filterContainer">
-  <label class="switch">
-    <input type="checkbox" id="filterBtn">
-    <span class="slider"></span>
-  </label>
-  <span class="filterLabel">FroschFilter</span>
-</div>
+      <div id="filterContainer">
+        <label class="switch">
+          <input type="checkbox" id="filterBtn">
+          <span class="slider"></span>
+        </label>
+        <span class="filterLabel">FroschFilter</span>
+      </div>
+
     </div>
   </div>
 </main>
@@ -67,7 +67,3 @@
 
 </body>
 </html>
-
-
-
-
