@@ -157,6 +157,7 @@ socket.on("forceReload", (resetAll = true) => {
   } else {
     // nur Nachrichten gelöscht, Nutzer bleiben eingeloggt
     chatWindow.innerHTML = "";
+    window.location.reload();
     showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
   }
 
