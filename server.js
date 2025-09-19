@@ -198,7 +198,7 @@ io.on("connection", (socket) => {
       const args = adminCmdMatch[2].trim();
 
       // if it's an admin command, check role
-      const adminOnlyCommands = new Set(["deleteAllUsers", "someOtherAdminCmd"]);
+      const adminOnlyCommands = new Set(["deleteAllUsers", "reset"]);
       if (adminOnlyCommands.has(cmd)) {
         if (role !== "admin") {
           // reply only to requester
@@ -225,7 +225,18 @@ io.on("connection", (socket) => {
           }
           return;
         }
-
+        // --- Clear Server (alle Nachrichten) nur für Admins, ohne Passwort ---
+        const clearMatch = trimmed.match(/^\/clear$/i);
+        if (clearMatch) {
+          if (role !== "admin") {
+            socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+            return;
+          }
+          await Message.deleteMany({});
+          io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
+          io.emit("forceReload");
+          return;
+        }
         // other admin commands handled here...
       }
 
@@ -316,3 +327,4 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
+
