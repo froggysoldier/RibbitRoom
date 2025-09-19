@@ -1,319 +1,246 @@
-// --- DOM Elemente ---
-const loginBtnHeader = document.getElementById("loginBtn");
-const modal = document.getElementById("loginModal");
-const closeModal = document.querySelector(".close");
-const loginSubmit = document.getElementById("loginSubmit");
-const registerSubmit = document.getElementById("registerSubmit");
-const usersListEl = document.getElementById("users");
-const chatWindow = document.getElementById("chatWindow");
-const sendBtn = document.getElementById("sendBtn");
-const messageInput = document.getElementById("messageInput");
-const filterBtn = document.getElementById("filterBtn");
+// server.js
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 
-// --- Helper / UI ---
-function escapeHtml(str = "") {
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+const authRoutes = require("./routes/authRoutes");
+const Message = require("./models/Message");
+const User = require("./models/User");
+const filterMessage = require("./utils/filter");
+
+const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
+const ADMIN_PASS = process.env.ADMIN_PASS || "touchingDowniesadmins";
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
+
+app.use(cors());
+app.use(express.json());
+app.use("/api/auth", authRoutes);
+
+mongoose.connect(process.env.MONGO_URI, {})
+  .then(() => console.log("✅ MongoDB verbunden"))
+  .catch(err => console.error("❌ MongoDB Fehler:", err));
+
+app.use(express.static(path.join(__dirname, "public")));
+
+const activeUsers = new Map();
+const userFilters = new Map();
+const userRoles = new Map();
+
+function broadcastActiveUsers() {
+  const users = Array.from(activeUsers.keys())
+    .sort()
+    .map(username => ({ username, role: userRoles.get(username) || "user" }));
+  io.emit("activeUsers", users);
 }
 
-function formatMessage(content = "") {
-  return escapeHtml(content).replace(/\n/g, "<br>");
+function addActiveUser(username, socketId, role = "user") {
+  if (!username) return;
+  const set = activeUsers.get(username) || new Set();
+  set.add(socketId);
+  activeUsers.set(username, set);
+  userRoles.set(username, role);
+  broadcastActiveUsers();
 }
 
-function showInfo(text) {
-  const p = document.createElement("p");
-  p.classList.add("info");
-  p.textContent = text;
-  chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 4000);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
-function showError(text) {
-  const p = document.createElement("p");
-  p.classList.add("error");
-  p.textContent = text;
-  chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 5000);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
-function setSendEnabled(enabled) {
-  sendBtn.disabled = !enabled;
-  messageInput.disabled = !enabled;
-}
-
-// --- appendMessage (with type and senderRole support) ---
-function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
-  const p = document.createElement("p");
-  p.classList.add("message");
-  if (self) p.classList.add("self");
-  if (type === "system") p.classList.add("system");
-  if (senderRole === "admin") p.classList.add("admin-msg");
-  if (id) p.dataset.id = id.toString();
-
-  const date = createdAt ? new Date(createdAt) : new Date();
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-
-  p.innerHTML = `
-  <div class="msg-header">
-    <strong>${escapeHtml(sender)}</strong>
-    <span class="time">[${hours}:${minutes}]</span>
-  </div>
-  <div class="msg-content">${formatMessage(content)}</div>
-  `;
-
-  chatWindow.appendChild(p);
-  setTimeout(() => p.classList.add("show"), 50);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
-}
-
-// --- renderActiveUsers ---
-function renderActiveUsers(users) {
-  usersListEl.innerHTML = "";
-  users.forEach((u) => {
-    const li = document.createElement("li");
-    li.textContent = u.username;
-    if (u.role === "admin") li.classList.add("admin-user");
-    usersListEl.appendChild(li);
-  });
-}
-
-// --- state ---
-let token = localStorage.getItem("token") || null;
-let socket = null;
-let socketConnected = false;
-let filterActive = false;
-let username = localStorage.getItem("username") || null;
-let myRole = "user";
-
-function refreshLoginButton() {
-  if (token && username) loginBtnHeader.textContent = "Abmelden";
-  else loginBtnHeader.textContent = "Login / Registrieren";
-}
-refreshLoginButton();
-
-// --- init socket & listeners ---
-function initSocket() {
-  if (socket && socket.connected) return;
-  socket = io({ auth: { token } });
-
-  socket.on("connect", () => {
-    socketConnected = true;
-    if (token) socket.emit("identify", { token });
-    setSendEnabled(!!token);
-  });
-
-  socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
-
-  socket.on("newMessage", (msg) => {
-    const isSelf = msg.sender === username;
-    appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
-  });
-
-  socket.on("systemMessage", (data) => {
-    if (typeof data === "string") appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
-    else appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
-  });
-
-  socket.on("adminNotice", (data) => {
-    appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
-  });
-
-  socket.on("identified", (data) => {
-    if (data.username) username = data.username;
-    myRole = data.role || myRole;
-    filterActive = data.filterActive || false;
-    filterBtn.checked = filterActive;
-    localStorage.setItem("username", username || "");
-    refreshLoginButton();
-  });
-
-  socket.on("activeUsers", (users) => renderActiveUsers(Array.isArray(users) ? users : []));
-
-  socket.on("deletedMessages", (ids) => {
-    ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
-  });
-
-  // --- forceReload: nur Seite reloaden ---
-  socket.on("forceReload", () => {
-    console.log("Server hat ein Update ausgelöst, Seite wird neu geladen...");
-    window.location.reload();
-  });
-
-  // --- serverReset: alle abmelden & reload ---
-  socket.on("serverReset", () => {
-    console.log("Server-Reset: alle Nutzer werden abgemeldet.");
-
-    // Token & Username löschen
-    token = null;
-    username = null;
-    myRole = "user";
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-
-    // Socket trennen
-    if (socket) {
-      try { socket.auth = {}; socket.disconnect(); } catch {}
-      socket = null;
+function removeActiveUserBySocket(socketId) {
+  for (const [username, set] of activeUsers.entries()) {
+    if (set.has(socketId)) {
+      set.delete(socketId);
+      if (set.size === 0) {
+        activeUsers.delete(username);
+        userFilters.delete(username);
+        userRoles.delete(username);
+      } else activeUsers.set(username, set);
+      broadcastActiveUsers();
+      return username;
     }
-
-    // UI zurücksetzen
-    renderActiveUsers([]);
-    chatWindow.innerHTML = "";
-    showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
-
-    // Seite reloaden nach kurzer Verzögerung
-    setTimeout(() => window.location.reload(), 2000);
-  });
-
-  // --- NEU: Neues Token speichern ---
-  socket.on("newToken", (data) => {
-    if (data?.token) {
-      token = data.token;
-      localStorage.setItem("token", token);
-      console.log("[INFO] Neues Admin-Token gespeichert");
-    }
-  });
-
-  socket.on("disconnect", () => {
-    socketConnected = false;
-    setSendEnabled(false);
-  });
-}
-
-initSocket();
-
-// --- load messages via REST ---
-async function loadMessages() {
-  const headers = { "Content-Type": "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  try {
-    const res = await fetch("/api/messages", { headers });
-    if (!res.ok) return;
-    const messages = await res.json();
-    chatWindow.innerHTML = "";
-    messages.reverse().forEach((m) => {
-      const isSelf = m.sender === username;
-      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", m.senderRole || "user");
-    });
-    setSendEnabled(!!token);
-  } catch (err) { console.error(err); }
-}
-loadMessages();
-
-// --- Login/Register/Logout ---
-loginBtnHeader.onclick = () => {
-  if (token) {
-    token = null;
-    username = null;
-    myRole = "user";
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-
-    if (socket) {
-      try { socket.auth = {}; socket.disconnect(); } catch {}
-      socket = null;
-    }
-
-    renderActiveUsers([]);
-    refreshLoginButton();
-    showInfo("Abgemeldet");
-    window.location.reload();
-  } else modal.style.display = "block";
-};
-
-closeModal.onclick = () => (modal.style.display = "none");
-window.onclick = (e) => { if (e.target === modal) modal.style.display = "none"; };
-
-loginSubmit.addEventListener("click", async () => {
-  const u = document.getElementById("username").value.trim();
-  const p = document.getElementById("password").value.trim();
-  if (!u || !p) return showError("Bitte Benutzername und Passwort eingeben.");
-
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: u, password: p })
-    });
-    const data = await res.json();
-    if (!res.ok) return showError(data.error || "Login fehlgeschlagen");
-    token = data.token;
-    username = u;
-    myRole = data.role || "user";
-    localStorage.setItem("token", token);
-    localStorage.setItem("username", username);
-    modal.style.display = "none";
-    showInfo(`Eingeloggt als ${username}`);
-    refreshLoginButton();
-    if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
-    else initSocket();
-    await loadMessages();
-  } catch { showError("Login-Fehler"); }
-});
-
-registerSubmit.addEventListener("click", async () => {
-  const newU = document.getElementById("newUser").value.trim();
-  const newP = document.getElementById("newPass").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const adminPassField = document.getElementById("adminPass") ? document.getElementById("adminPass").value.trim() : null;
-
-  if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.");
-  try {
-    const body = { username: newU, password: newP, email };
-    if (adminPassField) body.adminPass = adminPassField;
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok) return showError(data.error || "Registrierung fehlgeschlagen");
-    if (data.token) {
-      token = data.token;
-      username = newU;
-      myRole = data.role || "user";
-      localStorage.setItem("token", token);
-      localStorage.setItem("username", username);
-      showInfo("Registrierung erfolgreich — eingeloggt.");
-      if (socket) { socket.auth = { token }; socket.disconnect(); setTimeout(initSocket, 50); }
-      else initSocket();
-      await loadMessages();
-    } else showInfo("Registrierung erfolgreich — bitte einloggen.");
-    modal.style.display = "none";
-    refreshLoginButton();
-  } catch { showError("Registrieren-Fehler"); }
-});
-
-// --- send message ---
-function sendMessage() {
-  const content = messageInput.value.trim();
-  if (!content) return;
-  if (!socket || !socket.connected) return showError("Nicht verbunden");
-
-  socket.emit("chatMessage", content);
-  messageInput.value = "";
-  sendBtn.disabled = true;
-  setTimeout(() => messageInput.focus(), 50);
-}
-
-messageInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
   }
-});
-messageInput.addEventListener("input", () => { sendBtn.disabled = !messageInput.value.trim(); });
-sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
+  return null;
+}
 
-filterBtn.addEventListener("change", () => {
-  if (!socket || !socket.connected) return;
-  filterActive = filterBtn.checked;
-  socket.emit("toggleFilter", filterActive);
+async function trimOldMessages(maxMessages = 100) {
+  const count = await Message.countDocuments();
+  if (count <= maxMessages) return [];
+  const excess = count - maxMessages;
+  const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select("_id");
+  const idsToDelete = oldest.map(d => d._id.toString());
+  if (idsToDelete.length) await Message.deleteMany({ _id: { $in: idsToDelete } });
+  return idsToDelete;
+}
+
+function emitToAdmins(event, payload) {
+  for (const [username, sockets] of activeUsers.entries()) {
+    const role = userRoles.get(username) || "user";
+    if (role === "admin") {
+      for (const sid of sockets) io.to(sid).emit(event, payload);
+    }
+  }
+}
+
+// --- SOCKET.IO ---
+io.on("connection", async (socket) => {
+  let username = null;
+  const token = socket.handshake?.auth?.token;
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      username = decoded.username;
+      const dbUser = await User.findOne({ username });
+      const role = dbUser?.role || "user";
+      addActiveUser(username, socket.id, role);
+      socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
+    } catch {}
+  }
+
+  socket.on("identify", async (payload) => {
+    try {
+      if (payload?.token) {
+        const decoded = jwt.verify(payload.token, JWT_SECRET);
+        username = decoded.username;
+        const dbUser = await User.findOne({ username });
+        const role = dbUser?.role || decoded.role || "user";
+        addActiveUser(username, socket.id, role);
+        socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
+      } else if (payload?.username) {
+        username = payload.username;
+        const dbUser = await User.findOne({ username });
+        const role = dbUser?.role || "user";
+        addActiveUser(username, socket.id, role);
+        socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
+      }
+    } catch {}
+  });
+
+  socket.on("chatMessage", async (content) => {
+  if (!username) return;
+  const dbUser = await User.findOne({ username });
+  let role = dbUser?.role || userRoles.get(username) || "user";
+  userRoles.set(username, role);
+
+  let finalContent = content.trim();
+
+  // --- /admin [passwort] ---
+  const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
+  if (adminMatch) {
+    const provided = (adminMatch[1] || "").trim();
+    if (provided && provided === ADMIN_PASS) {
+      if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
+      role = "admin";
+      userRoles.set(username, role);
+
+      const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
+      socket.emit("newToken", { token: newToken });
+
+      socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
+      broadcastActiveUsers();
+      emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
+    } else socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+    return;
+  }
+
+  // --- /clear ---
+  if (finalContent === "/clear") {
+    if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+    await Message.deleteMany({});
+    io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht. Server reload...", type: "error" });
+    io.emit("forceReload");
+    return;
+  }
+
+  // --- /deleteAllUsers [passwort] ---
+  if (finalContent.startsWith("/deleteAllUsers")) {
+    if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+    const provided = finalContent.split(" ")[1]?.trim();
+    if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+
+    await User.deleteMany({ role: "user" });
+    for (const uname of userRoles.keys()) {
+      const dbu = await User.findOne({ username: uname });
+      if (dbu) userRoles.set(uname, dbu.role);
+      else userRoles.delete(uname);
+    }
+    broadcastActiveUsers();
+    socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
+    emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+    return;
+  }
+
+  // --- /reset [passwort] --- NEW
+  if (finalContent.startsWith("/reset")) {
+    if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+    const provided = finalContent.split(" ")[1]?.trim();
+    if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+
+    // Alle User und Admins löschen
+    await User.deleteMany({});
+    userRoles.clear();
+    activeUsers.clear();
+    userFilters.clear();
+
+    // Alle Nachrichten löschen
+    await Message.deleteMany({});
+
+    // Force reload aller Clients
+    io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
+    io.emit("forceReload");
+
+    return;
+  }
+
+  // --- normale Nachricht ---
+  if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
+  if (userFilters.get(username)) finalContent = filterMessage(finalContent);
+
+  const msg = new Message({ sender: username, content: finalContent, senderRole: role });
+  await msg.save();
+  const deletedIds = await trimOldMessages(100);
+  if (deletedIds.length) io.emit("deletedMessages", deletedIds);
+
+  io.emit("newMessage", {
+    _id: msg._id.toString(),
+    sender: msg.sender,
+    content: msg.content,
+    createdAt: msg.createdAt,
+    senderRole: role,
+    type: "user"
+  });
 });
+
+
+  socket.on("toggleFilter", (active) => {
+    if (!username) return;
+    userFilters.set(username, !!active);
+  });
+
+  socket.on("disconnect", () => removeActiveUserBySocket(socket.id));
+});
+
+// --- REST API (Messages) ---
+app.get("/api/messages", async (req, res) => {
+  try {
+    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
+    res.json(msgs.reverse().map(m => ({
+      _id: m._id.toString(),
+      sender: m.sender,
+      content: m.content,
+      createdAt: m.createdAt,
+      senderRole: m.senderRole || "user",
+      type: "user"
+    })));
+  } catch { res.status(500).json({ error: "Fehler beim Laden der Nachrichten" }); }
+});
+
+// --- Catch-All Route ---
+app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
