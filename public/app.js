@@ -99,52 +99,57 @@ function initSocket() {
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
+    console.log("[SOCKET] Verbunden mit Server");
     socketConnected = true;
     if (token) socket.emit("identify", { token });
   });
 
-  socket.on("connect_error", (err) =>
-    console.warn("Socket connect error:", err?.message || err)
-  );
+  socket.on("connect_error", (err) => {
+    console.warn("[SOCKET] Verbindungsfehler:", err?.message || err);
+  });
 
   socket.on("newMessage", (msg) => {
+    console.log("[SOCKET] Neue Nachricht:", msg);
     const isSelf = msg.sender === username;
-    appendMessage(
-      msg.sender || "Unbekannt",
-      msg.content || "",
-      msg.createdAt,
-      msg._id,
-      isSelf
+    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf);
+  });
+
+  socket.on("deletedMessages", (ids) => {
+    console.log("[SOCKET] Nachrichten gelöscht:", ids);
+    ids.forEach((id) =>
+      chatWindow.querySelector(`[data-id="${id}"]`)?.remove()
     );
   });
 
-  socket.on("deletedMessages", (ids) =>
-    ids.forEach((id) =>
-      chatWindow.querySelector(`[data-id="${id}"]`)?.remove()
-    )
-  );
-  socket.on("activeUsers", (users) =>
-    renderActiveUsers(Array.isArray(users) ? users : [])
-  );
+  socket.on("activeUsers", (users) => {
+    console.log("[SOCKET] Aktive Nutzer:", users);
+    renderActiveUsers(Array.isArray(users) ? users : []);
+  });
 
   socket.on("identified", (data) => {
+    console.log("[SOCKET] Identifiziert:", data);
     filterActive = data.filterActive || false;
     filterBtn.checked = filterActive;
   });
 
-  socket.on("disconnect", () => (socketConnected = false));
+  socket.on("disconnect", () => {
+    console.log("[SOCKET] Verbindung getrennt");
+    socketConnected = false;
+  });
 }
 
 initSocket();
 
 // --- load messages ---
 async function loadMessages() {
+  console.log("[MESSAGES] Lade Nachrichten...");
   try {
     const headers = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch("/api/messages", { headers });
     if (!res.ok) return showError("Verlauf kann nicht geladen werden.");
     const messages = await res.json();
+    console.log("[MESSAGES] Anzahl:", messages.length);
     chatWindow.innerHTML = "";
     messages.reverse().forEach((m) => {
       const isSelf = m.sender === username;
@@ -169,6 +174,7 @@ loginSubmit.addEventListener("click", async () => {
   const u = document.getElementById("username").value.trim();
   const p = document.getElementById("password").value.trim();
   if (!u || !p) return showError("Bitte Benutzername und Passwort eingeben.");
+  console.log("[LOGIN] Versuch Login:", u);
 
   try {
     const res = await fetch("/api/auth/login", {
@@ -183,6 +189,8 @@ loginSubmit.addEventListener("click", async () => {
     username = u;
     localStorage.setItem("token", token);
     localStorage.setItem("username", username);
+
+    console.log("[LOGIN] Erfolg:", username);
 
     modal.style.display = "none";
     setSendEnabled(true);
@@ -204,6 +212,7 @@ registerSubmit.addEventListener("click", async () => {
   const newP = document.getElementById("newPass").value.trim();
   const email = document.getElementById("email").value.trim();
   if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.");
+  console.log("[REGISTER] Versuch Registrierung:", newU);
 
   try {
     const res = await fetch("/api/auth/register", {
@@ -213,6 +222,7 @@ registerSubmit.addEventListener("click", async () => {
     });
     const data = await res.json();
     if (!res.ok) return showError(data.error || "Registrierung fehlgeschlagen");
+    console.log("[REGISTER] Erfolg:", data);
     showInfo("Registrierung erfolgreich — bitte einloggen.");
   } catch (err) {
     showError("Registrieren-Fehler");
@@ -230,6 +240,8 @@ async function sendMessage() {
     return showError(`Nachricht zu lang! Maximal ${maxLength} Zeichen.`);
   }
 
+  console.log("[SEND] Nachricht senden:", content);
+
   try {
     const res = await fetch("/api/messages", {
       method: "POST",
@@ -246,7 +258,7 @@ async function sendMessage() {
       return showError(data.error || "Fehler beim Senden");
     }
     messageInput.value = "";
-    sendBtn.disabled = true; // nach Senden Button wieder deaktivieren
+    sendBtn.disabled = true;
   } catch (err) {
     showError("Fehler beim Senden");
   }
@@ -260,7 +272,6 @@ messageInput.addEventListener("keydown", (e) => {
   }
 });
 
-// Button aktivieren/deaktivieren je nach Input
 messageInput.addEventListener("input", () => {
   sendBtn.disabled = !messageInput.value.trim();
 });
@@ -272,13 +283,9 @@ sendBtn.addEventListener("click", (e) => {
 });
 
 // --- Filter Button ---
-socket.on("identified", data => {
-  filterActive = data.filterActive || false;
-  filterBtn.checked = filterActive;
-});
-
 filterBtn.addEventListener("change", () => {
   if (!socketConnected) return;
   filterActive = filterBtn.checked;
+  console.log("[FILTER] Status geändert:", filterActive);
   socket.emit("toggleFilter", filterActive);
 });
