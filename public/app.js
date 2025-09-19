@@ -162,7 +162,7 @@ socket.on("forceReload", (resetAll = true) => {
     showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
   }
 
-  setTimeout(() => window.scrollTo(0, chatWindow.scrollHeight), 200); // optional scrollen
+  setTimeout(() => window.location.reload(), 1000);
 });
 
   // --- NEU: Neues Token speichern ---
