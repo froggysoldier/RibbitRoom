@@ -1,9 +1,8 @@
-// middleware/admin.js
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
-module.exports = async (req, res, next) => {
+module.exports = async function(req, res, next) {
   try {
     const auth = req.headers.authorization;
     if (!auth || !auth.startsWith("Bearer ")) return res.status(401).json({ error: "Nicht autorisiert" });
@@ -13,7 +12,7 @@ module.exports = async (req, res, next) => {
     if (!user || user.role !== "admin") return res.status(403).json({ error: "Adminrechte erforderlich" });
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: "Token ungültig" });
   }
 };
