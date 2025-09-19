@@ -14,6 +14,17 @@ const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
+const DEBUG = false; // true = ausführliche Logs, false = leise
+
+// Farben für Logs
+const colors = {
+  reset: "\x1b[0m",
+  bright: "\x1b[1m",
+  fgRed: "\x1b[31m",
+  fgGreen: "\x1b[32m",
+  fgYellow: "\x1b[33m",
+  fgCyan: "\x1b[36m"
+};
 
 const app = express();
 const server = http.createServer(app);
@@ -24,8 +35,8 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 
 mongoose.connect(process.env.MONGO_URI, {})
-  .then(() => console.log("✅ MongoDB verbunden"))
-  .catch(err => console.error("❌ MongoDB Fehler:", err));
+  .then(() => console.log(`${colors.fgGreen}✅ MongoDB verbunden${colors.reset}`))
+  .catch(err => console.error(`${colors.fgRed}❌ MongoDB Fehler:${err}${colors.reset}`));
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -45,7 +56,7 @@ function addActiveUser(username, socketId) {
   const isNewUser = set.size === 0;
   set.add(socketId);
   activeUsers.set(username, set);
-  if (isNewUser) console.log(`[SERVER] User online: ${username}`);
+  if (isNewUser) console.log(`${colors.fgGreen}[SERVER] User online: ${username}${colors.reset}`);
   broadcastActiveUsers();
 }
 
@@ -56,7 +67,7 @@ function removeActiveUserBySocket(socketId) {
       if (set.size === 0) {
         activeUsers.delete(username);
         userFilters.delete(username);
-        console.log(`[SERVER] User offline: ${username}`);
+        console.log(`${colors.fgRed}[SERVER] User offline: ${username}${colors.reset}`);
       } else activeUsers.set(username, set);
       broadcastActiveUsers();
       return username;
@@ -73,23 +84,25 @@ async function trimOldMessages(maxMessages = 100) {
   const idsToDelete = oldest.map(d => d._id.toString());
   if (idsToDelete.length) {
     await Message.deleteMany({ _id: { $in: idsToDelete } });
-    console.log(`[SERVER] Alte Nachrichten gelöscht: ${idsToDelete.length}`);
+    console.log(`${colors.fgYellow}[SERVER] Alte Nachrichten gelöscht: ${idsToDelete.length}${colors.reset}`);
   }
   return idsToDelete;
 }
 
 io.on("connection", (socket) => {
-  console.log(`[SOCKET] Client verbunden: ${socket.id}`);
+  if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] Client verbunden: ${socket.id}${colors.reset}`);
+
   let username = null;
   const token = socket.handshake?.auth?.token;
 
-  // Token automatisch prüfen
+  // Auto-Identifikation via Token
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       username = decoded.username;
       addActiveUser(username, socket.id);
       socket.emit("identified", { username, filterActive: userFilters.get(username) || false });
+      if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] User automatisch identifiziert: ${username}${colors.reset}`);
     } catch {}
   }
 
@@ -104,7 +117,7 @@ io.on("connection", (socket) => {
       if (username) {
         addActiveUser(username, socket.id);
         socket.emit("identified", { username, filterActive: userFilters.get(username) || false });
-        console.log(`[SOCKET] User identifiziert: ${username}`);
+        console.log(`${colors.fgCyan}[SOCKET] User identifiziert: ${username}${colors.reset}`);
       }
     } catch {}
   });
@@ -112,9 +125,7 @@ io.on("connection", (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
-    const maxLength = 150;
-    if (content.length > maxLength) content = content.slice(0, maxLength);
-
+    if (content.length > 150) content = content.slice(0, 150);
     if (userFilters.get(username)) content = filterMessage(content);
 
     try {
@@ -141,11 +152,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log(`[SOCKET] Client getrennt: ${socket.id} (User: ${username || "unbekannt"})`);
+    if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] Client getrennt: ${socket.id} (User: ${username || "unbekannt"})${colors.reset}`);
     removeActiveUserBySocket(socket.id);
   });
 });
 
+// Routes
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
@@ -188,4 +200,4 @@ app.get("*", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
