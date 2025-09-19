@@ -237,6 +237,23 @@ io.on("connection", (socket) => {
           io.emit("forceReload");
           return;
         }
+        // --- Reset Server (alle User + Messages) ---
+        const resetMatch = trimmed.match(/^\/reset\s*(?:[:]\s*)?(.*)$/i);
+        if (resetMatch) {
+          const provided = (resetMatch[1] || "").trim();
+          if (role === "admin" && provided === ADMIN_PASS) {
+            await Message.deleteMany({});
+            await User.deleteMany({});
+            activeUsers.clear();
+            userRoles.clear();
+            userFilters.clear();
+            io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Bitte neu verbinden.", type: "error" });
+            io.emit("forceReload");
+          } else {
+            socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+          }
+          return;
+        }
         // other admin commands handled here...
       }
 
@@ -327,4 +344,5 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
+
 
