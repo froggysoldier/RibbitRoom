@@ -172,30 +172,29 @@ registerSubmit.addEventListener("click", async () => {
 
 // --- send message ---
 async function sendMessage() {
-  let content = messageInput.value.trim();
-  if(!content) return;
-  if(!token) return alert("Bitte einloggen!");
-
-  const maxLength = 200;
-  if(content.length > maxLength) {
-    alert(`Nachricht zu lang! Maximal ${maxLength} Zeichen.`);
-    return;
-  }
+  const content = messageInput.value.trim();
+  if (!content) return;
+  if (!token) return alert("Bitte einloggen!");
 
   try {
     const res = await fetch("/api/messages", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${token}` },
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}` 
+      },
       body: JSON.stringify({ content })
     });
-    if(!res.ok){
-      if(res.status===401||res.status===403) return alert("Nicht autorisiert. Bitte einloggen.");
-      const data = await res.json().catch(()=>({}));
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) return alert("Nicht autorisiert. Bitte einloggen.");
+      const data = await res.json().catch(() => ({}));
       return alert(data.error || "Fehler beim Senden");
     }
-    appendMessage(username, content, new Date(), null, true);
+    // ⚡ Nachricht nicht mehr hier appendMessage()
     messageInput.value = "";
-  } catch(err){ alert("Fehler beim Senden"); }
+  } catch (err) { 
+    alert("Fehler beim Senden"); 
+  }
 }
 
 messageInput.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); sendMessage(); }});
