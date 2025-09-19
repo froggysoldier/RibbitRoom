@@ -157,7 +157,7 @@ io.on("connection", async (socket) => {
   }
 
   // --- /deleteAllUsers [passwort] ---
-  if (finalContent.startsWith("/delete all users")) {
+  if (finalContent.startsWith("/deleteAllUser")) {
     if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
     const provided = finalContent.split(" ")[1]?.trim();
     if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
@@ -243,4 +243,5 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html"
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
