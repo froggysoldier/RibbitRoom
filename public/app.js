@@ -175,7 +175,7 @@ async function sendMessage() {
   if (!content) return;
   if (!token) return alert("Bitte einloggen!");
 
-  const maxLength = 200;
+  const maxLength = 150;
   if (content.length > maxLength) {
     alert(`Nachricht zu lang! Maximal ${maxLength} Zeichen.`);
     return;
