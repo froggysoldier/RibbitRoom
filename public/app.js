@@ -30,7 +30,7 @@ function setSendEnabled(enabled) {
 }
 
 // --- appendMessage ---
-function appendMessage(sender, content, createdAt, id, self=false, role="user") {
+function appendMessage(sender, content, createdAt, id, self=false) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -40,7 +40,7 @@ function appendMessage(sender, content, createdAt, id, self=false, role="user") 
   const hours = date.getHours().toString().padStart(2,"0");
   const minutes = date.getMinutes().toString().padStart(2,"0");
 
-  p.innerHTML = `<strong class="${role==="admin" ? "admin" : ""}">${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
+  p.innerHTML = `<strong>${escapeHtml(sender)}</strong> <span class="time">[${hours}:${minutes}]</span>: ${escapeHtml(content)}`;
 
   chatWindow.appendChild(p);
 
@@ -57,7 +57,6 @@ function renderActiveUsers(users) {
   users.forEach(u => {
     const li = document.createElement("li");
     li.textContent = u.username;
-    if (u.role === "admin") li.classList.add("admin");
     usersListEl.appendChild(li);
   });
 }
@@ -82,7 +81,7 @@ function initSocket() {
 
   socket.on("newMessage", msg => {
     const isSelf = msg.sender === username;
-    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf, msg.role || "user");
+    appendMessage(msg.sender || "Unbekannt", msg.content || "", msg.createdAt, msg._id, isSelf);
   });
 
   socket.on("deletedMessages", ids => ids.forEach(id => chatWindow.querySelector(`[data-id="${id}"]`)?.remove()));
@@ -107,7 +106,7 @@ async function loadMessages() {
     chatWindow.innerHTML = "";
     messages.reverse().forEach(m => {
       const isSelf = m.sender === username;
-      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.role || "user");
+      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf);
     });
     setSendEnabled(!!token);
   } catch { showInfo("Fehler beim Laden der Nachrichten."); }
@@ -172,9 +171,15 @@ registerSubmit.addEventListener("click", async () => {
 
 // --- send message ---
 async function sendMessage() {
-  const content = messageInput.value.trim();
+  let content = messageInput.value.trim();
   if (!content) return;
   if (!token) return alert("Bitte einloggen!");
+
+  const maxLength = 200;
+  if (content.length > maxLength) {
+    alert(`Nachricht zu lang! Maximal ${maxLength} Zeichen.`);
+    return;
+  }
 
   try {
     const res = await fetch("/api/messages", {
@@ -190,7 +195,6 @@ async function sendMessage() {
       const data = await res.json().catch(() => ({}));
       return alert(data.error || "Fehler beim Senden");
     }
-    // ⚡ Nachricht nicht mehr hier appendMessage()
     messageInput.value = "";
   } catch (err) { 
     alert("Fehler beim Senden"); 
