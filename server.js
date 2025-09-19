@@ -9,14 +9,14 @@ require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
 const authMiddleware = require("./middleware/auth");
+const adminMiddleware = require("./middleware/admin");
 const Message = require("./models/Message");
 const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const DELETE_PASS = "admin123"; // Passwort für /delete all users
+const DEBUG = false;
 
-// Farben für Logs
 const colors = {
   reset: "\x1b[0m",
   fgRed: "\x1b[31m",
@@ -35,24 +35,28 @@ app.use("/api/auth", authRoutes);
 
 mongoose.connect(process.env.MONGO_URI, {})
   .then(() => console.log(`${colors.fgGreen}✅ MongoDB verbunden${colors.reset}`))
-  .catch(err => console.error(`${colors.fgRed}❌ MongoDB Fehler:${err}${colors.reset}`));
+  .catch(err => console.error(`${colors.fgRed}❌ MongoDB Fehler: ${err}${colors.reset}`));
 
 app.use(express.static(path.join(__dirname, "public")));
 
 const activeUsers = new Map();
 const userFilters = new Map(); // username -> filter aktiv?
+const adminSockets = new Set(); // socket.id von Admins
 
 function broadcastActiveUsers() {
-  const users = Array.from(activeUsers.keys()).sort().map(username => ({ username }));
+  const users = Array.from(activeUsers.keys())
+    .sort()
+    .map(username => ({ username }));
   io.emit("activeUsers", users);
 }
 
-function addActiveUser(username, socketId) {
+function addActiveUser(username, socketId, isAdmin=false) {
   if (!username) return;
   const set = activeUsers.get(username) || new Set();
   const isNewUser = set.size === 0;
   set.add(socketId);
   activeUsers.set(username, set);
+  if (isAdmin) adminSockets.add(socketId);
   if (isNewUser) console.log(`${colors.fgGreen}[SERVER] User online: ${username}${colors.reset}`);
   broadcastActiveUsers();
 }
@@ -67,10 +71,10 @@ function removeActiveUserBySocket(socketId) {
         console.log(`${colors.fgRed}[SERVER] User offline: ${username}${colors.reset}`);
       } else activeUsers.set(username, set);
       broadcastActiveUsers();
-      return username;
+      break;
     }
   }
-  return null;
+  adminSockets.delete(socketId);
 }
 
 async function trimOldMessages(maxMessages = 100) {
@@ -86,17 +90,22 @@ async function trimOldMessages(maxMessages = 100) {
   return idsToDelete;
 }
 
-// --- Socket.io ---
 io.on("connection", (socket) => {
+  if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] Client verbunden: ${socket.id}${colors.reset}`);
+
   let username = null;
+  let isAdmin = false;
   const token = socket.handshake?.auth?.token;
 
+  // Auto-Identifikation via Token
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       username = decoded.username;
-      addActiveUser(username, socket.id);
-      socket.emit("identified", { username, filterActive: userFilters.get(username) || false });
+      isAdmin = decoded.role === "admin";
+      addActiveUser(username, socket.id, isAdmin);
+      socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role: decoded.role });
+      if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] User automatisch identifiziert: ${username}${colors.reset}`);
     } catch {}
   }
 
@@ -105,33 +114,37 @@ io.on("connection", (socket) => {
       if (payload?.token) {
         const decoded = jwt.verify(payload.token, JWT_SECRET);
         username = decoded.username;
+        isAdmin = decoded.role === "admin";
       } else if (payload?.username) {
         username = payload.username;
       }
       if (username) {
-        addActiveUser(username, socket.id);
-        socket.emit("identified", { username, filterActive: userFilters.get(username) || false });
+        addActiveUser(username, socket.id, isAdmin);
+        socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role: isAdmin ? "admin" : "user" });
+        console.log(`${colors.fgCyan}[SOCKET] User identifiziert: ${username}${colors.reset}`);
       }
     } catch {}
   });
 
   socket.on("chatMessage", async (content) => {
     if (!username) return;
-
-    // --- Command: alle User löschen ---
-    if (content === `/delete all users : ${DELETE_PASS}`) {
-      await User.deleteMany({});
-      io.emit("newMessage", {
-        sender: "SYSTEM",
-        content: "✅ Alle User wurden gelöscht!",
-        createdAt: new Date(),
-        _id: "system"
-      });
-      return;
-    }
-
     if (content.length > 150) content = content.slice(0, 150);
     if (userFilters.get(username)) content = filterMessage(content);
+
+    // Prüfe Commands für Admin
+    if (content.startsWith("/deleteAllUsers") && isAdmin) {
+      const parts = content.split(" ");
+      const password = parts[1];
+      if (password === process.env.ADMIN_DELETE_PASSWORD) {
+        await User.deleteMany({ role: "user" });
+        socket.emit("systemMessage", "Alle normalen Nutzer wurden gelöscht.");
+        console.log(`${colors.fgYellow}[ADMIN] ${username} hat alle User gelöscht${colors.reset}`);
+        return;
+      } else {
+        socket.emit("systemMessage", "Falsches Admin-Passwort!");
+        return;
+      }
+    }
 
     try {
       const msg = new Message({ sender: username, content });
@@ -143,30 +156,71 @@ io.on("connection", (socket) => {
         _id: msg._id.toString(),
         sender: msg.sender,
         content: msg.content,
-        createdAt: msg.createdAt
+        createdAt: msg.createdAt,
+        type: "user"
       });
     } catch {
-      socket.emit("info", "Fehler beim Senden der Nachricht");
+      socket.emit("systemMessage", "Fehler beim Senden der Nachricht");
     }
   });
 
-  socket.on("toggleFilter", active => {
+  socket.on("toggleFilter", (active) => {
     if (!username) return;
     userFilters.set(username, !!active);
   });
 
   socket.on("disconnect", () => {
+    if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] Client getrennt: ${socket.id} (User: ${username || "unbekannt"})${colors.reset}`);
     removeActiveUserBySocket(socket.id);
   });
 });
 
-// --- API ---
+// --- Routes ---
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
     res.json(msgs);
   } catch {
     res.status(500).json({ error: "Fehler beim Laden der Nachrichten" });
+  }
+});
+
+app.post("/api/messages", authMiddleware, async (req, res) => {
+  try {
+    let content = req.body.content;
+    const username = req.user.username;
+    const isAdmin = req.user.role === "admin";
+
+    if (content.length > 150) content = content.slice(0, 150);
+    if (userFilters.get(username)) content = filterMessage(content);
+
+    const msg = new Message({ sender: username, content });
+    await msg.save();
+
+    const deletedIds = await trimOldMessages(100);
+    if (deletedIds.length) io.emit("deletedMessages", deletedIds);
+
+    io.emit("newMessage", {
+      _id: msg._id.toString(),
+      sender: msg.sender,
+      content: msg.content,
+      createdAt: msg.createdAt,
+      type: "user"
+    });
+
+    res.status(201).json({ message: "Gesendet" });
+  } catch {
+    res.status(500).json({ error: "Fehler beim Speichern der Nachricht" });
+  }
+});
+
+// Admin-Route für alle User löschen
+app.post("/api/admin/deleteAllUsers", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await User.deleteMany({ role: "user" });
+    res.json({ message: "Alle normalen Nutzer gelöscht" });
+  } catch {
+    res.status(500).json({ error: "Fehler beim Löschen der User" });
   }
 });
 
