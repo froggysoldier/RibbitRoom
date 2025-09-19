@@ -9,8 +9,6 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 const authRoutes = require("./routes/authRoutes");
-const authMiddleware = require("./middleware/auth");
-const adminMiddleware = require("./middleware/admin");
 const Message = require("./models/Message");
 const User = require("./models/User");
 const filterMessage = require("./utils/filter");
@@ -177,7 +175,7 @@ io.on("connection", async (socket) => {
       return;
     }
 
-    // --- Normale Nachricht ---
+    // --- normale Nachricht ---
     if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
     if (userFilters.get(username)) finalContent = filterMessage(finalContent);
 
@@ -217,20 +215,6 @@ app.get("/api/messages", async (req, res) => {
       type: "user"
     })));
   } catch { res.status(500).json({ error: "Fehler beim Laden der Nachrichten" }); }
-});
-
-// --- Admin REST route ---
-app.post("/api/admin/deleteAllUsers", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    await User.deleteMany({ role: "user" });
-    for (const uname of userRoles.keys()) {
-      const dbu = await User.findOne({ username: uname });
-      if (dbu) userRoles.set(uname, dbu.role);
-      else userRoles.delete(uname);
-    }
-    broadcastActiveUsers();
-    res.json({ message: "Alle normalen Nutzer gelöscht" });
-  } catch { res.status(500).json({ error: "Fehler beim Löschen der User" }); }
 });
 
 // --- Catch-All Route ---
