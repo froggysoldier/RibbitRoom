@@ -66,7 +66,7 @@ function appendMessage(sender, content, createdAt, id, self = false) {
     <span class="time">[${hours}:${minutes}]</span>
   </div>
   <div class="msg-content">${formatMessage(content)}</div>
-`;
+  `;
 
   chatWindow.appendChild(p);
 
@@ -94,8 +94,10 @@ let socketConnected = false;
 let filterActive = false;
 let username = localStorage.getItem("username") || null;
 
+// --- Socket init & Event-Listener ---
 function initSocket() {
   if (socket && socket.connected) return;
+
   socket = io({ auth: { token } });
 
   socket.on("connect", () => {
@@ -116,9 +118,7 @@ function initSocket() {
 
   socket.on("deletedMessages", (ids) => {
     console.log("[SOCKET] Nachrichten gelöscht:", ids);
-    ids.forEach((id) =>
-      chatWindow.querySelector(`[data-id="${id}"]`)?.remove()
-    );
+    ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
   socket.on("activeUsers", (users) => {
@@ -137,8 +137,6 @@ function initSocket() {
     socketConnected = false;
   });
 }
-
-initSocket();
 
 // --- load messages ---
 async function loadMessages() {
@@ -160,7 +158,6 @@ async function loadMessages() {
     showError("Fehler beim Laden der Nachrichten.");
   }
 }
-loadMessages();
 
 // --- Modal open/close ---
 loginBtnHeader.onclick = () => (modal.style.display = "block");
@@ -196,10 +193,12 @@ loginSubmit.addEventListener("click", async () => {
     setSendEnabled(true);
     await loadMessages();
 
+    // --- Reconnect mit neuem Token ---
     if (socket) {
       socket.auth = { token };
       socket.disconnect();
       socket.connect();
+      initSocket(); // Event-Listener erneut setzen
     } else initSocket();
   } catch (err) {
     showError("Login-Fehler");
@@ -283,13 +282,12 @@ sendBtn.addEventListener("click", (e) => {
 });
 
 // --- Filter Button ---
-socket.on("identified", data => {
-  filterActive = data.filterActive || false;
-  filterBtn.checked = filterActive;
-});
-
 filterBtn.addEventListener("change", () => {
   if (!socketConnected) return;
   filterActive = filterBtn.checked;
   socket.emit("toggleFilter", filterActive);
 });
+
+// --- Initial Socket starten ---
+initSocket();
+loadMessages();
