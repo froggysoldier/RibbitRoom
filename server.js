@@ -1,245 +1,185 @@
-// server.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
 const mongoose = require("mongoose");
-const cors = require("cors");
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
+const bcrypt = require("bcryptjs");
+const bodyParser = require("body-parser");
+const path = require("path");
 
-const authRoutes = require("./routes/authRoutes");
-const Message = require("./models/Message");
-const User = require("./models/User");
-const filterMessage = require("./utils/filter");
+const JWT_SECRET = "supersecret";
+const ADMIN_PASSWORD = "passwort"; // Admin-Code
 
-const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const ADMIN_PASS = process.env.ADMIN_PASS || "touchingDowniesadmins";
+// --- Spam-Schutz ---
+const messageRate = new Map(); // username → Array mit Zeitstempeln
+function checkSpam(username, limit = 5, interval = 10000) {
+  const now = Date.now();
+  if (!messageRate.has(username)) {
+    messageRate.set(username, [now]);
+    return false;
+  }
+  const timestamps = messageRate.get(username).filter(ts => now - ts < interval);
+  timestamps.push(now);
+  messageRate.set(username, timestamps);
+  return timestamps.length > limit;
+}
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server);
 
-app.use(cors());
-app.use(express.json());
-app.use("/api/auth", authRoutes);
-
-mongoose.connect(process.env.MONGO_URI, {})
-  .then(() => console.log("✅ MongoDB verbunden"))
-  .catch(err => console.error("❌ MongoDB Fehler:", err));
-
+app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const activeUsers = new Map();
-const userFilters = new Map();
-const userRoles = new Map();
+// --- MongoDB ---
+mongoose.connect("mongodb://127.0.0.1:27017/chatapp");
 
-function broadcastActiveUsers() {
-  const users = Array.from(activeUsers.keys())
-    .sort()
-    .map(username => ({ username, role: userRoles.get(username) || "user" }));
-  io.emit("activeUsers", users);
-}
+// --- Models ---
+const userSchema = new mongoose.Schema({
+  username: String,
+  password: String,
+  email: String,
+  role: { type: String, default: "user" }
+});
 
-function addActiveUser(username, socketId, role = "user") {
-  if (!username) return;
-  const set = activeUsers.get(username) || new Set();
-  set.add(socketId);
-  activeUsers.set(username, set);
-  userRoles.set(username, role);
-  broadcastActiveUsers();
-}
+const messageSchema = new mongoose.Schema({
+  sender: String,
+  senderRole: { type: String, default: "user" },
+  content: String,
+  createdAt: { type: Date, default: Date.now },
+  type: { type: String, default: "user" }
+});
 
-function removeActiveUserBySocket(socketId) {
-  for (const [username, set] of activeUsers.entries()) {
-    if (set.has(socketId)) {
-      set.delete(socketId);
-      if (set.size === 0) {
-        activeUsers.delete(username);
-        userFilters.delete(username);
-        userRoles.delete(username);
-      } else activeUsers.set(username, set);
-      broadcastActiveUsers();
-      return username;
-    }
-  }
-  return null;
-}
+const User = mongoose.model("User", userSchema);
+const Message = mongoose.model("Message", messageSchema);
 
-async function trimOldMessages(maxMessages = 100) {
-  const count = await Message.countDocuments();
-  if (count <= maxMessages) return [];
-  const excess = count - maxMessages;
-  const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select("_id");
-  const idsToDelete = oldest.map(d => d._id.toString());
-  if (idsToDelete.length) await Message.deleteMany({ _id: { $in: idsToDelete } });
-  return idsToDelete;
-}
+// --- In-Memory ---
+let activeUsers = new Map(); // socket.id → username
+let userRoles = new Map();   // username → role
 
-function emitToAdmins(event, payload) {
-  for (const [username, sockets] of activeUsers.entries()) {
-    const role = userRoles.get(username) || "user";
-    if (role === "admin") {
-      for (const sid of sockets) io.to(sid).emit(event, payload);
-    }
+// --- Auth Middleware ---
+function authMiddleware(req, res, next) {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
   }
 }
 
-// --- SOCKET.IO ---
-io.on("connection", async (socket) => {
+// --- REST API ---
+app.post("/api/auth/register", async (req, res) => {
+  const { username, password, email, adminPass } = req.body;
+  if (!username || !password || !email) return res.status(400).json({ error: "Missing fields" });
+
+  const existing = await User.findOne({ username });
+  if (existing) return res.status(400).json({ error: "User exists" });
+
+  const hashed = await bcrypt.hash(password, 10);
+  const role = adminPass === ADMIN_PASSWORD ? "admin" : "user";
+
+  const user = new User({ username, password: hashed, email, role });
+  await user.save();
+
+  const token = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
+  res.json({ token, role });
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const { username, password } = req.body;
+  const user = await User.findOne({ username });
+  if (!user) return res.status(400).json({ error: "Invalid credentials" });
+
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.status(400).json({ error: "Invalid credentials" });
+
+  const token = jwt.sign({ username, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
+  res.json({ token, role: user.role });
+});
+
+app.get("/api/messages", authMiddleware, async (req, res) => {
+  const msgs = await Message.find().sort({ createdAt: -1 }).limit(50);
+  res.json(msgs);
+});
+
+// --- Socket.io ---
+io.on("connection", (socket) => {
   let username = null;
-  const token = socket.handshake?.auth?.token;
 
-  if (token) {
+  socket.on("identify", async ({ token }) => {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       username = decoded.username;
-      const dbUser = await User.findOne({ username });
-      const role = dbUser?.role || "user";
-      addActiveUser(username, socket.id, role);
-      socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
-    } catch {}
-  }
-
-  socket.on("identify", async (payload) => {
-    try {
-      if (payload?.token) {
-        const decoded = jwt.verify(payload.token, JWT_SECRET);
-        username = decoded.username;
-        const dbUser = await User.findOne({ username });
-        const role = dbUser?.role || decoded.role || "user";
-        addActiveUser(username, socket.id, role);
-        socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
-      } else if (payload?.username) {
-        username = payload.username;
-        const dbUser = await User.findOne({ username });
-        const role = dbUser?.role || "user";
-        addActiveUser(username, socket.id, role);
-        socket.emit("identified", { username, filterActive: userFilters.get(username) || false, role });
-      }
-    } catch {}
+      activeUsers.set(socket.id, username);
+      userRoles.set(username, decoded.role);
+      io.emit("activeUsers", Array.from(new Set(activeUsers.values())).map(u => ({ username: u, role: userRoles.get(u) || "user" })));
+      socket.emit("identified", { username, role: decoded.role });
+    } catch {
+      socket.disconnect();
+    }
   });
 
+  // --- Chat Nachrichten ---
   socket.on("chatMessage", async (content) => {
     if (!username) return;
+
     const dbUser = await User.findOne({ username });
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    let finalContent = content.trim();
-
-    // --- /admin [passwort] ---
-    const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
-    if (adminMatch) {
-      const provided = (adminMatch[1] || "").trim();
-      if (provided && provided === ADMIN_PASS) {
-        if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
-        role = "admin";
-        userRoles.set(username, role);
-
-        const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
-        socket.emit("newToken", { token: newToken });
-
-        socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
-        broadcastActiveUsers();
-        emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
-      } else socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+    // --- Spam-Schutz ---
+    if (role !== "admin" && checkSpam(username)) {
+      socket.emit("systemMessage", { text: "⚠️ Bitte langsamer schreiben – Spam-Schutz aktiv." });
       return;
     }
 
-    // --- /clear ---
-    if (finalContent === "/clear") {
-      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+    // --- Admin-Kommandos ---
+    if (role === "admin" && content.startsWith("/")) {
+      const parts = content.trim().split(" ");
+      const cmd = parts[0];
+      const arg = parts[1];
 
-      await Message.deleteMany({});
-      io.emit("deletedMessages", []); // Clients löschen alle Messages
-      io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
-      io.emit("forceReload",false);
-
-      return;
-    }
-
-    // --- /deleteAllUsers [passwort] ---
-    if (finalContent.startsWith("/deleteAllUsers")) {
-      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      const provided = finalContent.split(" ")[1]?.trim();
-      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-
-      await User.deleteMany({ role: "user" });
-      for (const uname of userRoles.keys()) {
-        const dbu = await User.findOne({ username: uname });
-        if (dbu) userRoles.set(uname, dbu.role);
-        else userRoles.delete(uname);
+      if (cmd === "/deleteAllUsers" && arg === ADMIN_PASSWORD) {
+        await User.deleteMany({});
+        await Message.deleteMany({});
+        activeUsers.clear();
+        userRoles.clear();
+        io.emit("forceReload", true);
+        return;
       }
-      broadcastActiveUsers();
-      socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
-      emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
-      return;
+
+      if (cmd === "/reset" && arg === ADMIN_PASSWORD) {
+        await User.deleteMany({});
+        await Message.deleteMany({});
+        activeUsers.clear();
+        userRoles.clear();
+        io.emit("forceReload", true);
+        return;
+      }
+
+      if (cmd === "/clear" && arg === ADMIN_PASSWORD) {
+        await Message.deleteMany({});
+        io.emit("forceReload", false);
+        return;
+      }
     }
 
-    // --- /reset [passwort] ---
-    if (finalContent.startsWith("/reset")) {
-      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      const provided = finalContent.split(" ")[1]?.trim();
-      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-
-      await User.deleteMany({});
-      userRoles.clear();
-      activeUsers.clear();
-      userFilters.clear();
-      await Message.deleteMany({});
-
-      io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
-      io.emit("forceReload", true); // true signalisiert: Logout aller Nutzer
-
-      return;
-    }
-
-    // --- normale Nachricht ---
-    if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
-    if (userFilters.get(username)) finalContent = filterMessage(finalContent);
-
-    const msg = new Message({ sender: username, content: finalContent, senderRole: role });
+    const msg = new Message({ sender: username, senderRole: role, content });
     await msg.save();
-    const deletedIds = await trimOldMessages(100);
-    if (deletedIds.length) io.emit("deletedMessages", deletedIds);
-
-    io.emit("newMessage", {
-      _id: msg._id.toString(),
-      sender: msg.sender,
-      content: msg.content,
-      createdAt: msg.createdAt,
-      senderRole: role,
-      type: "user"
-    });
+    io.emit("newMessage", msg);
   });
 
-  socket.on("toggleFilter", (active) => {
-    if (!username) return;
-    userFilters.set(username, !!active);
+  socket.on("disconnect", () => {
+    if (username) {
+      activeUsers.delete(socket.id);
+      io.emit("activeUsers", Array.from(new Set(activeUsers.values())).map(u => ({ username: u, role: userRoles.get(u) || "user" })));
+    }
   });
-
-  socket.on("disconnect", () => removeActiveUserBySocket(socket.id));
 });
 
-// --- REST API (Messages) ---
-app.get("/api/messages", async (req, res) => {
-  try {
-    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
-    res.json(msgs.reverse().map(m => ({
-      _id: m._id.toString(),
-      sender: m.sender,
-      content: m.content,
-      createdAt: m.createdAt,
-      senderRole: m.senderRole || "user",
-      type: "user"
-    })));
-  } catch { res.status(500).json({ error: "Fehler beim Laden der Nachrichten" }); }
-});
-
-// --- Catch-All Route ---
-app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
-
+// --- Server Start ---
+const PORT = 3000;
+server.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
