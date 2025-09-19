@@ -15,9 +15,8 @@ const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 const DELETE_PASS = process.env.DELETE_PASS || "admin123"; // Passwort für Delete
-const DEBUG = false; // true = ausführliche Logs, false = leise
+const DEBUG = false;
 
-// Farben für Logs
 const colors = {
   reset: "\x1b[0m",
   fgRed: "\x1b[31m",
@@ -41,7 +40,7 @@ mongoose.connect(process.env.MONGO_URI, {})
 app.use(express.static(path.join(__dirname, "public")));
 
 const activeUsers = new Map();
-const userFilters = new Map(); // username -> filter aktiv?
+const userFilters = new Map();
 
 function broadcastActiveUsers() {
   const users = Array.from(activeUsers.keys())
@@ -95,7 +94,6 @@ io.on("connection", (socket) => {
   let username = null;
   const token = socket.handshake?.auth?.token;
 
-  // Auto-Identifikation via Token
   if (token) {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
@@ -125,16 +123,21 @@ io.on("connection", (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
-    // --- Admin-Command prüfen ---
+    // --- Einmaliger Admin-Command ---
     if (content === `/delete all users : ${DELETE_PASS}`) {
       try {
         await User.deleteMany({});
-        io.emit("newMessage", { sender: "SYSTEM", content: "✅ Alle User wurden gelöscht!", createdAt: new Date(), _id: "system" });
+        io.emit("newMessage", {
+          sender: "SYSTEM",
+          content: "✅ Alle User wurden gelöscht!",
+          createdAt: new Date(),
+          _id: "system"
+        });
         console.log(`${colors.fgRed}[ADMIN] Alle User gelöscht${colors.reset}`);
-      } catch (err) {
+      } catch {
         socket.emit("info", "Fehler beim Löschen der User");
       }
-      return; // Nachricht wird nicht normal gesendet
+      return;
     }
 
     // normale Nachricht
@@ -170,7 +173,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Routes
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
