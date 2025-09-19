@@ -204,9 +204,11 @@ main {
 .message.self {
   background: linear-gradient(135deg, #4CAF50, #00C9A7);
   color: #121212;
-  align-self: flex-end;
+  margin-left: auto;  /* rechtsbündig */
 }
-
+.message:not(.self) {
+  margin-right: auto; /* linksbündig */
+}
 /* Animation starten */
 .message.show {
   opacity: 1;
