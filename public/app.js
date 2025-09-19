@@ -190,7 +190,6 @@ async function sendMessage() {
   } catch(err){ alert("Fehler beim Senden"); }
 }
 
-sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keydown", e => { if(e.key==="Enter"){ e.preventDefault(); sendMessage(); }});
 
 // --- Filter Button ---
