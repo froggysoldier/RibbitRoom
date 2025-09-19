@@ -14,9 +14,9 @@ const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const DELETE_PASS = process.env.DELETE_PASS || "admin123"; // Passwort für Delete
-const DEBUG = false;
+const DELETE_PASS = "admin123"; // Passwort für /delete all users
 
+// Farben für Logs
 const colors = {
   reset: "\x1b[0m",
   fgRed: "\x1b[31m",
@@ -40,12 +40,10 @@ mongoose.connect(process.env.MONGO_URI, {})
 app.use(express.static(path.join(__dirname, "public")));
 
 const activeUsers = new Map();
-const userFilters = new Map();
+const userFilters = new Map(); // username -> filter aktiv?
 
 function broadcastActiveUsers() {
-  const users = Array.from(activeUsers.keys())
-    .sort()
-    .map(username => ({ username }));
+  const users = Array.from(activeUsers.keys()).sort().map(username => ({ username }));
   io.emit("activeUsers", users);
 }
 
@@ -88,9 +86,8 @@ async function trimOldMessages(maxMessages = 100) {
   return idsToDelete;
 }
 
+// --- Socket.io ---
 io.on("connection", (socket) => {
-  if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] Client verbunden: ${socket.id}${colors.reset}`);
-
   let username = null;
   const token = socket.handshake?.auth?.token;
 
@@ -100,7 +97,6 @@ io.on("connection", (socket) => {
       username = decoded.username;
       addActiveUser(username, socket.id);
       socket.emit("identified", { username, filterActive: userFilters.get(username) || false });
-      if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] User automatisch identifiziert: ${username}${colors.reset}`);
     } catch {}
   }
 
@@ -115,7 +111,6 @@ io.on("connection", (socket) => {
       if (username) {
         addActiveUser(username, socket.id);
         socket.emit("identified", { username, filterActive: userFilters.get(username) || false });
-        console.log(`${colors.fgCyan}[SOCKET] User identifiziert: ${username}${colors.reset}`);
       }
     } catch {}
   });
@@ -123,31 +118,24 @@ io.on("connection", (socket) => {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
-    // --- Einmaliger Admin-Command ---
+    // --- Command: alle User löschen ---
     if (content === `/delete all users : ${DELETE_PASS}`) {
-      try {
-        await User.deleteMany({});
-        io.emit("newMessage", {
-          sender: "SYSTEM",
-          content: "✅ Alle User wurden gelöscht!",
-          createdAt: new Date(),
-          _id: "system"
-        });
-        console.log(`${colors.fgRed}[ADMIN] Alle User gelöscht${colors.reset}`);
-      } catch {
-        socket.emit("info", "Fehler beim Löschen der User");
-      }
+      await User.deleteMany({});
+      io.emit("newMessage", {
+        sender: "SYSTEM",
+        content: "✅ Alle User wurden gelöscht!",
+        createdAt: new Date(),
+        _id: "system"
+      });
       return;
     }
 
-    // normale Nachricht
     if (content.length > 150) content = content.slice(0, 150);
     if (userFilters.get(username)) content = filterMessage(content);
 
     try {
       const msg = new Message({ sender: username, content });
       await msg.save();
-
       const deletedIds = await trimOldMessages(100);
       if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
@@ -162,51 +150,23 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("toggleFilter", (active) => {
+  socket.on("toggleFilter", active => {
     if (!username) return;
     userFilters.set(username, !!active);
   });
 
   socket.on("disconnect", () => {
-    if (DEBUG) console.log(`${colors.fgCyan}[SOCKET] Client getrennt: ${socket.id} (User: ${username || "unbekannt"})${colors.reset}`);
     removeActiveUserBySocket(socket.id);
   });
 });
 
+// --- API ---
 app.get("/api/messages", async (req, res) => {
   try {
     const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
     res.json(msgs);
   } catch {
     res.status(500).json({ error: "Fehler beim Laden der Nachrichten" });
-  }
-});
-
-app.post("/api/messages", authMiddleware, async (req, res) => {
-  try {
-    let content = req.body.content;
-    const username = req.user.username;
-
-    if (content.length > 150) content = content.slice(0, 150);
-    if (userFilters.get(username)) content = filterMessage(content);
-
-    const msg = new Message({ sender: username, content });
-    await msg.save();
-
-    const deletedIds = await trimOldMessages(100);
-    if (deletedIds.length) io.emit("deletedMessages", deletedIds);
-
-    const payload = {
-      _id: msg._id.toString(),
-      sender: msg.sender,
-      content: msg.content,
-      createdAt: msg.createdAt
-    };
-    io.emit("newMessage", payload);
-
-    res.status(201).json(payload);
-  } catch {
-    res.status(500).json({ error: "Fehler beim Speichern der Nachricht" });
   }
 });
 
