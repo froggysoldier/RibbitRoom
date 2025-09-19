@@ -111,7 +111,9 @@ main {
   border-radius: 12px;
   padding: 20px; /* mehr Innenabstand */
   height: 600px; /* größer als vorher */
-  overflow-y: auto;
+  overflow-y: break-word;
+  word-wrap: break-word;
+  white-space: normal; /* damit Nachrichten wie normaler Text umbrechen */
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   font-size: 16px; /* größere Schrift */
   line-height: 1.6;
