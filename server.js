@@ -17,7 +17,7 @@ const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const ADMIN_PASS = process.env.ADMIN_PASS || "admin123"; // setze in .env
+const ADMIN_PASS = process.env.ADMIN_PASS || "touchingDowniesadmins"; // setze in .env
 const DEBUG = false;
 
 const colors = {
@@ -316,3 +316,4 @@ app.get("*", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`${colors.fgGreen}✅ Server läuft auf Port ${PORT}${colors.reset}`));
+
