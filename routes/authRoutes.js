@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 // --- Registrierung ---
 router.post("/register", async (req, res) => {
   try {
-    const { username, password, email } = req.body;
+    const { username, password, email, adminPass } = req.body;
     if (!username || !password || !email) {
       return res.status(400).json({ error: "Bitte alle Felder ausfüllen" });
     }
@@ -16,7 +16,10 @@ router.post("/register", async (req, res) => {
     const exists = await User.findOne({ username });
     if (exists) return res.status(400).json({ error: "Benutzername existiert bereits" });
 
-    const user = new User({ username, email, password });
+    // Adminrolle optional vergeben
+    const role = adminPass && adminPass === process.env.ADMIN_PASS ? "admin" : "user";
+
+    const user = new User({ username, email, password, role });
     await user.save();
 
     // Token direkt ausgeben, damit Frontend automatisch login kann
@@ -26,7 +29,7 @@ router.post("/register", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.status(201).json({ message: "Registrierung erfolgreich", token });
+    res.status(201).json({ message: "Registrierung erfolgreich", token, role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Fehler bei der Registrierung" });
@@ -51,11 +54,17 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    res.json({ token });
+    res.json({ token, role: user.role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Fehler beim Login" });
   }
+});
+
+// --- Logout (optional, löscht nur clientseitig das Token) ---
+router.post("/logout", (req, res) => {
+  // JWT stateless: serverseitig muss nichts gemacht werden
+  res.json({ message: "Erfolgreich ausgeloggt" });
 });
 
 module.exports = router;
