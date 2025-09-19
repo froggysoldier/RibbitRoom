@@ -157,14 +157,11 @@ socket.on("forceReload", (resetAll = true) => {
   } else {
     // nur Nachrichten gelöscht, Nutzer bleiben eingeloggt
     chatWindow.innerHTML = "";
-    window.location.reload();
+     setTimeout(() => {
+      window.location.reload();
+    }, 2000); // 2000ms = 2 Sekunden
     showInfo("⚠️ Alle Nachrichten wurden gelöscht.");
   }
-
-  setTimeout(() => {
-    if (socket) { try { socket.disconnect(); } catch {} }
-    window.location.href = window.location.href;
-  }, 500);
 });
 
   // --- NEU: Neues Token speichern ---
