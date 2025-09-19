@@ -112,7 +112,9 @@ main {
   padding: 20px; /* mehr Innenabstand */
   height: 600px; /* größer als vorher */
   overflow-y: auto;
-  overflow-x: auto;
+   overflow-wrap: break-word;
+  word-wrap: break-word;
+  white-space: normal;
   box-shadow: 0 4px 12px rgba(0,0,0,0.6);
   font-size: 16px; /* größere Schrift */
   line-height: 1.6;
@@ -181,13 +183,15 @@ main {
 /* ====== Nachrichten mit Slide-In ====== */
 .message {
   background: #2a2a2a;
-  border-radius: 14px;
-  padding: 14px 18px; /* größerer Block */
   margin-bottom: 10px;
-  word-wrap: break-word;      /* bricht lange Wörter */
-  overflow-wrap: break-word;  /* moderner Standard */
-  white-space: pre-wrap;      /* Zeilenumbrüche & Spaces bleiben erhalten */
-  max-width: 100%;            /* Nachricht bleibt im Container */
+  max-width: 80%;            /* Nachricht bleibt im Container */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;    /* Zeilenumbrüche bleiben erhalten */
+  margin: 4px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: inline-block;    /* verhindert, dass sie unendlich breit wird */
   opacity: 0; /* unsichtbar am Anfang */
   transform: translateX(-60px); /* Start links */
   box-shadow: 0 3px 8px rgba(0,0,0,0.5);
