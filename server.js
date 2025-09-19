@@ -14,7 +14,7 @@ const User = require("./models/User");
 const filterMessage = require("./utils/filter");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
-const ADMIN_PASS = process.env.ADMIN_PASS || "touchingDowniesadmins";
+const ADMIN_PASS = process.env.ADMIN_PASS || "10282024";
 
 const app = express();
 const server = http.createServer(app);
@@ -270,3 +270,4 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html"
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
