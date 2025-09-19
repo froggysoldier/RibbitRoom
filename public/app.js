@@ -139,31 +139,30 @@ function initSocket() {
     ids.forEach((id) => chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- force page reload ---
-  socket.on("forceReload", (resetAll) => {
-    if (resetAll) {
-      console.log("Server Reset: Alle Nutzer werden abgemeldet.");
-      // Token & Username löschen
-      token = null;
-      username = null;
-      myRole = "user";
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
+  // --- force page reload mit Logout aller Nutzer ---
+  socket.on("forceReload", () => {
+    console.log("Server hat einen Reset ausgelöst, alle Nutzer werden abgemeldet...");
 
-      // Socket trennen
-      if (socket) {
-        try { socket.auth = {}; socket.disconnect(); } catch {}
-        socket = null;
-      }
+    // Token & Username löschen
+    token = null;
+    username = null;
+    myRole = "user";
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
 
-      // UI zurücksetzen
-      renderActiveUsers([]);
-      chatWindow.innerHTML = "";
-      showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
-    } else {
-      showInfo("⚠️ Alle Nachrichten wurden gelöscht. Die Seite wird neu geladen...");
+    // Socket trennen
+    if (socket) {
+      try { socket.auth = {}; socket.disconnect(); } catch {}
+      socket = null;
     }
-    setTimeout(() => window.location.reload(), 1000);
+
+    // UI zurücksetzen
+    renderActiveUsers([]);
+    chatWindow.innerHTML = "";
+    showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
+
+    // Seite reloaden nach kurzer Verzögerung
+    setTimeout(() => window.location.reload(), 2000);
   });
 
   // --- NEU: Neues Token speichern ---
