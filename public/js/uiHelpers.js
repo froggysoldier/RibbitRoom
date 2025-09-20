@@ -45,7 +45,6 @@ export function isAtBottom(threshold = 10) {
   return (el.scrollHeight - el.scrollTop - el.clientHeight) <= threshold;
 }
 
-/* appendMessage (smart autoscroll; system messages auto-remove) */
 export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
   const wasAtBottom = isAtBottom();
 
@@ -60,6 +59,16 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
 
+  let messageText = "";
+  let sysDuration = 4000; // Standarddauer für systemnachrichten
+
+  if (type === "system" && typeof content === "object") {
+    messageText = content.text || "";
+    if (content.duration) sysDuration = content.duration;
+  } else {
+    messageText = content;
+  }
+
   p.innerHTML = `
     <div class="msg-header">
       <strong class="${senderRole === "admin" ? "admin-name" : ""}">
@@ -67,19 +76,16 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
       </strong>
       <span class="time">[${hours}:${minutes}]</span>
     </div>
-    <div class="msg-content">${formatMessage(content)}</div>
+    <div class="msg-content">${formatMessage(messageText)}</div>
   `;
 
   DOM.chatWindow.appendChild(p);
   setTimeout(() => p.classList.add("show"), 50);
 
-  // only auto-scroll if user was at bottom
-  if (wasAtBottom) {
-    DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
-  }
+  if (wasAtBottom) DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
+
   // transient system messages auto-remove
   if (type === "system") {
-    const sysDuration = typeof content === "object" && content.duration ? content.duration : 4000;
     setTimeout(() => {
       if (p.parentNode) p.parentNode.removeChild(p);
     }, sysDuration);
