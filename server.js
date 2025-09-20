@@ -220,6 +220,85 @@ io.on("connection", async (socket) => {
       return;
     }
 
+    // --- /ban "username" ADMIN_PASS ---
+const banMatch = finalContent.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
+if (banMatch) {
+  if (role !== "admin") {
+    return socket.emit("systemMessage", {
+      text: "Nur Admins können diesen Befehl ausführen.",
+      type: "error"
+    });
+  }
+
+  const target = (banMatch[1] || banMatch[2] || "").trim();
+  const providedPass = banMatch[3];
+
+  if (!target) {
+    return socket.emit("systemMessage", { text: "Benutzername fehlt.", type: "error" });
+  }
+
+  // Passwort prüfen
+  if (providedPass !== ADMIN_PASS) {
+    return socket.emit("systemMessage", {
+      text: "Ungültiges Admin-Passwort für /ban.",
+      type: "error"
+    });
+  }
+
+  // Selbst-Bann verhindern
+  if (target === username) {
+    return socket.emit("systemMessage", {
+      text: "Du kannst dich nicht selbst bannen.",
+      type: "error"
+    });
+  }
+
+  try {
+    // 1) User löschen
+    const deletedUser = await User.findOneAndDelete({ username: target });
+
+    // 2) Nachrichten löschen
+    await Message.deleteMany({ sender: target });
+
+    // 3) Aktive Sessions kicken
+    const socketsSet = activeUsers.get(target);
+    if (socketsSet && socketsSet.size) {
+      for (const sid of socketsSet) {
+        io.to(sid).emit("banned", {
+          text: "Du wurdest vom Admin gebannt und entfernt."
+        });
+        const s = io.sockets.sockets.get(sid);
+        if (s) {
+          try { s.disconnect(true); } catch (e) {}
+        }
+      }
+      activeUsers.delete(target);
+      userRoles.delete(target);
+      userFilters.delete(target);
+      broadcastActiveUsers();
+    }
+
+    // 4) Info an alle
+    io.emit("systemMessage", {
+      text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`,
+      type: "error"
+    });
+
+    emitToAdmins("adminNotice", {
+      text: `${username} hat ${target} gebannt.`
+    });
+
+  } catch (err) {
+    console.error("Ban-Fehler:", err);
+    socket.emit("systemMessage", {
+      text: "Fehler beim Bannen des Nutzers.",
+      type: "error"
+    });
+  }
+
+  return;
+}
+
     // --- normale Nachricht ---
     if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
     if (userFilters.get(username)) finalContent = filterMessage(finalContent);
@@ -269,6 +348,7 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html"
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
 
 
