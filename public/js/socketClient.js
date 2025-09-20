@@ -1,3 +1,4 @@
+// public/js/socketClient.js
 import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
 import { loadMessages } from "./chatHandlers.js";
@@ -17,19 +18,39 @@ export function initSocket(state) {
   state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
   state.socket.on("newMessage", (msg) => {
-    if (!state.token) return;
+    if (!state.token) return; // nur eingeloggte Clients bekommen Nachrichten
     const isSelf = msg.sender === state.username;
-    UI.appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
+    UI.appendMessage(
+      msg.sender || "SYSTEM",
+      msg.content || "",
+      msg.createdAt,
+      msg._id,
+      isSelf,
+      msg.type || "user",
+      msg.senderRole || "user"
+    );
   });
 
   state.socket.on("systemMessage", (data) => {
-    if (!state.token) return;
-    if (typeof data === "string") UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
-    else UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system", "system", data.duration || 4000);
+    let text = "";
+    let duration = 4000;
+
+    if (typeof data === "string") {
+      text = data;
+    } else if (typeof data === "object") {
+      text = data.text || "";
+      duration = data.duration || 4000;
+    }
+
+    const key = "sys-" + Date.now();
+    UI.showPersistentSystem(text, key);
+
+    if (duration > 0) {
+      setTimeout(() => UI.clearPersistentSystem(key), duration);
+    }
   });
 
   state.socket.on("adminNotice", (data) => {
-    if (!state.token) return;
     UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
@@ -42,7 +63,10 @@ export function initSocket(state) {
   });
 
   state.socket.on("activeUsers", (users) => {
-    if (!state.token) return;
+    if (!state.token) {
+      DOM.usersListEl.innerHTML = "";
+      return; // nicht eingeloggte sehen keine User
+    }
     DOM.usersListEl.innerHTML = "";
     users.forEach((u) => {
       const li = document.createElement("li");
@@ -53,25 +77,21 @@ export function initSocket(state) {
   });
 
   state.socket.on("deletedMessages", (ids) => {
+    if (!state.token) return;
     ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
   state.socket.on("forceReload", (resetAll = true) => {
-    if (resetAll) {
-      state.token = null;
-      state.username = null;
-      state.myRole = "user";
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
-      if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
-      DOM.usersListEl.innerHTML = "";
-      DOM.chatWindow.innerHTML = "";
-      UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
-      setTimeout(() => window.location.reload(), 2000);
-    } else {
-      DOM.chatWindow.innerHTML = "";
-      window.location.reload();
-    }
+    state.token = null;
+    state.username = null;
+    state.myRole = "user";
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
+    DOM.usersListEl.innerHTML = "";
+    DOM.chatWindow.innerHTML = "";
+    UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
+    setTimeout(() => window.location.reload(), 2000);
   });
 
   state.socket.on("newToken", (data) => {
@@ -95,6 +115,8 @@ export function initSocket(state) {
     state.myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+    DOM.usersListEl.innerHTML = "";
+    DOM.chatWindow.innerHTML = "";
     setTimeout(() => {
       try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
       window.location.reload();
