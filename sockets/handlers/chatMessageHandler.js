@@ -19,6 +19,9 @@ module.exports = function(socket, ctx) {
     io
   } = ctx;
 
+  if (!ctx.spamWarningShown) ctx.spamWarningShown = new Map();
+  const spamWarningShown = ctx.spamWarningShown;
+
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
@@ -26,27 +29,47 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
+    let finalContent = (content || "").trim();
+
+    // --- /help Command ---
+    if (finalContent === "/help") {
+      socket.emit("systemMessage", {
+        text: `Verfügbare Befehle:
+        /admin [passwort] - Admin werden
+        /clear - Chat leeren (Admins)
+        /deleteAllUsers [passwort] - Alle normalen User löschen
+        /reset [passwort] - Server zurücksetzen
+        /ban "username" ADMIN_PASS - User bannen
+        /role - Zeigt deine aktuelle Rolle
+        /help - Zeigt diese Nachricht`,
+        type: "info"
+      });
+      return;
+    }
+
+    // --- /role Command ---
+    if (finalContent === "/role") {
+      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${role}`, type: "info" });
+      return;
+    }
+
     // --- Anti-Spam: nur alle 2 Sekunden ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 2000) {
-      return socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+    const diff = now - lastTime;
+
+    if (diff < 2000) {
+      if (!spamWarningShown.get(username)) {
+        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+        spamWarningShown.set(username, true);
+      }
+      lastMessageTime.set(username, now);
+      return;
+    } else {
+      spamWarningShown.set(username, false);
     }
     lastMessageTime.set(username, now);
 
-    let finalContent = (content || "").trim();
-
-
-//Chat commands    
-  // --- /role ---
-  if (finalContent === "/role") {
-    if (!username) return;
-    const role = userRoles.get(username) || dbUser?.role || "user";
-    socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${role}`, type: "info" });
-    return; // Nachricht nicht in den Chat senden
-  }
-
-// Admin commands
     // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
@@ -78,14 +101,11 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-    // --- /clear ---
+    // --- /clear --- (nur Chat leeren)
     if (finalContent === "/clear") {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      // nur Chat löschen
       await Message.deleteMany({});
-      // optional: sende ids of deleted messages (clients löschen)
-      io.emit("deletedMessages", []); // clients emptyen chat
-      // notify all authenticated clients to reload messages (but not logout)
+      io.emit("deletedMessages", []);
       for (const sid of authenticatedSockets) {
         io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
         io.to(sid).emit("updateUsersAndMessages");
@@ -100,28 +120,22 @@ module.exports = function(socket, ctx) {
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
 
       try {
-        // finde alle normalen user (vor dem löschen)
         const normalUsers = await User.find({ role: "user" }).select("username");
         const normalUsernames = normalUsers.map(u => u.username);
 
-        // lösche deren Nachrichten (zuerst ids sammeln)
         const msgs = await Message.find({ sender: { $in: normalUsernames } }).select("_id");
         const msgIds = msgs.map(m => m._id.toString());
         if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
 
-        // lösche user aus DB
         await User.deleteMany({ role: "user" });
 
-        // kick/notify die gelöschten user (falls online)
         for (const uname of normalUsernames) {
           const socketsSet = activeUsers.get(uname);
           if (socketsSet && socketsSet.size) {
             for (const sid of socketsSet) {
               io.to(sid).emit("banned", { text: "Du wurdest entfernt (deleteAllUsers)." });
               const s = io.sockets.sockets.get(sid);
-              if (s) {
-                try { s.disconnect(true); } catch (e) {}
-              }
+              if (s) try { s.disconnect(true); } catch {}
               authenticatedSockets.delete(sid);
             }
             activeUsers.delete(uname);
@@ -130,9 +144,7 @@ module.exports = function(socket, ctx) {
           }
         }
 
-        // inform remaining authenticated clients: remove messages + refresh active users
         for (const sid of authenticatedSockets) {
-          // notify to reload lists and messages
           io.to(sid).emit("deletedMessages", msgIds);
           io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok" });
           io.to(sid).emit("updateUsersAndMessages");
@@ -156,7 +168,6 @@ module.exports = function(socket, ctx) {
       activeUsers.clear();
       userFilters.clear();
       await Message.deleteMany({});
-      // notify all sockets - reset = logout all
       io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
       io.emit("forceReload", true);
       return;
@@ -175,23 +186,17 @@ module.exports = function(socket, ctx) {
       if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
 
       try {
-        // 1) User löschen
         await User.findOneAndDelete({ username: target });
-
-        // 2) Nachrichten löschen (IDs sammeln)
         const msgs = await Message.find({ sender: target }).select("_id");
         const msgIds = msgs.map(m => m._id.toString());
         if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
 
-        // 3) Aktive Sessions kicken
         const socketsSet = activeUsers.get(target);
         if (socketsSet && socketsSet.size) {
           for (const sid of socketsSet) {
             io.to(sid).emit("banned", { text: "Du wurdest vom Admin gebannt und entfernt." });
             const s = io.sockets.sockets.get(sid);
-            if (s) {
-              try { s.disconnect(true); } catch (e) {}
-            }
+            if (s) try { s.disconnect(true); } catch {}
             authenticatedSockets.delete(sid);
           }
           activeUsers.delete(target);
@@ -199,7 +204,6 @@ module.exports = function(socket, ctx) {
           userFilters.delete(target);
         }
 
-        // 4) Info an übrige authentifizierte Clients: entferne die Nachrichten + refresh
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
           io.to(sid).emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error" });
@@ -223,13 +227,11 @@ module.exports = function(socket, ctx) {
 
     const deletedIds = await trimOldMessages(100);
     if (deletedIds.length) {
-      // only authenticated clients should receive deletedMessages
       for (const sid of authenticatedSockets) {
         io.to(sid).emit("deletedMessages", deletedIds);
       }
     }
 
-    // only send new message to authenticated clients
     for (const sid of authenticatedSockets) {
       io.to(sid).emit("newMessage", {
         _id: msg._id.toString(),
