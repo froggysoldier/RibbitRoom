@@ -1,13 +1,16 @@
 // public/js/chatHandlers.js
-import { messageInput, sendBtn, filterBtn } from "./domElements.js";
-import { showError } from "./uiHelpers.js";
+import { appendMessage, setSendEnabled } from "./uiHelpers.js";
+import { initSocket } from "./socketClient.js";
 
 export function initChatHandlers(state) {
+  const messageInput = state.messageInput;
+  const sendBtn = state.sendBtn;
+  const filterBtn = state.filterBtn;
 
   function sendMessage() {
     const content = messageInput.value.trim();
     if (!content) return;
-    if (!state.socket || !state.socket.connected) return showError("Nicht verbunden");
+    if (!state.socket || !state.socket.connected) return appendMessage("SYSTEM", "Nicht verbunden", new Date(), null, false, "system", "user", document.getElementById("chatWindow"));
 
     state.socket.emit("chatMessage", content);
     messageInput.value = "";
