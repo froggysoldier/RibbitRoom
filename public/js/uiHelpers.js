@@ -1,6 +1,4 @@
 // public/js/uiHelpers.js
-import { chatWindow, usersListEl } from "./domElements.js";
-
 export function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -14,7 +12,7 @@ export function formatMessage(content = "") {
   return escapeHtml(content).replace(/\n/g, "<br>");
 }
 
-export function showInfo(text) {
+export function showInfo(text, chatWindow) {
   const p = document.createElement("p");
   p.classList.add("info");
   p.textContent = text;
@@ -23,7 +21,7 @@ export function showInfo(text) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-export function showError(text) {
+export function showError(text, chatWindow) {
   const p = document.createElement("p");
   p.classList.add("error");
   p.textContent = text;
@@ -32,7 +30,12 @@ export function showError(text) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
+export function setSendEnabled(enabled, sendBtn, messageInput) {
+  sendBtn.disabled = !enabled;
+  messageInput.disabled = !enabled;
+}
+
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", chatWindow) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -58,10 +61,14 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
   setTimeout(() => p.classList.add("show"), 50);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 
-  if (type === "system") setTimeout(() => { if (p.parentNode) p.remove(); }, 4000);
+  if (type === "system") {
+    setTimeout(() => {
+      if (p.parentNode) p.parentNode.removeChild(p);
+    }, 4000);
+  }
 }
 
-export function renderActiveUsers(users) {
+export function renderActiveUsers(users, usersListEl) {
   usersListEl.innerHTML = "";
   users.forEach((u) => {
     const li = document.createElement("li");
@@ -69,9 +76,4 @@ export function renderActiveUsers(users) {
     if (u.role === "admin") li.classList.add("admin-user");
     usersListEl.appendChild(li);
   });
-}
-
-export function setSendEnabled(enabled, sendBtn, messageInput) {
-  sendBtn.disabled = !enabled;
-  messageInput.disabled = !enabled;
 }
