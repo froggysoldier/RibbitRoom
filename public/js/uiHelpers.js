@@ -1,4 +1,6 @@
 // public/js/uiHelpers.js
+import * as DOM from "./domElements.js";
+
 export function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -12,30 +14,30 @@ export function formatMessage(content = "") {
   return escapeHtml(content).replace(/\n/g, "<br>");
 }
 
-export function showInfo(text, chatWindow) {
+export function showInfo(text) {
   const p = document.createElement("p");
   p.classList.add("info");
   p.textContent = text;
-  chatWindow.appendChild(p);
+  DOM.chatWindow.appendChild(p);
   setTimeout(() => p.remove(), 4000);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 }
 
-export function showError(text, chatWindow) {
+export function showError(text) {
   const p = document.createElement("p");
   p.classList.add("error");
   p.textContent = text;
-  chatWindow.appendChild(p);
+  DOM.chatWindow.appendChild(p);
   setTimeout(() => p.remove(), 5000);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 }
 
-export function setSendEnabled(enabled, sendBtn, messageInput) {
-  sendBtn.disabled = !enabled;
-  messageInput.disabled = !enabled;
+export function setSendEnabled(enabled) {
+  DOM.sendBtn.disabled = !enabled;
+  DOM.messageInput.disabled = !enabled;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", chatWindow) {
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -57,23 +59,13 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
     <div class="msg-content">${formatMessage(content)}</div>
   `;
 
-  chatWindow.appendChild(p);
+  DOM.chatWindow.appendChild(p);
   setTimeout(() => p.classList.add("show"), 50);
-  chatWindow.scrollTop = chatWindow.scrollHeight;
+  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 
   if (type === "system") {
     setTimeout(() => {
       if (p.parentNode) p.parentNode.removeChild(p);
     }, 4000);
   }
-}
-
-export function renderActiveUsers(users, usersListEl) {
-  usersListEl.innerHTML = "";
-  users.forEach((u) => {
-    const li = document.createElement("li");
-    li.textContent = u.username;
-    if (u.role === "admin") li.classList.add("admin-user");
-    usersListEl.appendChild(li);
-  });
 }
