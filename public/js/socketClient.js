@@ -17,22 +17,37 @@ export function initSocket(state) {
 
   state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
+  // --- Neue Chatnachrichten ---
   state.socket.on("newMessage", (msg) => {
-    if (!state.username) return;
     const isSelf = msg.sender === state.username;
-    UI.appendMessage(msg.sender || "SYSTEM", msg, msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
+    UI.appendMessage(
+      msg.sender || "SYSTEM",
+      msg.content || "",
+      msg.createdAt,
+      msg._id,
+      isSelf,
+      "user",
+      msg.senderRole || "user"
+    );
   });
 
+  // --- Systemnachrichten ---
   state.socket.on("systemMessage", (data) => {
-    const payload = (typeof data === "string") ? { text: data } : data || { text: "" };
-    UI.appendMessage("SYSTEM", payload, new Date(), "sys-" + Date.now(), false, "system");
+    const text = typeof data === "string" ? data : data.text || "";
+    const duration = (typeof data === "object" && data.duration) ? data.duration : 4000;
+    UI.appendMessage("SYSTEM", text, new Date(), "sys-" + Date.now(), false, "system", "system");
+    if (duration && duration > 0) {
+      setTimeout(() => UI.clearPersistentSystem("sys-" + Date.now()), duration);
+    }
   });
 
+  // --- Admin-Notices ---
   state.socket.on("adminNotice", (data) => {
-    const payload = (typeof data === "string") ? { text: data } : data || { text: "" };
-    UI.appendMessage("ADMIN", payload, new Date(), "admin-notice-" + Date.now(), false, "system");
+    const text = typeof data === "string" ? data : data.text || "";
+    UI.appendMessage("ADMIN", text, new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
+  // --- Identifikation ---
   state.socket.on("identified", (data) => {
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
@@ -41,8 +56,8 @@ export function initSocket(state) {
     localStorage.setItem("username", state.username || "");
   });
 
+  // --- Aktive Nutzerliste ---
   state.socket.on("activeUsers", (users) => {
-    if (!state.username) return; // Nicht eingeloggte sehen keine aktive Nutzer
     DOM.usersListEl.innerHTML = "";
     users.forEach((u) => {
       const li = document.createElement("li");
@@ -52,10 +67,12 @@ export function initSocket(state) {
     });
   });
 
+  // --- Gelöschte Nachrichten ---
   state.socket.on("deletedMessages", (ids) => {
     ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
+  // --- Force Reload ---
   state.socket.on("forceReload", (resetAll = true) => {
     if (resetAll) {
       state.token = null;
@@ -74,6 +91,7 @@ export function initSocket(state) {
     }
   });
 
+  // --- Neues Token vom Server ---
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
@@ -82,11 +100,13 @@ export function initSocket(state) {
     }
   });
 
+  // --- Disconnect ---
   state.socket.on("disconnect", () => {
     state.socketConnected = false;
     UI.setSendEnabled(false);
   });
 
+  // --- User gebannt ---
   state.socket.on("banned", (data) => {
     const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
     UI.showError(text);
@@ -101,9 +121,9 @@ export function initSocket(state) {
     }, 3000);
   });
 
+  // --- Update Users und Messages ---
   state.socket.on("updateUsersAndMessages", async () => {
-    if (!state.username) return;
-    state.socket.emit("requestActiveUsers"); // Server soll aktuelle Nutzer senden
-    await loadMessages(state);
+    state.socket.emit("requestActiveUsers");
+    if (state.token) await loadMessages(state);
   });
 }
