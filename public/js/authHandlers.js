@@ -1,25 +1,16 @@
 // public/js/authHandlers.js
-import { showError, showInfo, setSendEnabled } from "./uiHelpers.js";
+import * as DOM from "./domElements.js";
+import * as UI from "./uiHelpers.js";
 import { initSocket } from "./socketClient.js";
+import { loadMessages } from "./chatHandlers.js";
 
 export function initAuthHandlers(state) {
-  const DOM = {
-    loginBtnHeader: document.getElementById("loginBtn"),
-    modal: document.getElementById("loginModal"),
-    closeModal: document.querySelector(".close"),
-    loginSubmit: document.getElementById("loginSubmit"),
-    registerSubmit: document.getElementById("registerSubmit")
-  };
+  if (!state) return;
 
-  function refreshLoginButton() {
-    if (state.token && state.username) DOM.loginBtnHeader.textContent = "Abmelden";
-    else DOM.loginBtnHeader.textContent = "Login / Registrieren";
-  }
-  refreshLoginButton();
-
-  // --- Login / Logout ---
+  // --- Login / Logout Button ---
   DOM.loginBtnHeader.onclick = () => {
     if (state.token) {
+      // Logout
       state.token = null;
       state.username = null;
       state.myRole = "user";
@@ -31,24 +22,24 @@ export function initAuthHandlers(state) {
         state.socket = null;
       }
 
-      document.getElementById("users").innerHTML = "";
-      document.getElementById("chatWindow").innerHTML = "";
-      refreshLoginButton();
-      showInfo("Abgemeldet", document.getElementById("chatWindow"));
+      DOM.renderActiveUsers([]);
+      UI.showInfo("Abgemeldet");
       window.location.reload();
     } else {
+      // Login Modal öffnen
       DOM.modal.style.display = "block";
     }
   };
 
-  DOM.closeModal.onclick = () => DOM.modal.style.display = "none";
+  // Modal schließen
+  DOM.closeModal.onclick = () => (DOM.modal.style.display = "none");
   window.onclick = (e) => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; };
 
   // --- Login ---
   DOM.loginSubmit.addEventListener("click", async () => {
     const u = document.getElementById("username").value.trim();
     const p = document.getElementById("password").value.trim();
-    if (!u || !p) return showError("Bitte Benutzername und Passwort eingeben.", document.getElementById("chatWindow"));
+    if (!u || !p) return UI.showError("Bitte Benutzername und Passwort eingeben.");
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -57,22 +48,28 @@ export function initAuthHandlers(state) {
         body: JSON.stringify({ username: u, password: p })
       });
       const data = await res.json();
-      if (!res.ok) return showError(data.error || "Login fehlgeschlagen", document.getElementById("chatWindow"));
+      if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
 
+      // --- State updaten ---
       state.token = data.token;
       state.username = u;
       state.myRole = data.role || "user";
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
+
       DOM.modal.style.display = "none";
-      showInfo(`Eingeloggt als ${state.username}`, document.getElementById("chatWindow"));
-      refreshLoginButton();
+      UI.showInfo(`Eingeloggt als ${state.username}`);
 
-      if (state.socket) { state.socket.auth = { token: state.token }; state.socket.disconnect(); setTimeout(() => initSocket(state), 50); }
-      else initSocket(state);
+      // Socket neu initialisieren oder reconnecten
+      if (state.socket) {
+        state.socket.auth = { token: state.token };
+        state.socket.disconnect();
+        setTimeout(() => initSocket(state), 50);
+      } else initSocket(state);
 
+      await loadMessages(state);
     } catch {
-      showError("Login-Fehler", document.getElementById("chatWindow"));
+      UI.showError("Login-Fehler");
     }
   });
 
@@ -83,18 +80,19 @@ export function initAuthHandlers(state) {
     const email = document.getElementById("email").value.trim();
     const adminPassField = document.getElementById("adminPass") ? document.getElementById("adminPass").value.trim() : null;
 
-    if (!newU || !newP || !email) return showError("Bitte alle Felder ausfüllen.", document.getElementById("chatWindow"));
+    if (!newU || !newP || !email) return UI.showError("Bitte alle Felder ausfüllen.");
 
     try {
       const body = { username: newU, password: newP, email };
       if (adminPassField) body.adminPass = adminPassField;
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
       const data = await res.json();
-      if (!res.ok) return showError(data.error || "Registrierung fehlgeschlagen", document.getElementById("chatWindow"));
+      if (!res.ok) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
       if (data.token) {
         state.token = data.token;
@@ -102,17 +100,23 @@ export function initAuthHandlers(state) {
         state.myRole = data.role || "user";
         localStorage.setItem("token", state.token);
         localStorage.setItem("username", state.username);
-        showInfo("Registrierung erfolgreich — eingeloggt.", document.getElementById("chatWindow"));
 
-        if (state.socket) { state.socket.auth = { token: state.token }; state.socket.disconnect(); setTimeout(() => initSocket(state), 50); }
-        else initSocket(state);
-      } else showInfo("Registrierung erfolgreich — bitte einloggen.", document.getElementById("chatWindow"));
+        UI.showInfo("Registrierung erfolgreich — eingeloggt.");
+
+        if (state.socket) {
+          state.socket.auth = { token: state.token };
+          state.socket.disconnect();
+          setTimeout(() => initSocket(state), 50);
+        } else initSocket(state);
+
+        await loadMessages(state);
+      } else {
+        UI.showInfo("Registrierung erfolgreich — bitte einloggen.");
+      }
 
       DOM.modal.style.display = "none";
-      refreshLoginButton();
-
     } catch {
-      showError("Registrieren-Fehler", document.getElementById("chatWindow"));
+      UI.showError("Registrieren-Fehler");
     }
   });
 }
