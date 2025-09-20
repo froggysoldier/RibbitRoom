@@ -383,3 +383,8 @@ input:checked + .slider:before {
 .close:hover {
   color: #ff4c4c;
 }
+
+.message .msg-header strong.admin-name {
+  color: red;
+  font-weight: bold;
+}
