@@ -25,8 +25,12 @@ export function initSocket(state) {
   });
 
   state.socket.on("systemMessage", (data) => {
-    if (typeof data === "string") UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
-    else UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
+    if (typeof data === "string") {
+      UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
+    } else {
+      const duration = data.duration || 4000; // Standard 4s
+      UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system", data.senderRole || "user", duration);
+    }
   });
 
   state.socket.on("adminNotice", (data) => {
