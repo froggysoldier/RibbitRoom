@@ -8,23 +8,17 @@ const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 const ADMIN_PASS = process.env.ADMIN_PASS || "28102024";
 
 module.exports = function(io) {
-  const activeUsers = new Map();
-  const userFilters = new Map();
-  const userRoles = new Map();
-  const lastMessageTime = new Map();
-
-  // Set mit allen authentifizierten Socket-IDs (werden die activeUsers sehen dürfen)
-  const authenticatedSockets = new Set();
+  const activeUsers = new Map();        // username -> Set(socketId)
+  const userFilters = new Map();        // username -> bool
+  const userRoles = new Map();          // username -> role
+  const lastMessageTime = new Map();    // username -> timestamp
+  const authenticatedSockets = new Set(); // socket.id for authenticated clients
 
   const broadcastActiveUsers = () => {
     const users = Array.from(activeUsers.keys())
       .sort()
       .map(username => ({ username, role: userRoles.get(username) || "user" }));
-
-    // nur an authentifizierte sockets senden
-    for (const sid of authenticatedSockets) {
-      io.to(sid).emit("activeUsers", users);
-    }
+    io.emit("activeUsers", users);
   };
 
   const addActiveUser = (username, socketId, role = "user") => {
@@ -37,7 +31,6 @@ module.exports = function(io) {
   };
 
   const removeActiveUserBySocket = (socketId) => {
-    authenticatedSockets.delete(socketId);
     for (const [username, set] of activeUsers.entries()) {
       if (set.has(socketId)) {
         set.delete(socketId);
@@ -45,7 +38,9 @@ module.exports = function(io) {
           activeUsers.delete(username);
           userFilters.delete(username);
           userRoles.delete(username);
-        } else activeUsers.set(username, set);
+        } else {
+          activeUsers.set(username, set);
+        }
         broadcastActiveUsers();
         return username;
       }
@@ -73,58 +68,45 @@ module.exports = function(io) {
   };
 
   io.on("connection", async (socket) => {
-    let username = null;
-    const token = socket.handshake?.auth?.token;
+    // per-socket properties
+    socket.username = null;
 
-    // Token-Login (Handshake)
+    // check handshake token
+    const token = socket.handshake?.auth?.token;
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        username = decoded.username;
-        const dbUser = await User.findOne({ username });
-        const role = dbUser?.role || "user";
-        // markiere socket als authentifiziert
+        socket.username = decoded.username;
+        const dbUser = await User.findOne({ username: socket.username });
+        const role = dbUser?.role || decoded.role || "user";
+
+        // add to active lists
+        addActiveUser(socket.username, socket.id, role);
         authenticatedSockets.add(socket.id);
-        addActiveUser(username, socket.id, role);
-        socket.emit("identified", {
-          username,
-          filterActive: userFilters.get(username) || false,
-          role
-        });
-      } catch {}
+
+        // tell the client who they are
+        socket.emit("identified", { username: socket.username, filterActive: userFilters.get(socket.username) || false, role });
+      } catch (e) {
+        // ignore invalid token
+      }
     }
 
-    // wenn ein Client explizit nach aktiven usern fragt -> nur an ihn senden
-    socket.on("requestActiveUsers", () => {
-      const users = Array.from(activeUsers.keys())
-        .sort()
-        .map(username => ({ username, role: userRoles.get(username) || "user" }));
-      // send only to this socket
-      socket.emit("activeUsers", users);
-    });
-
-    // Alle Socket-Event-Handler injizieren (inkl. io und authenticatedSockets)
-    require("./handlers/chatMessageHandler")(socket, {
-      username,
+    // pass context to handlers
+    const ctx = {
+      io,
       activeUsers,
-      userRoles,
       userFilters,
+      userRoles,
       lastMessageTime,
       trimOldMessages,
       emitToAdmins,
       authenticatedSockets,
       JWT_SECRET,
-      ADMIN_PASS,
-      io
-    });
-    require("./handlers/userHandler")(socket, {
-      username,
-      activeUsers,
-      userRoles,
-      userFilters,
-      broadcastActiveUsers,
-      authenticatedSockets,
-      JWT_SECRET
-    });
+      ADMIN_PASS
+    };
+
+    // handlers
+    require("./handlers/chatMessageHandler")(socket, ctx);
+    require("./handlers/userHandler")(socket, ctx);
   });
 };
