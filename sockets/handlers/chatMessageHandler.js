@@ -42,7 +42,8 @@ module.exports = function(socket, ctx) {
         /ban "username" ADMIN_PASS - User bannen
         /role - Zeigt deine aktuelle Rolle
         /help - Zeigt diese Nachricht`,
-        type: "info"
+        type: "info",
+        duration:10000
       });
       return;
     }
