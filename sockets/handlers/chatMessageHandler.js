@@ -70,8 +70,7 @@ module.exports = function(socket, ctx) {
 
     if (content === "/help") {
       socket.emit("systemMessage", { 
-        text: `Verfügbare Befehle:
-        
+        text: `
         /admin [passwort] - Admin werden
         /clear - Chat leeren (Admins)
         /deleteAllUsers [passwort] - Alle normalen User löschen
