@@ -201,15 +201,32 @@ async function loadMessages() {
     const res = await fetch("/api/messages", { headers });
     if (!res.ok) return;
     const messages = await res.json();
+
     chatWindow.innerHTML = "";
-    messages.reverse().forEach((m) => {
-      const isSelf = m.sender === username;
-      appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", m.senderRole || "user");
-    });
+
+    // ✅ Nachrichten nach Zeit sortieren (älteste zuerst)
+    messages
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      .forEach((m) => {
+        const isSelf = m.sender === username;
+        appendMessage(
+          m.sender,
+          m.content,
+          m.createdAt,
+          m._id,
+          isSelf,
+          m.type || "user",
+          m.senderRole || "user"
+        );
+      });
+
     setSendEnabled(!!token);
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+  }
 }
 loadMessages();
+
 
 // --- Login/Register/Logout ---
 loginBtnHeader.onclick = () => {
