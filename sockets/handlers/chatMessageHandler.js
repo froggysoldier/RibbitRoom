@@ -26,10 +26,10 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    // --- Anti-Spam: nur alle 2 Sekunden ---
+    // --- Anti-Spam: nur alle 0,62 Sekunden ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 2000) {
+    if (now - lastTime < 620) {
       return socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
     }
     lastMessageTime.set(username, now);
