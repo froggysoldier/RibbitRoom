@@ -102,7 +102,8 @@ module.exports = function(io) {
       emitToAdmins,
       authenticatedSockets,
       JWT_SECRET,
-      ADMIN_PASS
+      ADMIN_PASS,
+      broadcastActiveUsers   // 👈 jetzt mitgegeben
     };
 
     // handlers
