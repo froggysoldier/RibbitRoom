@@ -53,22 +53,30 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-    // --- Anti-Spam: nur alle 2 Sekunden ---
+    // --- Anti-Spam: nur alle 650ms ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    const diff = now - lastTime;
-
-    if (diff < 2000) {
+    const cooldown = 650;
+    
+    if (now - lastTime < cooldown) {
+      // Zeige Warnung nur einmal pro Spam-Phase
       if (!spamWarningShown.get(username)) {
-        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+        socket.emit("systemMessage", {
+          text: `⚠️ Bitte nicht Nachrichten spammen. Warte noch ${Math.ceil((cooldown - (now - lastTime)) / 1000)}s.`,
+          type: "error"
+        });
         spamWarningShown.set(username, true);
       }
-      lastMessageTime.set(username, now);
-      return;
     } else {
+      // Cooldown vorbei → Reset Warnung
       spamWarningShown.set(username, false);
     }
+    // Immer die Zeit aktualisieren, damit Cooldown korrekt läuft
     lastMessageTime.set(username, now);
+    
+    // Wenn innerhalb Cooldown, abbrechen
+    if (now - lastTime < cooldown) return;
+
 
     // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
