@@ -13,11 +13,18 @@ module.exports = function(io) {
   const userRoles = new Map();
   const lastMessageTime = new Map();
 
+  // Set mit allen authentifizierten Socket-IDs (werden die activeUsers sehen dürfen)
+  const authenticatedSockets = new Set();
+
   const broadcastActiveUsers = () => {
     const users = Array.from(activeUsers.keys())
       .sort()
       .map(username => ({ username, role: userRoles.get(username) || "user" }));
-    io.emit("activeUsers", users);
+
+    // nur an authentifizierte sockets senden
+    for (const sid of authenticatedSockets) {
+      io.to(sid).emit("activeUsers", users);
+    }
   };
 
   const addActiveUser = (username, socketId, role = "user") => {
@@ -30,6 +37,7 @@ module.exports = function(io) {
   };
 
   const removeActiveUserBySocket = (socketId) => {
+    authenticatedSockets.delete(socketId);
     for (const [username, set] of activeUsers.entries()) {
       if (set.has(socketId)) {
         set.delete(socketId);
@@ -68,13 +76,15 @@ module.exports = function(io) {
     let username = null;
     const token = socket.handshake?.auth?.token;
 
-    // Token-Login
+    // Token-Login (Handshake)
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         username = decoded.username;
         const dbUser = await User.findOne({ username });
         const role = dbUser?.role || "user";
+        // markiere socket als authentifiziert
+        authenticatedSockets.add(socket.id);
         addActiveUser(username, socket.id, role);
         socket.emit("identified", {
           username,
@@ -84,13 +94,37 @@ module.exports = function(io) {
       } catch {}
     }
 
-    // Alle Socket-Events - wir geben broadcastActiveUsers mit
-    require("./handlers/chatMessageHandler")(socket, { 
-      username, activeUsers, userRoles, userFilters, lastMessageTime, 
-      trimOldMessages, emitToAdmins, broadcastActiveUsers, JWT_SECRET, ADMIN_PASS, io 
+    // wenn ein Client explizit nach aktiven usern fragt -> nur an ihn senden
+    socket.on("requestActiveUsers", () => {
+      const users = Array.from(activeUsers.keys())
+        .sort()
+        .map(username => ({ username, role: userRoles.get(username) || "user" }));
+      // send only to this socket
+      socket.emit("activeUsers", users);
     });
-    require("./handlers/userHandler")(socket, { 
-      username, activeUsers, userRoles, userFilters, broadcastActiveUsers, JWT_SECRET, io 
+
+    // Alle Socket-Event-Handler injizieren (inkl. io und authenticatedSockets)
+    require("./handlers/chatMessageHandler")(socket, {
+      username,
+      activeUsers,
+      userRoles,
+      userFilters,
+      lastMessageTime,
+      trimOldMessages,
+      emitToAdmins,
+      authenticatedSockets,
+      JWT_SECRET,
+      ADMIN_PASS,
+      io
+    });
+    require("./handlers/userHandler")(socket, {
+      username,
+      activeUsers,
+      userRoles,
+      userFilters,
+      broadcastActiveUsers,
+      authenticatedSockets,
+      JWT_SECRET
     });
   });
 };
