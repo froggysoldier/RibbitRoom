@@ -9,6 +9,7 @@ export function initSocket(state) {
 
   state.socket = io({ auth: { token: state.token } });
 
+  // --- Verbindung ---
   state.socket.on("connect", () => {
     state.socketConnected = true;
     if (state.token) state.socket.emit("identify", { token: state.token });
@@ -17,22 +18,22 @@ export function initSocket(state) {
 
   state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
+  // --- Nachrichten empfangen ---
   state.socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === state.username;
     UI.appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
   });
 
   state.socket.on("systemMessage", (data) => {
-    // pass the whole data object so UI can read duration
-    if (typeof data === "string") UI.appendMessage("SYSTEM", { text: data }, new Date(), "sys-" + Date.now(), false, "system");
-    else UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
+    if (typeof data === "string") UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
+    else UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
   });
 
   state.socket.on("adminNotice", (data) => {
-    // admin notices should persist for default duration; treat as system with text
     UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
+  // --- Auth / Identifizierung ---
   state.socket.on("identified", (data) => {
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
@@ -41,8 +42,10 @@ export function initSocket(state) {
     localStorage.setItem("username", state.username || "");
   });
 
+  // --- Aktive Nutzerliste ---
   state.socket.on("activeUsers", (users) => {
     DOM.usersListEl.innerHTML = "";
+    if (!state.token) return; // nicht angemeldete Nutzer sehen nichts
     users.forEach((u) => {
       const li = document.createElement("li");
       li.textContent = u.username;
@@ -51,10 +54,12 @@ export function initSocket(state) {
     });
   });
 
+  // --- Nachrichten löschen ---
   state.socket.on("deletedMessages", (ids) => {
     ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
+  // --- ForceReload / Reset ---
   state.socket.on("forceReload", (resetAll = true) => {
     if (resetAll) {
       state.token = null;
@@ -69,12 +74,11 @@ export function initSocket(state) {
       setTimeout(() => window.location.reload(), 2000);
     } else {
       DOM.chatWindow.innerHTML = "";
-      // refresh messages (for authenticated clients)
-      if (state.token) loadMessages(state);
-      // if not authenticated we simply clear the chat (no reload)
+      window.location.reload();
     }
   });
 
+  // --- Neues Admin Token ---
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
@@ -83,14 +87,16 @@ export function initSocket(state) {
     }
   });
 
+  // --- Disconnect ---
   state.socket.on("disconnect", () => {
     state.socketConnected = false;
     UI.setSendEnabled(false);
   });
 
+  // --- Banned ---
   state.socket.on("banned", (data) => {
     const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
-    UI.showError(text, 4000);
+    UI.showError(text);
     state.token = null;
     state.username = null;
     state.myRole = "user";
@@ -102,11 +108,33 @@ export function initSocket(state) {
     }, 3000);
   });
 
-  // update event: refresh active user list + messages
+  // --- Role Update für Admin-Namen ---
+  state.socket.on("roleUpdated", ({ username, role }) => {
+    // update active users list
+    const lis = DOM.usersListEl.querySelectorAll("li");
+    lis.forEach(li => {
+      if (li.textContent === username) {
+        li.classList.toggle("admin-user", role === "admin");
+      }
+    });
+
+    // update bestehende Chatnachrichten
+    const messages = DOM.chatWindow.querySelectorAll(".message");
+    messages.forEach(msg => {
+      if (msg.querySelector("strong")?.textContent === username) {
+        msg.querySelector("strong").classList.toggle("admin-name", role === "admin");
+        msg.classList.toggle("admin-msg", role === "admin");
+      }
+    });
+
+    // update eigene Rolle
+    if (username === state.username) state.myRole = role;
+  });
+
+  // --- Aktualisierung auf Anfrage ---
   state.socket.on("updateUsersAndMessages", async () => {
-    // request active users (server may push via activeUsers)
+    if (!state.token) return;
     state.socket.emit("requestActiveUsers");
-    // reload messages (only when authenticated)
-    if (state.token) await loadMessages(state);
+    await loadMessages(state);
   });
 }
