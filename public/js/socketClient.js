@@ -17,8 +17,8 @@ export function initSocket(state) {
 
   state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
-  // --- Neue Chatnachrichten ---
   state.socket.on("newMessage", (msg) => {
+    if (!state.token) return; // nur eingeloggte Clients bekommen Nachrichten
     const isSelf = msg.sender === state.username;
     UI.appendMessage(
       msg.sender || "SYSTEM",
@@ -26,28 +26,34 @@ export function initSocket(state) {
       msg.createdAt,
       msg._id,
       isSelf,
-      "user",
+      msg.type || "user",
       msg.senderRole || "user"
     );
   });
 
-  // --- Systemnachrichten ---
   state.socket.on("systemMessage", (data) => {
-    const text = typeof data === "string" ? data : data.text || "";
-    const duration = (typeof data === "object" && data.duration) ? data.duration : 4000;
-    UI.appendMessage("SYSTEM", text, new Date(), "sys-" + Date.now(), false, "system", "system");
-    if (duration && duration > 0) {
-      setTimeout(() => UI.clearPersistentSystem("sys-" + Date.now()), duration);
+    let text = "";
+    let duration = 4000;
+
+    if (typeof data === "string") {
+      text = data;
+    } else if (typeof data === "object") {
+      text = data.text || "";
+      duration = data.duration || 4000;
+    }
+
+    const key = "sys-" + Date.now();
+    UI.showPersistentSystem(text, key);
+
+    if (duration > 0) {
+      setTimeout(() => UI.clearPersistentSystem(key), duration);
     }
   });
 
-  // --- Admin-Notices ---
   state.socket.on("adminNotice", (data) => {
-    const text = typeof data === "string" ? data : data.text || "";
-    UI.appendMessage("ADMIN", text, new Date(), "admin-notice-" + Date.now(), false, "system");
+    UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
-  // --- Identifikation ---
   state.socket.on("identified", (data) => {
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
@@ -56,8 +62,11 @@ export function initSocket(state) {
     localStorage.setItem("username", state.username || "");
   });
 
-  // --- Aktive Nutzerliste ---
   state.socket.on("activeUsers", (users) => {
+    if (!state.token) {
+      DOM.usersListEl.innerHTML = "";
+      return; // nicht eingeloggte sehen keine User
+    }
     DOM.usersListEl.innerHTML = "";
     users.forEach((u) => {
       const li = document.createElement("li");
@@ -67,31 +76,24 @@ export function initSocket(state) {
     });
   });
 
-  // --- Gelöschte Nachrichten ---
   state.socket.on("deletedMessages", (ids) => {
+    if (!state.token) return;
     ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- Force Reload ---
   state.socket.on("forceReload", (resetAll = true) => {
-    if (resetAll) {
-      state.token = null;
-      state.username = null;
-      state.myRole = "user";
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
-      if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
-      DOM.usersListEl.innerHTML = "";
-      DOM.chatWindow.innerHTML = "";
-      UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
-      setTimeout(() => window.location.reload(), 2000);
-    } else {
-      DOM.chatWindow.innerHTML = "";
-      window.location.reload();
-    }
+    state.token = null;
+    state.username = null;
+    state.myRole = "user";
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
+    DOM.usersListEl.innerHTML = "";
+    DOM.chatWindow.innerHTML = "";
+    UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
+    setTimeout(() => window.location.reload(), 2000);
   });
 
-  // --- Neues Token vom Server ---
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
@@ -100,13 +102,11 @@ export function initSocket(state) {
     }
   });
 
-  // --- Disconnect ---
   state.socket.on("disconnect", () => {
     state.socketConnected = false;
     UI.setSendEnabled(false);
   });
 
-  // --- User gebannt ---
   state.socket.on("banned", (data) => {
     const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
     UI.showError(text);
@@ -115,15 +115,17 @@ export function initSocket(state) {
     state.myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+    DOM.usersListEl.innerHTML = "";
+    DOM.chatWindow.innerHTML = "";
     setTimeout(() => {
       try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
       window.location.reload();
     }, 3000);
   });
 
-  // --- Update Users und Messages ---
   state.socket.on("updateUsersAndMessages", async () => {
+    if (!state.token) return;
     state.socket.emit("requestActiveUsers");
-    if (state.token) await loadMessages(state);
+    await loadMessages(state);
   });
 }
