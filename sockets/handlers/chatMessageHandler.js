@@ -5,16 +5,17 @@ const User = require("../../models/User");
 const filterMessage = require("../../utils/filter");
 
 module.exports = function(socket, ctx) {
-  let { username, activeUsers, userRoles, userFilters, lastMessageTime, trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS } = ctx;
+  let { username, activeUsers, userRoles, userFilters, lastMessageTime, trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io } = ctx;
 
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
+    // Rolle aus DB oder Cache
     const dbUser = await User.findOne({ username });
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    // --- Anti-Spam: nur alle 2 Sekunden ---
+    // Anti-Spam: nur alle 2 Sekunden
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
     if (now - lastTime < 2000) {
@@ -50,6 +51,21 @@ module.exports = function(socket, ctx) {
       return;
     }
 
+    // --- /reset [passwort] ---
+    if (finalContent.startsWith("/reset")) {
+      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+      const provided = finalContent.split(" ")[1]?.trim();
+      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+      await User.deleteMany({});
+      userRoles.clear();
+      activeUsers.clear();
+      userFilters.clear();
+      await Message.deleteMany({});
+      io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
+      io.emit("forceReload", true);
+      return;
+    }
+
     // --- /deleteAllUsers [passwort] ---
     if (finalContent.startsWith("/deleteAllUsers")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
@@ -66,21 +82,6 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-    // --- /reset [passwort] ---
-    if (finalContent.startsWith("/reset")) {
-      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      const provided = finalContent.split(" ")[1]?.trim();
-      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-      await User.deleteMany({});
-      userRoles.clear();
-      activeUsers.clear();
-      userFilters.clear();
-      await Message.deleteMany({});
-      io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
-      io.emit("forceReload", true);
-      return;
-    }
-
     // --- /ban "username" ADMIN_PASS ---
     const banMatch = finalContent.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
     if (banMatch) {
@@ -94,11 +95,9 @@ module.exports = function(socket, ctx) {
       if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
 
       try {
-        // 1) User löschen
         await User.findOneAndDelete({ username: target });
-        // 2) Nachrichten löschen
         await Message.deleteMany({ sender: target });
-        // 3) Aktive Sessions kicken
+
         const socketsSet = activeUsers.get(target);
         if (socketsSet) {
           for (const sid of socketsSet) {
@@ -139,6 +138,7 @@ module.exports = function(socket, ctx) {
     });
   });
 
+  // Filter toggeln
   socket.on("toggleFilter", (active) => {
     if (!username) return;
     userFilters.set(username, !!active);
