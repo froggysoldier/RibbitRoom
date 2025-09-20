@@ -35,6 +35,29 @@ module.exports = function(socket, ctx) {
     lastMessageTime.set(username, now);
 
     let finalContent = (content || "").trim();
+      
+      // --- /role ---
+    if (finalContent === "/role") {
+      const r = userRoles.get(username) || dbUser?.role || "user";
+      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${r}`, type: "info"});
+      return;
+    }
+
+    // --- /help ---
+    if (finalContent === "/help") {
+      socket.emit("systemMessage", {
+        text: `/admin [passwort] - Admin werden
+              /ban "username" ADMIN_PASS - User bannen
+              /clear - Chat leeren (Admins)
+              /deleteAllUsers [passwort] - Alle normalen User löschen
+              /reset [passwort] - Server zurücksetzen
+              /role - Zeigt deine aktuelle Rolle
+              /help - Zeigt diese Nachricht`,
+        type: "info",
+        duration: 10000
+      });
+      return;
+    }
 
     // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
