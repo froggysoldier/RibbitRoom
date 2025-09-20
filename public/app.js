@@ -189,6 +189,28 @@ socket.on("forceReload", (resetAll = true) => {
     socketConnected = false;
     setSendEnabled(false);
   });
+
+    // Wird nur an den gebannten User gesendet
+  socket.on("banned", (data) => {
+    const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
+    showError(text);
+  
+    // Token/Username löschen
+    token = null;
+    username = null;
+    myRole = "user";
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+  
+    // nach kurzer Verzögerung disconnect + reload
+    setTimeout(() => {
+      try {
+        socket.auth = {};
+        socket.disconnect();
+      } catch (e) {}
+      window.location.reload();
+    }, 1200);
+  });
 }
 
 initSocket();
