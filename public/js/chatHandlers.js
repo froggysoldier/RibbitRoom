@@ -1,28 +1,18 @@
 // public/js/chatHandlers.js
-import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
-
-// --- appendMessage aus uiHelpers genutzt
+import * as DOM from "./domElements.js";
 
 export async function loadMessages(state) {
-  // load messages for authenticated user
-  if (!state.token) {
-    // if not logged in, clear chat
-    DOM.chatWindow.innerHTML = "";
-    return;
-  }
-
+  if (!state.token) return;
   const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${state.token}` };
 
   try {
     const res = await fetch("/api/messages", { headers });
     if (!res.ok) return;
-
     const messages = await res.json();
-    DOM.chatWindow.innerHTML = "";
+    state.chatWindow.innerHTML = "";
 
-    messages
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       .forEach((m) => {
         const isSelf = m.sender === state.username;
         UI.appendMessage(m.sender, m.content, m.createdAt, m._id, isSelf, m.type || "user", m.senderRole || "user");
@@ -47,20 +37,14 @@ export function initChatHandlers(state) {
   }
 
   state.messageInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
   state.messageInput.addEventListener("input", () => {
     state.sendBtn.disabled = !state.messageInput.value.trim();
   });
 
-  state.sendBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    sendMessage();
-  });
+  state.sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
 
   state.filterBtn.addEventListener("change", () => {
     if (!state.socket || !state.socket.connected) return;
