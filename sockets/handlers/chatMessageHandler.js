@@ -5,7 +5,7 @@ const User = require("../../models/User");
 const filterMessage = require("../../utils/filter");
 
 module.exports = function(socket, ctx) {
-  let {
+  const {
     username,
     activeUsers,
     userRoles,
@@ -35,7 +35,7 @@ module.exports = function(socket, ctx) {
 
     let finalContent = content.trim();
 
-  // --- /admin [passwort] ---
+    // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
@@ -46,18 +46,12 @@ module.exports = function(socket, ctx) {
         }
         role = "admin";
         userRoles.set(username, role);
-    
-        // Neues Token an den eigenen Client
+
         const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
         socket.emit("newToken", { token: newToken });
-    
-        // Systemnachricht für den eigenen Client
         socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
-    
-        // --- NEU: Rolle für alle Clients aktualisieren ---
+
         io.emit("roleUpdated", { username, role });
-    
-        // Admin-Notice an bestehende Admins
         emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
       } else {
         socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
@@ -65,50 +59,39 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-
     // --- /clear ---
     if (finalContent === "/clear") {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       await Message.deleteMany({});
       io.emit("deletedMessages", []);
       io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
-      io.emit("forceReload", false);
+      io.emit("updateUsersAndMessages");
       return;
     }
 
+    // --- /deleteAllUsers [passwort] ---
     if (finalContent.startsWith("/deleteAllUsers")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-    
-      try {
-        // Alle normalen Nutzer abrufen
-        const normalUsers = await User.find({ role: "user" });
-        for (const u of normalUsers) {
-          await Message.deleteMany({ sender: u.username });
-        }
-        // Nutzer löschen
-        await User.deleteMany({ role: "user" });
-        // State Maps updaten
-        for (const uname of userRoles.keys()) {
-          const dbu = await User.findOne({ username: uname });
-          if (dbu) userRoles.set(uname, dbu.role);
-          else {
-            userRoles.delete(uname);
-            activeUsers.delete(uname);
-            userFilters.delete(uname);
-          }
-        }
-    
-        // Admin-Benachrichtigung
-        emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
-        io.emit("systemMessage", { text: "⚠️ Alle normalen Nutzer und ihre Nachrichten wurden gelöscht.", type: "error" });
-        io.emit("updateUsersAndMessages"); // Client soll Userliste & Nachrichten neu laden
-        socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
-      } catch (err) {
-        console.error("Fehler bei /deleteAllUsers:", err);
-        socket.emit("systemMessage", { text: "Fehler beim Löschen aller Nutzer.", type: "error" });
+
+      const usersToDelete = await User.find({ role: "user" });
+      for (const u of usersToDelete) {
+        await Message.deleteMany({ sender: u.username });
       }
+      await User.deleteMany({ role: "user" });
+
+      // Aktualisiere userRoles und activeUsers
+      for (const uname of userRoles.keys()) {
+        const dbu = await User.findOne({ username: uname });
+        if (dbu) userRoles.set(uname, dbu.role);
+        else userRoles.delete(uname);
+      }
+
+      socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
+      emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+
+      io.emit("updateUsersAndMessages");
       return;
     }
 
@@ -117,11 +100,13 @@ module.exports = function(socket, ctx) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+
       await User.deleteMany({});
       userRoles.clear();
       activeUsers.clear();
       userFilters.clear();
       await Message.deleteMany({});
+
       io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
       io.emit("forceReload", true);
       return;
@@ -137,7 +122,6 @@ module.exports = function(socket, ctx) {
 
       if (!target) return socket.emit("systemMessage", { text: "Benutzername fehlt.", type: "error" });
       if (providedPass !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Ungültiges Admin-Passwort für /ban.", type: "error" });
-      // if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
 
       try {
         await User.findOneAndDelete({ username: target });
@@ -155,7 +139,10 @@ module.exports = function(socket, ctx) {
           userFilters.delete(target);
           emitToAdmins("adminNotice", { text: `${username} hat ${target} gebannt.` });
         }
+
         io.emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error" });
+        io.emit("updateUsersAndMessages");
+
       } catch (err) {
         console.error("Ban-Fehler:", err);
         socket.emit("systemMessage", { text: "Fehler beim Bannen des Nutzers.", type: "error" });
