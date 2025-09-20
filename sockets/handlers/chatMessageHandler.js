@@ -70,14 +70,13 @@ module.exports = function(socket, ctx) {
 
     if (content === "/help") {
       socket.emit("systemMessage", { 
-        text: `
-        /admin [passwort] - Admin werden
-        /clear - Chat leeren (Admins)
-        /deleteAllUsers [passwort] - Alle normalen User löschen
-        /reset [passwort] - Server zurücksetzen
-        /ban "username" ADMIN_PASS - User bannen
-        /role - Zeigt deine aktuelle Rolle
-        /help - Zeigt diese Nachricht`,
+        text: `/admin [passwort] - Admin werden
+              /clear - Chat leeren (Admins)
+              /deleteAllUsers [passwort] - Alle normalen User löschen
+              /reset [passwort] - Server zurücksetzen
+              /ban "username" ADMIN_PASS - User bannen
+              /role - Zeigt deine aktuelle Rolle
+              /help - Zeigt diese Nachricht`,
         type: "info",
         duration: 10000
       });
