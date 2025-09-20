@@ -3,9 +3,9 @@ import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
 import { initSocket } from "./socketClient.js";
 import { initAuthHandlers } from "./authHandlers.js";
-import { initChatHandlers } from "./chatHandlers.js";
+import { initChatHandlers, loadMessages } from "./chatHandlers.js";
 
-// State initialisieren
+// --- State initialisieren ---
 const state = {
   token: localStorage.getItem("token") || null,
   username: localStorage.getItem("username") || null,
@@ -19,12 +19,12 @@ const state = {
   filterBtn: DOM.filterBtn
 };
 
-// Socket, Auth & Chat initialisieren
+// --- Socket initialisieren ---
 initSocket(state);
 initAuthHandlers(state);
 initChatHandlers(state);
 
-// Alte Nachrichten direkt laden, falls Token vorhanden
+// --- Alte Nachrichten direkt laden, falls Token vorhanden ---
 if (state.token) {
   loadMessages(state);
 }
