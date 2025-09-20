@@ -211,6 +211,29 @@ socket.on("forceReload", (resetAll = true) => {
       window.location.reload();
     }, 3000);
   });
+
+  socket.on("roleUpdated", ({ username: updatedUser, role }) => {
+  // 1️⃣ Update Userliste
+  const users = Array.from(usersListEl.children);
+  users.forEach(li => {
+    if (li.textContent === updatedUser) {
+      li.classList.toggle("admin-user", role === "admin");
+    }
+  });
+
+  // 2️⃣ Update bestehende Chatnachrichten
+  const messages = chatWindow.querySelectorAll(".message");
+  messages.forEach(msg => {
+    if (msg.querySelector("strong")?.textContent === updatedUser) {
+      msg.querySelector("strong").classList.toggle("admin-name", role === "admin");
+      msg.classList.toggle("admin-msg", role === "admin");
+    }
+  });
+
+  // Wenn du selbst Admin geworden bist, ggf. myRole aktualisieren
+  if (updatedUser === username) myRole = role;
+});
+  
 }
 
 initSocket();
