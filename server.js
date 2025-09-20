@@ -248,11 +248,10 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", () => removeActiveUserBySocket(socket.id));
 });
 
-// --- REST API (Messages) ---
 app.get("/api/messages", async (req, res) => {
   try {
-    const msgs = await Message.find().sort({ createdAt: -1 }).limit(100);
-    res.json(msgs.reverse().map(m => ({
+    const msgs = await Message.find().sort({ createdAt: 1 }).limit(100); // direkt chronologisch
+    res.json(msgs.map(m => ({
       _id: m._id.toString(),
       sender: m.sender,
       content: m.content,
@@ -270,6 +269,7 @@ app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public/index.html"
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
 
 
