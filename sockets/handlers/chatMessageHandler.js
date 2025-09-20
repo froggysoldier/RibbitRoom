@@ -76,19 +76,39 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-    // --- /deleteAllUsers [passwort] ---
     if (finalContent.startsWith("/deleteAllUsers")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-      await User.deleteMany({ role: "user" });
-      for (const uname of userRoles.keys()) {
-        const dbu = await User.findOne({ username: uname });
-        if (dbu) userRoles.set(uname, dbu.role);
-        else userRoles.delete(uname);
+    
+      try {
+        // Alle normalen Nutzer abrufen
+        const normalUsers = await User.find({ role: "user" });
+        for (const u of normalUsers) {
+          await Message.deleteMany({ sender: u.username });
+        }
+        // Nutzer löschen
+        await User.deleteMany({ role: "user" });
+        // State Maps updaten
+        for (const uname of userRoles.keys()) {
+          const dbu = await User.findOne({ username: uname });
+          if (dbu) userRoles.set(uname, dbu.role);
+          else {
+            userRoles.delete(uname);
+            activeUsers.delete(uname);
+            userFilters.delete(uname);
+          }
+        }
+    
+        // Admin-Benachrichtigung
+        emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+        io.emit("systemMessage", { text: "⚠️ Alle normalen Nutzer und ihre Nachrichten wurden gelöscht.", type: "error" });
+        io.emit("updateUsersAndMessages"); // Client soll Userliste & Nachrichten neu laden
+        socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
+      } catch (err) {
+        console.error("Fehler bei /deleteAllUsers:", err);
+        socket.emit("systemMessage", { text: "Fehler beim Löschen aller Nutzer.", type: "error" });
       }
-      socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
-      emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
       return;
     }
 
