@@ -35,21 +35,36 @@ module.exports = function(socket, ctx) {
 
     let finalContent = content.trim();
 
-    // --- /admin [passwort] ---
+  // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
       if (provided && provided === ADMIN_PASS) {
-        if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
+        if (dbUser) { 
+          dbUser.role = "admin"; 
+          await dbUser.save(); 
+        }
         role = "admin";
         userRoles.set(username, role);
+    
+        // Neues Token an den eigenen Client
         const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
         socket.emit("newToken", { token: newToken });
+    
+        // Systemnachricht für den eigenen Client
         socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
+    
+        // --- NEU: Rolle für alle Clients aktualisieren ---
+        io.emit("roleUpdated", { username, role });
+    
+        // Admin-Notice an bestehende Admins
         emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
-      } else socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+      } else {
+        socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+      }
       return;
     }
+
 
     // --- /clear ---
     if (finalContent === "/clear") {
