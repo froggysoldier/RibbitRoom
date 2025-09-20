@@ -209,7 +209,7 @@ socket.on("forceReload", (resetAll = true) => {
         socket.disconnect();
       } catch (e) {}
       window.location.reload();
-    }, 1200);
+    }, 3000);
   });
 }
 
