@@ -85,7 +85,12 @@ module.exports = function(io) {
     }
 
     // Alle Socket-Events
-    require("./handlers/chatMessageHandler")(socket, { username, activeUsers, userRoles, userFilters, lastMessageTime, trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS });
-    require("./handlers/userHandler")(socket, { username, activeUsers, userRoles, userFilters, broadcastActiveUsers, JWT_SECRET });
-  });
+    require("./handlers/chatMessageHandler")(socket, { 
+    username, activeUsers, userRoles, userFilters, lastMessageTime, 
+    trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io 
+    });
+    require("./handlers/userHandler")(socket, { 
+        username, activeUsers, userRoles, userFilters, lastMessageTime, 
+        trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io 
+    });
 };
