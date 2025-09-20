@@ -64,7 +64,7 @@ module.exports = function(socket, ctx) {
 
     // --- Chat Commands ---
     if (content === "/role") {
-      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${role}`, type: "info", duration: 6000 });
+      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${role}`, type: "info"});
       return;
     }
 
