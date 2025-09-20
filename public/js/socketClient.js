@@ -1,6 +1,7 @@
 // public/js/socketClient.js
 import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
+import { loadMessages } from "./chatHandlers.js";
 
 export function initSocket(state) {
   if (!state) return;
@@ -96,4 +97,12 @@ export function initSocket(state) {
       window.location.reload();
     }, 3000);
   });
+  state.socket.on("updateUsersAndMessages", async () => {
+  // Userliste neu laden
+  state.socket.emit("requestActiveUsers"); // Server soll aktuelle Nutzer senden
+  // Nachrichten neu laden
+  await loadMessages(state);
+});
+
+  
 }
