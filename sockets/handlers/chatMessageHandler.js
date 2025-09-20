@@ -77,56 +77,54 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-    // --- /deleteAllUsers [passwort] ---
+       // --- /deleteAllUsers [passwort] ---
     if (finalContent.startsWith("/deleteAllUsers")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-
+    
       try {
-        // 1) Namen aller normalen Nutzer (DB)
+        // 1) Normale User aus DB holen
         const normalUsersDocs = await User.find({ role: "user" }).select("username");
         const normalUsernames = normalUsersDocs.map(d => d.username);
-
-        // 2) Nachrichten-IDs sammeln & löschen
+    
+        // 2) Nachrichten löschen
         const messagesToDelete = await Message.find({ sender: { $in: normalUsernames } }).select("_id");
         const deletedIds = messagesToDelete.map(m => m._id.toString());
         if (normalUsernames.length) {
           await Message.deleteMany({ sender: { $in: normalUsernames } });
         }
-
+    
         // 3) Accounts löschen
         await User.deleteMany({ role: "user" });
-
-        // 4) Kick + banned event für aktive normale Nutzer
+    
+        // 4) Betroffene Clients wie beim Ban behandeln
         for (const uname of normalUsernames) {
           const socketsSet = activeUsers.get(uname);
           if (socketsSet && socketsSet.size) {
             for (const sid of socketsSet) {
               io.to(sid).emit("banned", { text: "Du wurdest vom Admin entfernt (deleteAllUsers)." });
               const s = io.sockets.sockets.get(sid);
-              if (s) {
-                try { s.disconnect(true); } catch (e) {}
-              }
+              if (s) try { s.disconnect(true); } catch {}
             }
             activeUsers.delete(uname);
             userRoles.delete(uname);
             userFilters.delete(uname);
           }
         }
-
-        // 5) Broadcast Änderungen: gelöschte messages & userlist refresh
+    
+        // 5) Chat und Userliste aktualisieren für alle Clients
         if (deletedIds.length) io.emit("deletedMessages", deletedIds);
-        // signal an clients, dass sie userliste & messages neu laden sollen
         io.emit("updateUsersAndMessages");
-
+    
         socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
         emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+    
       } catch (err) {
         console.error("deleteAllUsers Fehler:", err);
         socket.emit("systemMessage", { text: "Fehler beim Löschen aller Nutzer.", type: "error" });
       }
-
+    
       return;
     }
 
