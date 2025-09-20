@@ -20,16 +20,21 @@ export function initAuthHandlers(state) {
       state.myRole = "user";
       localStorage.removeItem("token");
       localStorage.removeItem("username");
-      if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
+      if (state.socket) {
+        try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
+        state.socket = null;
+      }
       DOM.usersListEl.innerHTML = "";
       refreshLoginButton();
       UI.showInfo("Abgemeldet");
       window.location.reload();
-    } else DOM.modal.style.display = "block";
+    } else {
+      DOM.loginModal.style.display = "block";
+    }
   };
 
-  DOM.closeModal.onclick = () => { DOM.modal.style.display = "none"; };
-  window.onclick = (e) => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; };
+  DOM.closeModal.onclick = () => { DOM.loginModal.style.display = "none"; };
+  window.onclick = (e) => { if (e.target === DOM.loginModal) DOM.loginModal.style.display = "none"; };
 
   DOM.loginSubmit.addEventListener("click", async () => {
     const u = document.getElementById("username").value.trim();
@@ -49,11 +54,16 @@ export function initAuthHandlers(state) {
       state.myRole = data.role || "user";
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
-      DOM.modal.style.display = "none";
+      DOM.loginModal.style.display = "none";
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
-      if (state.socket) { state.socket.auth = { token: state.token }; state.socket.disconnect(); setTimeout(() => initSocket(state), 50); }
-      else initSocket(state);
+      if (state.socket) {
+        state.socket.auth = { token: state.token };
+        state.socket.disconnect();
+        setTimeout(() => initSocket(state), 50);
+      } else {
+        initSocket(state);
+      }
       await loadMessages(state);
     } catch {
       UI.showError("Login-Fehler");
@@ -86,12 +96,21 @@ export function initAuthHandlers(state) {
         localStorage.setItem("token", state.token);
         localStorage.setItem("username", state.username);
         UI.showInfo("Registrierung erfolgreich — eingeloggt.");
-        if (state.socket) { state.socket.auth = { token: state.token }; state.socket.disconnect(); setTimeout(() => initSocket(state), 50); }
-        else initSocket(state);
+        if (state.socket) {
+          state.socket.auth = { token: state.token };
+          state.socket.disconnect();
+          setTimeout(() => initSocket(state), 50);
+        } else {
+          initSocket(state);
+        }
         await loadMessages(state);
-      } else UI.showInfo("Registrierung erfolgreich — bitte einloggen.");
-      DOM.modal.style.display = "none";
+      } else {
+        UI.showInfo("Registrierung erfolgreich — bitte einloggen.");
+      }
+      DOM.loginModal.style.display = "none";
       refreshLoginButton();
-    } catch { UI.showError("Registrieren-Fehler"); }
+    } catch {
+      UI.showError("Registrieren-Fehler");
+    }
   });
 }
