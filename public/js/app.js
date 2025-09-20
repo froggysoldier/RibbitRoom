@@ -19,12 +19,10 @@ const state = {
   filterBtn: DOM.filterBtn
 };
 
-// Init
+// Socket, Auth & Chat initialisieren
 initSocket(state);
 initAuthHandlers(state);
 initChatHandlers(state);
 
-// Alte Nachrichten direkt laden, falls Token vorhanden
-if (state.token) {
-  loadMessages(state);
-}
+// Alte Nachrichten laden, falls Token vorhanden
+if (state.token) loadMessages(state);
