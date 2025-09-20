@@ -1,7 +1,7 @@
 // public/js/socketClient.js
 import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
-import { loadMessages } from "./chatHandlers.js"; // ensure loadMessages is exported from chatHandlers
+import { loadMessages } from "./chatHandlers.js";
 
 export function initSocket(state) {
   if (!state) return;
@@ -18,61 +18,19 @@ export function initSocket(state) {
   state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
   state.socket.on("newMessage", (msg) => {
+    if (!state.username) return;
     const isSelf = msg.sender === state.username;
-    UI.appendMessage(
-      msg.sender || "SYSTEM",
-      msg.content || "",
-      msg.createdAt,
-      msg._id,
-      isSelf,
-      msg.type || "user",
-      msg.senderRole || "user"
-    );
+    UI.appendMessage(msg.sender || "SYSTEM", msg, msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
   });
 
   state.socket.on("systemMessage", (data) => {
-    if (typeof data === "string") {
-      UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
-    } else {
-      UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system", "user");
-    }
+    const payload = (typeof data === "string") ? { text: data } : data || { text: "" };
+    UI.appendMessage("SYSTEM", payload, new Date(), "sys-" + Date.now(), false, "system");
   });
 
-  state.socket.on("removeSystemMessage", (msgId) => {
-    const el = DOM.chatWindow.querySelector(`[data-id="${msgId}"]`);
-    if (el) el.remove();
-  });
-
-  state.socket.on("spamWarning", (data) => {
-    // Show persistent spam warning
-    const allowedAt = data?.allowedAt || Date.now() + 2000;
-    const updatePersistent = () => {
-      const remaining = Math.max(0, Math.ceil((allowedAt - Date.now()) / 1000));
-      UI.showPersistentSystem(`⚠️ Bitte warten ${remaining}s bevor du wieder schreiben kannst.`, "spam");
-    };
-    updatePersistent();
-    const interval = setInterval(() => {
-      const remainingMs = allowedAt - Date.now();
-      if (remainingMs <= 0) {
-        clearInterval(interval);
-        UI.clearPersistentSystem("spam");
-      } else {
-        updatePersistent();
-      }
-    }, 500);
-  });
-
-  state.socket.on("spamClear", () => {
-    UI.clearPersistentSystem("spam");
-  });
-
-  state.socket.on("deletedMessages", (ids) => {
-    ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
-  });
-
-  state.socket.on("updateUsersAndMessages", async () => {
-    state.socket.emit("requestActiveUsers");
-    await loadMessages(state);
+  state.socket.on("adminNotice", (data) => {
+    const payload = (typeof data === "string") ? { text: data } : data || { text: "" };
+    UI.appendMessage("ADMIN", payload, new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
   state.socket.on("identified", (data) => {
@@ -84,6 +42,7 @@ export function initSocket(state) {
   });
 
   state.socket.on("activeUsers", (users) => {
+    if (!state.username) return; // Nicht eingeloggte sehen keine aktive Nutzer
     DOM.usersListEl.innerHTML = "";
     users.forEach((u) => {
       const li = document.createElement("li");
@@ -93,26 +52,8 @@ export function initSocket(state) {
     });
   });
 
-  state.socket.on("newToken", (data) => {
-    if (data?.token) {
-      state.token = data.token;
-      localStorage.setItem("token", state.token);
-      console.log("[INFO] Neues Admin-Token gespeichert");
-    }
-  });
-
-  state.socket.on("banned", (data) => {
-    const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
-    UI.showError(text);
-    state.token = null;
-    state.username = null;
-    state.myRole = "user";
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    setTimeout(() => {
-      try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
-      window.location.reload();
-    }, 3000);
+  state.socket.on("deletedMessages", (ids) => {
+    ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
   state.socket.on("forceReload", (resetAll = true) => {
@@ -133,8 +74,36 @@ export function initSocket(state) {
     }
   });
 
-  state.socket.on("toggleFilter", (active) => {
+  state.socket.on("newToken", (data) => {
+    if (data?.token) {
+      state.token = data.token;
+      localStorage.setItem("token", state.token);
+      console.log("[INFO] Neues Admin-Token gespeichert");
+    }
+  });
+
+  state.socket.on("disconnect", () => {
+    state.socketConnected = false;
+    UI.setSendEnabled(false);
+  });
+
+  state.socket.on("banned", (data) => {
+    const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
+    UI.showError(text);
+    state.token = null;
+    state.username = null;
+    state.myRole = "user";
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    setTimeout(() => {
+      try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
+      window.location.reload();
+    }, 3000);
+  });
+
+  state.socket.on("updateUsersAndMessages", async () => {
     if (!state.username) return;
-    state.filterActive = !!active;
+    state.socket.emit("requestActiveUsers"); // Server soll aktuelle Nutzer senden
+    await loadMessages(state);
   });
 }
