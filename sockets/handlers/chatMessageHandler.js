@@ -1,4 +1,3 @@
-// sockets/handlers/chatMessageHandler.js
 const jwt = require("jsonwebtoken");
 const Message = require("../../models/Message");
 const User = require("../../models/User");
@@ -19,7 +18,6 @@ module.exports = function(socket, ctx) {
     io
   } = ctx;
 
-  // Spamschutz: Systemwarnungen pro User tracken
   const spamWarningShown = new Map();
 
   socket.on("chatMessage", async (content) => {
@@ -29,62 +27,51 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    content = (content || "").trim();
-
-    // --- Spam-Schutz ---
+    // --- Anti-Spam: 2 Sek ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    const cooldown = 700;
     const diff = now - lastTime;
 
-    if (diff < cooldown) {
-      const remaining = cooldown - diff;
-
+    if (diff < 2000) {
       if (!spamWarningShown.get(username)) {
-        const msgId = "spam-warn-" + username;
-        socket.emit("systemMessage", { 
-          text: `⚠️ Bitte nicht Nachrichten spammen. Warte ${Math.ceil(remaining/1000)}s`, 
-          type: "error", 
-          id: msgId 
-        });
-        spamWarningShown.set(username, msgId);
+        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+        spamWarningShown.set(username, true);
       }
-
       lastMessageTime.set(username, now);
       return;
-    }
-
-    // Cooldown vorbei → Systemwarnung entfernen
-    const msgId = spamWarningShown.get(username);
-    if (msgId) {
-      socket.emit("removeSystemMessage", msgId);
-      spamWarningShown.delete(username);
+    } else {
+      spamWarningShown.set(username, false);
     }
     lastMessageTime.set(username, now);
 
-    // --- Chat Commands ---
-    if (content === "/role") {
-      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${role}`, type: "info"});
+    let finalContent = (content || "").trim();
+
+    // --- /role ---
+    if (finalContent === "/role") {
+      const r = userRoles.get(username) || dbUser?.role || "user";
+      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${r}`, type: "info", duration: 6000 });
       return;
     }
 
-    if (content === "/help") {
-      socket.emit("systemMessage", { 
-        text: `/admin [passwort] - Admin werden
-              /clear - Chat leeren (Admins)
-              /deleteAllUsers [passwort] - Alle normalen User löschen
-              /reset [passwort] - Server zurücksetzen
-              /ban "username" ADMIN_PASS - User bannen
-              /role - Zeigt deine aktuelle Rolle
-              /help - Zeigt diese Nachricht`,
+    // --- /help ---
+    if (finalContent === "/help") {
+      socket.emit("systemMessage", {
+        text: `Verfügbare Befehle:
+        /admin [passwort] - Admin werden
+        /clear - Chat leeren (Admins)
+        /deleteAllUsers [passwort] - Alle normalen User löschen
+        /reset [passwort] - Server zurücksetzen
+        /ban "username" ADMIN_PASS - User bannen
+        /role - Zeigt deine aktuelle Rolle
+        /help - Zeigt diese Nachricht`,
         type: "info",
         duration: 10000
       });
       return;
     }
 
-    // --- Admin Commands ---
-    const adminMatch = content.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
+    // --- /admin ---
+    const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
       if (provided && provided === ADMIN_PASS) {
@@ -94,35 +81,34 @@ module.exports = function(socket, ctx) {
 
         const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
         socket.emit("newToken", { token: newToken });
-        socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
+        socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok", duration: 5000 });
 
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("roleUpdated", { username, role });
         }
-
         emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
       } else {
-        socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+        socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error", duration: 5000 });
       }
       return;
     }
 
     // --- /clear ---
-    if (content === "/clear") {
+    if (finalContent === "/clear") {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       await Message.deleteMany({});
       for (const sid of authenticatedSockets) {
         io.to(sid).emit("deletedMessages", []);
-        io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
+        io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error", duration: 4000 });
         io.to(sid).emit("updateUsersAndMessages");
       }
       return;
     }
 
     // --- /deleteAllUsers ---
-    if (content.startsWith("/deleteAllUsers")) {
+    if (finalContent.startsWith("/deleteAllUsers")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      const provided = content.split(" ")[1]?.trim();
+      const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
 
       try {
@@ -152,7 +138,7 @@ module.exports = function(socket, ctx) {
 
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
-          io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok" });
+          io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok", duration: 5000 });
           io.to(sid).emit("updateUsersAndMessages");
         }
 
@@ -165,33 +151,36 @@ module.exports = function(socket, ctx) {
     }
 
     // --- /reset ---
-    if (content.startsWith("/reset")) {
+    if (finalContent.startsWith("/reset")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      const provided = content.split(" ")[1]?.trim();
+      const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+
       await User.deleteMany({});
       userRoles.clear();
       activeUsers.clear();
       userFilters.clear();
       await Message.deleteMany({});
-      io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error" });
+      io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt! Alles gelöscht.", type: "error", duration: 5000 });
       io.emit("forceReload", true);
       return;
     }
 
     // --- /ban ---
-    const banMatch = content.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
+    const banMatch = finalContent.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
     if (banMatch) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
 
       const target = (banMatch[1] || banMatch[2] || "").trim();
       const providedPass = banMatch[3];
+
       if (!target) return socket.emit("systemMessage", { text: "Benutzername fehlt.", type: "error" });
       if (providedPass !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Ungültiges Admin-Passwort für /ban.", type: "error" });
       if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
 
       try {
         await User.findOneAndDelete({ username: target });
+
         const msgs = await Message.find({ sender: target }).select("_id");
         const msgIds = msgs.map(m => m._id.toString());
         if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
@@ -211,7 +200,7 @@ module.exports = function(socket, ctx) {
 
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
-          io.to(sid).emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error" });
+          io.to(sid).emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error", duration: 5000 });
           io.to(sid).emit("updateUsersAndMessages");
         }
 
@@ -224,15 +213,19 @@ module.exports = function(socket, ctx) {
     }
 
     // --- Normale Nachricht ---
-    if (content.length > 150) content = content.slice(0, 150);
-    if (userFilters.get(username)) content = filterMessage(content);
+    if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
+    if (userFilters.get(username)) finalContent = filterMessage(finalContent);
 
-    const msg = new Message({ sender: username, content, senderRole: role });
+    const msg = new Message({ sender: username, content: finalContent, senderRole: role });
     await msg.save();
 
     const deletedIds = await trimOldMessages(100);
+    if (deletedIds.length) {
+      for (const sid of authenticatedSockets) {
+        io.to(sid).emit("deletedMessages", deletedIds);
+      }
+    }
 
-    // Neue Nachricht an alle authentifizierten Clients
     for (const sid of authenticatedSockets) {
       io.to(sid).emit("newMessage", {
         _id: msg._id.toString(),
@@ -242,7 +235,6 @@ module.exports = function(socket, ctx) {
         senderRole: role,
         type: "user"
       });
-      if (deletedIds.length) io.to(sid).emit("deletedMessages", deletedIds);
     }
   });
 
