@@ -20,27 +20,24 @@ module.exports = function(socket, ctx) {
   let username = null;
   let role = "user";
 
-  // --- IDENTIFY EVENT: Client meldet Token ---
+  // --- IDENTIFY EVENT ---
   socket.on("identify", async ({ token }) => {
     if (!token) return;
-
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       username = decoded.username;
       role = decoded.role || "user";
 
-      // socket als authentifiziert markieren
       socket.user = { username, authenticated: true };
       userRoles.set(username, role);
 
-      // aktiven User speichern
       if (!activeUsers.has(username)) activeUsers.set(username, new Set());
       activeUsers.get(username).add(socket.id);
-
-      // Filterstatus
       userFilters.set(username, false);
 
       socket.emit("identified", { username, role, filterActive: false });
+
+      // Update aktive Nutzer für alle authentifizierten Clients
       io.sockets.sockets.forEach(s => {
         if (s.user?.authenticated) {
           s.emit("activeUsers", Array.from(userRoles.keys()).map(u => ({
@@ -49,6 +46,7 @@ module.exports = function(socket, ctx) {
           })));
         }
       });
+
     } catch (err) {
       console.warn("[IDENTIFY] Token ungültig:", err.message);
       socket.user = { authenticated: false };
@@ -64,7 +62,6 @@ module.exports = function(socket, ctx) {
     role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    // --- Anti-Spam ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
     if (now - lastTime < 620) return socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
@@ -76,7 +73,7 @@ module.exports = function(socket, ctx) {
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
       const provided = (adminMatch[1] || "").trim();
-      if (provided && provided === ADMIN_PASS) {
+      if (provided === ADMIN_PASS) {
         if (dbUser) { dbUser.role = "admin"; await dbUser.save(); }
         role = "admin";
         userRoles.set(username, role);
@@ -85,7 +82,6 @@ module.exports = function(socket, ctx) {
         socket.emit("newToken", { token: newToken });
         socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
 
-        // Rolle für alle Clients aktualisieren
         io.sockets.sockets.forEach(s => {
           if (s.user?.authenticated) s.emit("roleUpdated", { username, role });
         });
@@ -115,49 +111,31 @@ module.exports = function(socket, ctx) {
       const provided = finalContent.split(" ")[1]?.trim();
       if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
 
-      // alle normalen Nutzer löschen
+      // Normale Nutzer löschen
+      const normalUsers = await User.find({ role: "user" }).select("username");
+      const usernamesToDelete = normalUsers.map(u => u.username);
       await User.deleteMany({ role: "user" });
+      await Message.deleteMany({ sender: { $in: usernamesToDelete } });
 
-      // Nachrichten aller gelöschten Nutzer löschen
-      const usersToDelete = Array.from(userRoles.entries())
-        .filter(([uname, urole]) => urole !== "admin")
-        .map(([uname]) => uname);
-
-      await Message.deleteMany({ sender: { $in: usersToDelete } });
-
-      // Rollen & aktive User aktualisieren
-      usersToDelete.forEach(u => {
+      usernamesToDelete.forEach(u => {
         activeUsers.delete(u);
         userRoles.delete(u);
         userFilters.delete(u);
       });
 
-      // Reload nur für authentifizierte Clients
+      // Update alle Clients
       io.sockets.sockets.forEach(s => {
-        if (s.user?.authenticated) s.emit("forceReload", false);
+        if (s.user?.authenticated) {
+          s.emit("forceReload", false); // reload chat
+          s.emit("activeUsers", Array.from(userRoles.keys()).map(u => ({
+            username: u,
+            role: userRoles.get(u) || "user"
+          })));
+        }
       });
 
       socket.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
       emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
-      return;
-    }
-
-    // --- /reset [passwort] ---
-    if (finalContent.startsWith("/reset")) {
-      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
-      const provided = finalContent.split(" ")[1]?.trim();
-      if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-
-      await User.deleteMany({});
-      userRoles.clear();
-      activeUsers.clear();
-      userFilters.clear();
-      await Message.deleteMany({});
-
-      io.sockets.sockets.forEach(s => {
-        if (s.user?.authenticated) s.emit("forceReload", true);
-      });
-
       return;
     }
 
@@ -189,8 +167,15 @@ module.exports = function(socket, ctx) {
           emitToAdmins("adminNotice", { text: `${username} hat ${target} gebannt.` });
         }
 
+        // Update alle authentifizierten Clients
         io.sockets.sockets.forEach(s => {
-          if (s.user?.authenticated) s.emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error" });
+          if (s.user?.authenticated) {
+            s.emit("deletedMessages", []); // oder nur Nachrichten von target
+            s.emit("activeUsers", Array.from(userRoles.keys()).map(u => ({
+              username: u,
+              role: userRoles.get(u) || "user"
+            })));
+          }
         });
       } catch (err) {
         console.error("Ban-Fehler:", err);
@@ -228,7 +213,6 @@ module.exports = function(socket, ctx) {
     userFilters.set(username, !!active);
   });
 
-  // --- Cleanup bei Disconnect ---
   socket.on("disconnect", () => {
     if (!username) return;
     const set = activeUsers.get(username);
