@@ -6,7 +6,7 @@ const filterMessage = require("../../utils/filter");
 
 module.exports = function(socket, ctx) {
   let {
-    username,
+    io,
     activeUsers,
     userRoles,
     userFilters,
@@ -15,15 +15,14 @@ module.exports = function(socket, ctx) {
     emitToAdmins,
     authenticatedSockets,
     JWT_SECRET,
-    ADMIN_PASS,
-    io
+    ADMIN_PASS
   } = ctx;
 
   const spamWarningShown = new Map();
 
   socket.on("chatMessage", async (content) => {
-    if (!socket.username) return; // nur authentifizierte sockets dürfen senden
-    username = socket.username;
+    if (!socket.username) return; // only authenticated sockets may send
+    const username = socket.username;
 
     const dbUser = await User.findOne({ username });
     let role = dbUser?.role || userRoles.get(username) || "user";
@@ -34,13 +33,13 @@ module.exports = function(socket, ctx) {
     const lastTime = lastMessageTime.get(username) || 0;
     const diff = now - lastTime;
 
-    if (diff < 2000) {
-      // Zeige Spam-Warnung einmalig, während weiter gespammt wird verlängere das Intervall
+    if (diff < 700) {
+      // show spam warning once while spamming; subsequent spam extends wait
       if (!spamWarningShown.get(username)) {
-        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error", duration: 2000 });
+        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error", duration: 700 });
         spamWarningShown.set(username, true);
       }
-      // setze lastMessageTime auf jetzt -> erneutes Spammen verlängert Wartezeit
+      // extend the lastMessageTime so further spam pushes the timer forward
       lastMessageTime.set(username, now);
       return;
     } else {
@@ -53,19 +52,18 @@ module.exports = function(socket, ctx) {
     // --- /role ---
     if (finalContent === "/role") {
       const r = userRoles.get(username) || dbUser?.role || "user";
-      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${r}`, type: "info", duration: 6000 });
+      socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${r}`, type: "info"});
       return;
     }
 
     // --- /help ---
     if (finalContent === "/help") {
       socket.emit("systemMessage", {
-        text: `Verfügbare Befehle:
-/admin [passwort] - Admin werden
+        text: `/admin [passwort] - Admin werden
+/ban "username" ADMIN_PASS - User bannen
 /clear - Chat leeren (Admins)
 /deleteAllUsers [passwort] - Alle normalen User löschen
 /reset [passwort] - Server zurücksetzen
-/ban "username" ADMIN_PASS - User bannen
 /role - Zeigt deine aktuelle Rolle
 /help - Zeigt diese Nachricht`,
         type: "info",
@@ -88,7 +86,7 @@ module.exports = function(socket, ctx) {
 
         socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok", duration: 4000 });
 
-        // Rolle für alle authentifizierten sockets aktualisieren
+        // update role for all authenticated sockets
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("roleUpdated", { username, role });
         }
@@ -104,10 +102,10 @@ module.exports = function(socket, ctx) {
     if (finalContent === "/clear") {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error", duration: 4000 });
 
-      // Nur user-type Nachrichten löschen (keine adminNotices / system messages)
+      // delete user messages
       await Message.deleteMany({ type: "user" });
 
-      // Sende an eingeloggte Clients: IDs (leer -> client leert chat)
+      // notify authenticated clients: clear chat + refresh
       for (const sid of authenticatedSockets) {
         io.to(sid).emit("deletedMessages", []);
         io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error", duration: 4000 });
@@ -126,7 +124,7 @@ module.exports = function(socket, ctx) {
         const normalUsers = await User.find({ role: "user" }).select("username");
         const normalUsernames = normalUsers.map(u => u.username);
 
-        // delete their messages (only user messages)
+        // delete user messages (only user-type)
         const msgs = await Message.find({ sender: { $in: normalUsernames }, type: "user" }).select("_id");
         const msgIds = msgs.map(m => m._id.toString());
         if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
@@ -134,7 +132,7 @@ module.exports = function(socket, ctx) {
         // delete users
         await User.deleteMany({ role: "user" });
 
-        // kick & notify removed users
+        // kick removed users
         for (const uname of normalUsernames) {
           const socketsSet = activeUsers.get(uname);
           if (socketsSet && socketsSet.size) {
@@ -150,7 +148,7 @@ module.exports = function(socket, ctx) {
           }
         }
 
-        // Inform remaining authenticated clients: remove messages and refresh
+        // inform remaining authenticated clients
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
           io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok", duration: 5000 });
@@ -198,7 +196,7 @@ module.exports = function(socket, ctx) {
         // delete user
         await User.findOneAndDelete({ username: target });
 
-        // delete user's messages (only user messages)
+        // delete user's messages (user-type)
         const msgs = await Message.find({ sender: target, type: "user" }).select("_id");
         const msgIds = msgs.map(m => m._id.toString());
         if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
@@ -217,7 +215,7 @@ module.exports = function(socket, ctx) {
           userFilters.delete(target);
         }
 
-        // notify remaining authenticated clients: delete messages + update
+        // inform remaining authenticated clients
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
           io.to(sid).emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error", duration: 5000 });
@@ -240,9 +238,13 @@ module.exports = function(socket, ctx) {
     await msg.save();
 
     const deletedIds = await trimOldMessages(100);
-    if (deletedIds.length) io.emit("deletedMessages", deletedIds);
+    if (deletedIds.length) {
+      for (const sid of authenticatedSockets) {
+        io.to(sid).emit("deletedMessages", deletedIds);
+      }
+    }
 
-    // only send to authenticated clients
+    // send new message to authenticated clients only
     for (const sid of authenticatedSockets) {
       io.to(sid).emit("newMessage", {
         _id: msg._id.toString(),
