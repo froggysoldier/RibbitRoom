@@ -28,7 +28,7 @@ module.exports = function(socket, ctx) {
     // --- Anti-Spam: nur alle 2 Sekunden ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 670) {
+    if (now - lastTime < 620) {
       return socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
     }
     lastMessageTime.set(username, now);
