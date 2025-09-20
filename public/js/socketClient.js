@@ -38,6 +38,11 @@ export function initSocket(state) {
     }
   });
 
+  state.socket.on("removeSystemMessage", (msgId) => {
+    const el = DOM.chatWindow.querySelector(`[data-id="${msgId}"]`);
+    if (el) el.remove();
+  });
+
   state.socket.on("spamWarning", (data) => {
     // Show persistent spam warning
     const allowedAt = data?.allowedAt || Date.now() + 2000;
