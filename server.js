@@ -21,12 +21,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use(express.static(path.join(__dirname, "public")));
 
-// MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB verbunden"))
   .catch(err => console.error("❌ MongoDB Fehler:", err));
 
-// Socket-Events
+// init sockets (registers socket handlers)
 initSockets(io);
 
 const PORT = process.env.PORT || 3000;
