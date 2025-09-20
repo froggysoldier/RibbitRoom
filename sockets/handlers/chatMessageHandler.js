@@ -59,24 +59,26 @@ module.exports = function(socket, ctx) {
     const cooldown = 650;
     
     if (now - lastTime < cooldown) {
-      // Zeige Warnung nur einmal pro Spam-Phase
+      // Zeige Warnung nur einmal während der Cooldown-Phase
       if (!spamWarningShown.get(username)) {
-        socket.emit("systemMessage", {
-          text: `⚠️ Bitte nicht Nachrichten spammen. Warte noch ${Math.ceil((cooldown - (now - lastTime)) / 1000)}s.`,
-          type: "error"
-        });
-        spamWarningShown.set(username, true);
+        // ID für die Warnung erzeugen, damit wir sie gezielt entfernen können
+        const warnId = `spam-${username}`;
+        socket.emit("systemMessage", { id: warnId, text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+        spamWarningShown.set(username, warnId);
       }
+      // Nachricht abbrechen
+      return;
     } else {
-      // Cooldown vorbei → Reset Warnung
-      spamWarningShown.set(username, false);
+      // Cooldown vorbei → Warnung entfernen
+      const warnId = spamWarningShown.get(username);
+      if (warnId) {
+        socket.emit("removeSystemMessage", { id: warnId });
+        spamWarningShown.delete(username);
+      }
     }
-    // Immer die Zeit aktualisieren, damit Cooldown korrekt läuft
-    lastMessageTime.set(username, now);
     
-    // Wenn innerhalb Cooldown, abbrechen
-    if (now - lastTime < cooldown) return;
-
+    // Cooldown-Timer aktualisieren
+    lastMessageTime.set(username, now);
 
     // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
