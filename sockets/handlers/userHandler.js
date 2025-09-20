@@ -3,69 +3,66 @@ const jwt = require("jsonwebtoken");
 const User = require("../../models/User");
 
 module.exports = function(socket, ctx) {
-  let { io, activeUsers, userRoles, userFilters, authenticatedSockets, JWT_SECRET, broadcastActiveUsers } = ctx;
+  let {
+    username,
+    activeUsers,
+    userRoles,
+    userFilters,
+    broadcastActiveUsers,
+    JWT_SECRET,
+    io
+  } = ctx;
+
+  const addActive = (uname, socketId, role = "user") => {
+    const set = activeUsers.get(uname) || new Set();
+    set.add(socketId);
+    activeUsers.set(uname, set);
+    userRoles.set(uname, role);
+    broadcastActiveUsers();
+  };
 
   socket.on("identify", async (payload) => {
     try {
-      if (payload?.token) {
+      if (!payload) return;
+
+      if (payload.token) {
         const decoded = jwt.verify(payload.token, JWT_SECRET);
-        socket.username = decoded.username;
-        const dbUser = await User.findOne({ username: socket.username });
-        const role = dbUser?.role || decoded.role || "user";
-
-        // add socket to activeUsers map
-        const set = activeUsers.get(socket.username) || new Set();
-        set.add(socket.id);
-        activeUsers.set(socket.username, set);
-        userRoles.set(socket.username, role);
-
-        authenticatedSockets.add(socket.id);
-
-        socket.emit("identified", { username: socket.username, filterActive: userFilters.get(socket.username) || false, role });
-        broadcastActiveUsers();
-      } else if (payload?.username) {
-        // anonymous identify by username (no token)
-        socket.username = payload.username;
-        const dbUser = await User.findOne({ username: socket.username });
-        const role = dbUser?.role || "user";
-
-        const set = activeUsers.get(socket.username) || new Set();
-        set.add(socket.id);
-        activeUsers.set(socket.username, set);
-        userRoles.set(socket.username, role);
-
-        // don't add to authenticatedSockets (no token)
-        socket.emit("identified", { username: socket.username, filterActive: userFilters.get(socket.username) || false, role });
-
-        broadcastActiveUsers();
+        username = decoded.username;
+      } else if (payload.username) {
+        username = payload.username;
       }
-    } catch (e) {
-      // ignore
-    }
-  });
 
-  socket.on("requestActiveUsers", () => {
-    broadcastActiveUsers();
+      if (!username) return;
+
+      const dbUser = await User.findOne({ username });
+      const role = dbUser?.role || "user";
+
+      addActive(username, socket.id, role);
+
+      socket.emit("identified", {
+        username,
+        filterActive: userFilters.get(username) || false,
+        role
+      });
+    } catch (err) {
+      console.error("Identify-Fehler:", err);
+    }
   });
 
   socket.on("disconnect", () => {
-    if (!socket.username) return;
-    // remove this socket from activeUsers
-    for (const [uname, sockets] of activeUsers.entries()) {
-      if (sockets.has(socket.id)) {
-        sockets.delete(socket.id);
-        if (sockets.size === 0) {
-          activeUsers.delete(uname);
-          userFilters.delete(uname);
-          userRoles.delete(uname);
-        } else {
-          activeUsers.set(uname, sockets);
-        }
-        break;
-      }
-    }
-    authenticatedSockets.delete(socket.id);
+    if (!username) return;
 
-    broadcastActiveUsers();
+    const sockets = activeUsers.get(username);
+    if (sockets) {
+      sockets.delete(socket.id);
+      if (sockets.size === 0) {
+        activeUsers.delete(username);
+        userRoles.delete(username);
+        userFilters.delete(username);
+      } else {
+        activeUsers.set(username, sockets);
+      }
+      broadcastActiveUsers();
+    }
   });
 };
