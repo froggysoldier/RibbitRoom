@@ -37,7 +37,7 @@ module.exports = function(io) {
           activeUsers.delete(username);
           userFilters.delete(username);
           userRoles.delete(username);
-        }
+        } else activeUsers.set(username, set);
         broadcastActiveUsers();
         return username;
       }
@@ -84,14 +84,13 @@ module.exports = function(io) {
       } catch {}
     }
 
-    // Alle Socket-Events registrieren
+    // Alle Socket-Events - wir geben broadcastActiveUsers mit
     require("./handlers/chatMessageHandler")(socket, { 
       username, activeUsers, userRoles, userFilters, lastMessageTime, 
-      trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io 
+      trimOldMessages, emitToAdmins, broadcastActiveUsers, JWT_SECRET, ADMIN_PASS, io 
     });
     require("./handlers/userHandler")(socket, { 
-      username, activeUsers, userRoles, userFilters, broadcastActiveUsers, 
-      JWT_SECRET, io 
+      username, activeUsers, userRoles, userFilters, broadcastActiveUsers, JWT_SECRET, io 
     });
-  }); // <--- Ende von io.on("connection")
-}; // <--- Ende von module.exports
+  });
+};
