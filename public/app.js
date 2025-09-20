@@ -60,13 +60,15 @@ function appendMessage(sender, content, createdAt, id, self = false, type = "use
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
 
-  p.innerHTML = `
+p.innerHTML = `
   <div class="msg-header">
-    <strong>${escapeHtml(sender)}</strong>
+    <strong class="${senderRole === "admin" ? "admin-name" : ""}">
+      ${escapeHtml(sender)}
+    </strong>
     <span class="time">[${hours}:${minutes}]</span>
   </div>
   <div class="msg-content">${formatMessage(content)}</div>
-  `;
+`;
 
   chatWindow.appendChild(p);
   setTimeout(() => p.classList.add("show"), 50);
