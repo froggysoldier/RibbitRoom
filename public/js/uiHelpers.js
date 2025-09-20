@@ -1,6 +1,7 @@
 // public/js/uiHelpers.js
 import * as DOM from "./domElements.js";
 
+/* utility helpers */
 export function escapeHtml(str = "") {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -14,6 +15,7 @@ export function formatMessage(content = "") {
   return escapeHtml(content).replace(/\n/g, "<br>");
 }
 
+/* info/error helpers (transient) */
 export function showInfo(text, duration = 4000) {
   const p = document.createElement("p");
   p.classList.add("info");
@@ -37,7 +39,16 @@ export function setSendEnabled(enabled) {
   DOM.messageInput.disabled = !enabled;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration = 4000) {
+/* check whether chat is scrolled to bottom */
+export function isAtBottom(threshold = 10) {
+  const el = DOM.chatWindow;
+  return (el.scrollHeight - el.scrollTop - el.clientHeight) <= threshold;
+}
+
+/* appendMessage (smart autoscroll; system messages auto-remove) */
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
+  const wasAtBottom = isAtBottom();
+
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -51,20 +62,62 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
 
   p.innerHTML = `
     <div class="msg-header">
-      <strong class="${senderRole === "admin" ? "admin-name" : ""}">${escapeHtml(sender)}</strong>
+      <strong class="${senderRole === "admin" ? "admin-name" : ""}">
+        ${escapeHtml(sender)}
+      </strong>
       <span class="time">[${hours}:${minutes}]</span>
     </div>
     <div class="msg-content">${formatMessage(content)}</div>
   `;
 
   DOM.chatWindow.appendChild(p);
-  setTimeout(() => p.classList.add("show"), 20);
-  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
+  setTimeout(() => p.classList.add("show"), 50);
 
-  // System-Nachrichten verschwinden nach duration
+  // only auto-scroll if user was at bottom
+  if (wasAtBottom) {
+    DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
+  }
+  // transient system messages auto-remove
   if (type === "system") {
+    const sysDuration = typeof content === "object" && content.duration ? content.duration : 4000;
     setTimeout(() => {
       if (p.parentNode) p.parentNode.removeChild(p);
-    }, duration);
+    }, sysDuration);
   }
+}
+
+/* persistent system message (used for spam warnings) */
+export function showPersistentSystem(text, key = "persistent") {
+  // If already exists, update content
+  let existing = DOM.chatWindow.querySelector(`p[data-persist="${key}"]`);
+  if (existing) {
+    const contentEl = existing.querySelector(".msg-content");
+    if (contentEl) contentEl.innerHTML = formatMessage(text);
+    return;
+  }
+
+  const p = document.createElement("p");
+  p.classList.add("message", "system");
+  p.dataset.persist = key;
+
+  const date = new Date();
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+
+  p.innerHTML = `
+    <div class="msg-header">
+      <strong> SYSTEM </strong>
+      <span class="time">[${hours}:${minutes}]</span>
+    </div>
+    <div class="msg-content">${formatMessage(text)}</div>
+  `;
+  const wasAtBottom = isAtBottom();
+  DOM.chatWindow.appendChild(p);
+  setTimeout(() => p.classList.add("show"), 50);
+  if (wasAtBottom) DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
+}
+
+export function clearPersistentSystem(key = "persistent") {
+  const existing = DOM.chatWindow.querySelector(`p[data-persist="${key}"]`);
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
 }
