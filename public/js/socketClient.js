@@ -1,7 +1,6 @@
 // public/js/socketClient.js
 import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
-import { loadMessages } from "./chatHandlers.js";
 
 export function initSocket(state) {
   if (!state) return;
@@ -15,25 +14,13 @@ export function initSocket(state) {
     UI.setSendEnabled(!!state.token);
   });
 
-  state.socket.on("connect_error", (err) => {
-    console.warn("[SOCKET] connect_error", err?.message || err);
-  });
+  state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
 
-  // --- Neue Nachrichten empfangen ---
   state.socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === state.username;
-    UI.appendMessage(
-      msg.sender || "SYSTEM",
-      msg.content || "",
-      msg.createdAt,
-      msg._id,
-      isSelf,
-      msg.type || "user",
-      msg.senderRole || "user"
-    );
+    UI.appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
   });
 
-  // --- Systemnachrichten ---
   state.socket.on("systemMessage", (data) => {
     if (typeof data === "string") UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
     else UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
@@ -43,7 +30,6 @@ export function initSocket(state) {
     UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
   });
 
-  // --- Identifiziert / login ---
   state.socket.on("identified", (data) => {
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
@@ -52,17 +38,20 @@ export function initSocket(state) {
     localStorage.setItem("username", state.username || "");
   });
 
-  // --- aktive Nutzerliste ---
   state.socket.on("activeUsers", (users) => {
-    DOM.renderActiveUsers(users);
+    DOM.usersListEl.innerHTML = "";
+    users.forEach((u) => {
+      const li = document.createElement("li");
+      li.textContent = u.username;
+      if (u.role === "admin") li.classList.add("admin-user");
+      DOM.usersListEl.appendChild(li);
+    });
   });
 
-  // --- Nachrichten gelöscht ---
   state.socket.on("deletedMessages", (ids) => {
-    ids.forEach((id) => state.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
+    ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- forceReload für Reset ---
   state.socket.on("forceReload", (resetAll = true) => {
     if (resetAll) {
       state.token = null;
@@ -70,20 +59,17 @@ export function initSocket(state) {
       state.myRole = "user";
       localStorage.removeItem("token");
       localStorage.removeItem("username");
-
       if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
-
-      DOM.renderActiveUsers([]);
-      state.chatWindow.innerHTML = "";
+      DOM.usersListEl.innerHTML = "";
+      DOM.chatWindow.innerHTML = "";
       UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      state.chatWindow.innerHTML = "";
+      DOM.chatWindow.innerHTML = "";
       window.location.reload();
     }
   });
 
-  // --- neues Token speichern (Admin) ---
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
@@ -97,43 +83,17 @@ export function initSocket(state) {
     UI.setSendEnabled(false);
   });
 
-  // --- gebannt ---
   state.socket.on("banned", (data) => {
     const text = (data && data.text) ? data.text : "Du wurdest gebannt.";
     UI.showError(text);
-
     state.token = null;
     state.username = null;
     state.myRole = "user";
     localStorage.removeItem("token");
     localStorage.removeItem("username");
-
     setTimeout(() => {
-      try { state.socket.auth = {}; state.socket.disconnect(); } catch (e) {}
+      try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
       window.location.reload();
     }, 3000);
   });
-
-  // --- Admin-Status Update ---
-  state.socket.on("roleUpdated", ({ username: updatedUser, role }) => {
-    // Nutzerliste
-    const users = Array.from(document.querySelectorAll("#users li"));
-    users.forEach(li => {
-      if (li.textContent === updatedUser) li.classList.toggle("admin-user", role === "admin");
-    });
-
-    // Chatnachrichten
-    const messages = state.chatWindow.querySelectorAll(".message");
-    messages.forEach(msg => {
-      if (msg.querySelector("strong")?.textContent === updatedUser) {
-        msg.querySelector("strong").classList.toggle("admin-name", role === "admin");
-        msg.classList.toggle("admin-msg", role === "admin");
-      }
-    });
-
-    if (updatedUser === state.username) state.myRole = role;
-  });
-
-  // --- Alte Nachrichten direkt laden ---
-  if (state.token) loadMessages(state);
 }
