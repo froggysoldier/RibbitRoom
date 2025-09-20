@@ -36,6 +36,17 @@ module.exports = function(socket, ctx) {
 
     let finalContent = (content || "").trim();
 
+
+//Chat commands    
+  // --- /role ---
+  if (finalContent === "/role") {
+    if (!username) return;
+    const role = userRoles.get(username) || dbUser?.role || "user";
+    socket.emit("systemMessage", { text: `ℹ️ Deine Rolle ist: ${role}`, type: "info" });
+    return; // Nachricht nicht in den Chat senden
+  }
+
+// Admin commands
     // --- /admin [passwort] ---
     const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
     if (adminMatch) {
