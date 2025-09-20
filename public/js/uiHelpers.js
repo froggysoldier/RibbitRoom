@@ -37,7 +37,7 @@ export function setSendEnabled(enabled) {
   DOM.messageInput.disabled = !enabled;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration = null) {
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration = 4000) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -51,23 +51,20 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
 
   p.innerHTML = `
     <div class="msg-header">
-      <strong class="${senderRole === "admin" ? "admin-name" : ""}">
-        ${escapeHtml(sender)}
-      </strong>
+      <strong class="${senderRole === "admin" ? "admin-name" : ""}">${escapeHtml(sender)}</strong>
       <span class="time">[${hours}:${minutes}]</span>
     </div>
     <div class="msg-content">${formatMessage(content)}</div>
   `;
 
   DOM.chatWindow.appendChild(p);
-  setTimeout(() => p.classList.add("show"), 50);
+  setTimeout(() => p.classList.add("show"), 20);
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 
-  // Systemnachrichten optional mit duration automatisch entfernen
+  // System-Nachrichten verschwinden nach duration
   if (type === "system") {
-    const removeAfter = duration !== null ? duration : 4000;
     setTimeout(() => {
       if (p.parentNode) p.parentNode.removeChild(p);
-    }, removeAfter);
+    }, duration);
   }
 }
