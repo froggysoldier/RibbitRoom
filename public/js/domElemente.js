@@ -1,3 +1,4 @@
+// public/js/domElements.js
 export const loginBtnHeader = document.getElementById("loginBtn");
 export const modal = document.getElementById("loginModal");
 export const closeModal = document.querySelector(".close");
