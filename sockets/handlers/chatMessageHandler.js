@@ -34,7 +34,7 @@ module.exports = function(socket, ctx) {
     // --- Spam-Schutz ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    const cooldown = 2000;
+    const cooldown = 700;
     const diff = now - lastTime;
 
     if (diff < cooldown) {
@@ -71,13 +71,14 @@ module.exports = function(socket, ctx) {
     if (content === "/help") {
       socket.emit("systemMessage", { 
         text: `Verfügbare Befehle:
-/admin [passwort] - Admin werden
-/clear - Chat leeren (Admins)
-/deleteAllUsers [passwort] - Alle normalen User löschen
-/reset [passwort] - Server zurücksetzen
-/ban "username" ADMIN_PASS - User bannen
-/role - Zeigt deine aktuelle Rolle
-/help - Zeigt diese Nachricht`,
+        
+        /admin [passwort] - Admin werden
+        /clear - Chat leeren (Admins)
+        /deleteAllUsers [passwort] - Alle normalen User löschen
+        /reset [passwort] - Server zurücksetzen
+        /ban "username" ADMIN_PASS - User bannen
+        /role - Zeigt deine aktuelle Rolle
+        /help - Zeigt diese Nachricht`,
         type: "info",
         duration: 10000
       });
