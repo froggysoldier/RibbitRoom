@@ -102,7 +102,7 @@ module.exports = function(socket, ctx) {
 
       if (!target) return socket.emit("systemMessage", { text: "Benutzername fehlt.", type: "error" });
       if (providedPass !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Ungültiges Admin-Passwort für /ban.", type: "error" });
-      if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
+      // if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
 
       try {
         await User.findOneAndDelete({ username: target });
