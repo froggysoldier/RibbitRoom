@@ -14,21 +14,21 @@ export function formatMessage(content = "") {
   return escapeHtml(content).replace(/\n/g, "<br>");
 }
 
-export function showInfo(text) {
+export function showInfo(text, duration = 4000) {
   const p = document.createElement("p");
   p.classList.add("info");
   p.textContent = text;
   DOM.chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 4000);
+  setTimeout(() => p.remove(), duration);
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 }
 
-export function showError(text) {
+export function showError(text, duration = 5000) {
   const p = document.createElement("p");
   p.classList.add("error");
   p.textContent = text;
   DOM.chatWindow.appendChild(p);
-  setTimeout(() => p.remove(), 5000);
+  setTimeout(() => p.remove(), duration);
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 }
 
@@ -37,7 +37,7 @@ export function setSendEnabled(enabled) {
   DOM.messageInput.disabled = !enabled;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration = null) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -63,9 +63,11 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
   setTimeout(() => p.classList.add("show"), 50);
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 
+  // Systemnachrichten optional mit duration automatisch entfernen
   if (type === "system") {
+    const removeAfter = duration !== null ? duration : 4000;
     setTimeout(() => {
       if (p.parentNode) p.parentNode.removeChild(p);
-    }, 4000);
+    }, removeAfter);
   }
 }
