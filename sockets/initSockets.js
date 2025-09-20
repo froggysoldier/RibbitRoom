@@ -84,13 +84,14 @@ module.exports = function(io) {
       } catch {}
     }
 
-    // Alle Socket-Events
+    // Alle Socket-Events registrieren
     require("./handlers/chatMessageHandler")(socket, { 
-    username, activeUsers, userRoles, userFilters, lastMessageTime, 
-    trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io 
+      username, activeUsers, userRoles, userFilters, lastMessageTime, 
+      trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io 
     });
     require("./handlers/userHandler")(socket, { 
-        username, activeUsers, userRoles, userFilters, lastMessageTime, 
-        trimOldMessages, emitToAdmins, JWT_SECRET, ADMIN_PASS, io 
+      username, activeUsers, userRoles, userFilters, broadcastActiveUsers, 
+      JWT_SECRET, io 
     });
-};
+  }); // <--- Ende von io.on("connection")
+}; // <--- Ende von module.exports
