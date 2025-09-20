@@ -1,15 +1,11 @@
+// public/js/domElements.js
+export const loginBtnHeader = document.getElementById("loginBtn");
+export const modal = document.getElementById("loginModal");
+export const closeModal = document.querySelector(".close");
+export const loginSubmit = document.getElementById("loginSubmit");
+export const registerSubmit = document.getElementById("registerSubmit");
+export const usersListEl = document.getElementById("users");
 export const chatWindow = document.getElementById("chatWindow");
 export const sendBtn = document.getElementById("sendBtn");
 export const messageInput = document.getElementById("messageInput");
 export const filterBtn = document.getElementById("filterBtn");
-export const usersListEl = document.getElementById("users");
-export const loginBtn = document.getElementById("loginBtn");
-export const loginModal = document.getElementById("loginModal");
-export const loginSubmit = document.getElementById("loginSubmit");
-export const registerSubmit = document.getElementById("registerSubmit");
-export const usernameInput = document.getElementById("username");
-export const passwordInput = document.getElementById("password");
-export const newUserInput = document.getElementById("newUser");
-export const newPassInput = document.getElementById("newPass");
-export const emailInput = document.getElementById("email");
-export const closeModal = document.querySelector("#loginModal .close");
