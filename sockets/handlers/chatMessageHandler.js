@@ -9,21 +9,6 @@ const filterMessage = require("../../utils/filter");
 const lastMessageTime = new Map();   // username -> timestamp der letzten erlaubten/nachricht (oder letzten spam-zeit)
 const lastSpamWarnTime = new Map();  // username -> timestamp der letzten ausgegebenen Spam-Warnung
 
-module.exports = function(socket, ctx) {
-  let {
-    username,
-    activeUsers,
-    userRoles,
-    userFilters,
-    lastMessageTime,
-    trimOldMessages,
-    emitToAdmins,
-    authenticatedSockets,
-    JWT_SECRET,
-    ADMIN_PASS,
-    io
-  } = ctx;
-
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
