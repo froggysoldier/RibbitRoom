@@ -64,7 +64,7 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 
   if (type === "system") {
-  const removeAfter = duration ?? 4000; // wenn duration übergeben, benutze sie, sonst 4000ms
+  const removeAfter = duration ?? 3500; // wenn duration übergeben, benutze sie, sonst 4000ms
   setTimeout(() => {
     if (p.parentNode) p.parentNode.removeChild(p);
   }, removeAfter);
