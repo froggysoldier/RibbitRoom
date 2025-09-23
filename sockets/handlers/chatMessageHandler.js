@@ -48,7 +48,7 @@ module.exports = function(socket, ctx) {
       if (finalContent === "/help") {
         socket.emit("systemMessage", {
           text: `/admin [passwort] - Admin werden
-                /ban "username" ADMIN_PASS - User bannen
+                /ban "username" [passwort] - User bannen
                 /clear - Chat leeren (Admins)
                 /deleteAllUsers [passwort] - Alle normalen User löschen
                 /reset [passwort] - Server zurücksetzen
