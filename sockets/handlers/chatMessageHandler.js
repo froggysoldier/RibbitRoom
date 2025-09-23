@@ -26,32 +26,23 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-        // Map, um die letzte normale Nachrichtzeit zu speichern
-    const lastMessageTime = new Map();
-    // Map, um die letzte gesendete Spamwarnung zu speichern
-    const lastSpamTime = new Map();
-    
-    // Anti-Spam: Nachrichten nur alle 2 Sekunden erlaubt
-    const SPAM_INTERVAL = 2000;
-    
+    // Anti-Spam Prüfung: zuerst im Handler
     const now = Date.now();
-    const last = lastMessageTime.get(username) || 0;
+    const lastMsg = lastMessageTime.get(username) || 0;
     
-    if (now - last < SPAM_INTERVAL) {
-      // Prüfen, ob bereits vor kurzem eine Spamwarnung geschickt wurde
-      const lastWarn = lastSpamTime.get(username) || 0;
-      if (now - lastWarn >= SPAM_INTERVAL) {
-        socket.emit("systemMessage", {
-          text: "⚠️ Bitte nicht Nachrichten spammen.",
-          type: "error"
-        });
-        lastSpamTime.set(username, now); // Zeit der letzten Warnung speichern
+    // Wenn zu schnell hintereinander gesendet wird: droppe die Nachricht.
+    // Nur falls die letzte Warnung älter als SPAM_WARN_INTERVAL_MS ist, sende eine systemMessage.
+    if (now - lastMsg < SPAM_INTERVAL_MS) {
+      const lastWarn = lastSpamWarnTime.get(username) || 0;
+      if (now - lastWarn >= SPAM_WARN_INTERVAL_MS) {
+        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+        lastSpamWarnTime.set(username, now);
       }
-      return; // Nachricht wird nicht gespeichert / weitergeleitet
+      return; // Nachricht wird nicht weiterverarbeitet / gespeichert / verbreitet
     }
-
-// Nachricht zulassen
-lastMessageTime.set(username, now);
+    
+    // Nachricht zulassen: Zeitpunkt merken
+    lastMessageTime.set(username, now);
 
     let finalContent = (content || "").trim();
     
