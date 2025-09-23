@@ -3,7 +3,7 @@
   --color-bg: #58423F; /*Body*/
   --color-text: #e0e0e0; /*Text allg.*/
 
-  --color-header-bg: linear-gradient(135deg, #1a1a1a, #222); /*Header*/
+  --color-header-bg: transparent; /*Header*/
   --color-header-text: #ffffff;
 
   --color-primary: #4CAF50; /*loginBtn*/ /*sendBtn*/
