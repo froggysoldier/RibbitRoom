@@ -197,6 +197,15 @@ nav a:hover {
   font-weight: bold;
 }
 
+.admin-msg {
+  color: var(--color-error);
+  font-weight: bold;
+}
+
+.message .msg-header strong.admin-name {
+  color: var(--color-error);
+  font-weight: bold;
+}
 
 #userList li:hover {
   background: var(--color-panel-light);
@@ -228,11 +237,14 @@ nav a:hover {
   color: var(--color-text);
 }
 
-/* Admin-Nachrichten rot */
+/*
+ Admin-Nachrichten rot 
 .message.admin-msg {
   background: var(--color-input-bg);
   color: var(--color-error);
 }
+*/
+
 
 /* Systemnachrichten grau */
 .message.system {
