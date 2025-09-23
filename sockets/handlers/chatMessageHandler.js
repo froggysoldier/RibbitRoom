@@ -26,24 +26,6 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    // Anti-Spam Prüfung: zuerst im Handler
-    const now = Date.now();
-    const lastMsg = lastMessageTime.get(username) || 0;
-    
-    // Wenn zu schnell hintereinander gesendet wird: droppe die Nachricht.
-    // Nur falls die letzte Warnung älter als SPAM_WARN_INTERVAL_MS ist, sende eine systemMessage.
-    if (now - lastMsg < SPAM_INTERVAL_MS) {
-      const lastWarn = lastSpamWarnTime.get(username) || 0;
-      if (now - lastWarn >= SPAM_WARN_INTERVAL_MS) {
-        socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
-        lastSpamWarnTime.set(username, now);
-      }
-      return; // Nachricht wird nicht weiterverarbeitet / gespeichert / verbreitet
-    }
-    
-    // Nachricht zulassen: Zeitpunkt merken
-    lastMessageTime.set(username, now);
-
     let finalContent = (content || "").trim();
     
     if (finalContent.startsWith("/")) {
