@@ -36,23 +36,21 @@ export function initSocket(state) {
 
   state.socket.on("systemMessage", (data) => {
     let text = "";
-    let duration = 3500; /
+    let duration = 4000; // Standarddauer
   
     if (typeof data === "string") {
-      text = data; 
+      text = data;
     } else {
       text = data.text || "";
-      if (data.duration) duration = data.duration; 
+      if (data.duration) duration = data.duration;
     }
   
     const id = "sys-" + Date.now();
+    // Duration wird an appendMessage weitergegeben
     UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", duration);
-
-    setTimeout(() => {
-      const el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
-      if (el) el.remove();
-    }, duration);
+    // Kein zusätzliches setTimeout nötig!
   });
+
 
   state.socket.on("adminNotice", (data) => {
     UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
