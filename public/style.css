@@ -226,8 +226,8 @@ nav a:hover {
 
 /* Admin-Nachrichten rot */
 .message.admin-msg {
-  background: var(--color-error);
-  color: var(--color-input-bg);
+  background: var(--color-input-bg);
+  color: var(--color-error);
 }
 
 /* Systemnachrichten grau */
