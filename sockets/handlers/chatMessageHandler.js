@@ -103,7 +103,7 @@ module.exports = function(socket, ctx) {
           io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
           setTimeout(() => {
             io.to(sid).emit("updateUsersAndMessages");
-          }, 2000);
+          }, 1500);
         }
         return;
       }
