@@ -108,26 +108,31 @@ module.exports = function(socket, ctx) {
         return;
       }
   
-      // --- /deleteAllUsers [passwort] ---
+         // --- /deleteAllUsers [passwort] ---
       if (finalContent.startsWith("/deleteAllUsers")) {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+        if (role !== "admin") {
+          return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+        }
+      
         const provided = finalContent.split(" ")[1]?.trim();
-        if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
-  
+        if (provided !== ADMIN_PASS) {
+          return socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
+        }
+      
         try {
-          // finde alle normalen user (vor dem löschen)
+          // 1) finde alle normalen User
           const normalUsers = await User.find({ role: "user" }).select("username");
           const normalUsernames = normalUsers.map(u => u.username);
-  
-          // lösche deren Nachrichten (zuerst ids sammeln)
+      
+          // 2) lösche deren Nachrichten und sammle IDs
           const msgs = await Message.find({ sender: { $in: normalUsernames } }).select("_id");
           const msgIds = msgs.map(m => m._id.toString());
           if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
-  
-          // lösche user aus DB
+      
+          // 3) lösche normale User aus DB
           await User.deleteMany({ role: "user" });
-  
-          // kick/notify die gelöschten user (falls online)
+      
+          // --- alles erledigt, jetzt Clients updaten / Sessions kicken ---
           for (const uname of normalUsernames) {
             const socketsSet = activeUsers.get(uname);
             if (socketsSet && socketsSet.size) {
@@ -144,20 +149,20 @@ module.exports = function(socket, ctx) {
               userFilters.delete(uname);
             }
           }
-  
-          // inform remaining authenticated clients: remove messages + refresh active users
+      
+          // 4) verbleibende Clients informieren: Nachrichten entfernen + active users aktualisieren
           for (const sid of authenticatedSockets) {
-            // notify to reload lists and messages
             io.to(sid).emit("deletedMessages", msgIds);
             io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok" });
-            io.to(sid).emit("updateUsersAndMessages");
+            setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 200); // kleiner Timer für sichere Reihenfolge
           }
-  
+      
           emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
         } catch (err) {
           console.error("deleteAllUsers Fehler:", err);
           socket.emit("systemMessage", { text: "Fehler beim Löschen der Nutzer.", type: "error" });
         }
+      
         return;
       }
   
