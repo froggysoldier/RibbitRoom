@@ -2,6 +2,14 @@
 const wordReplacements = {
   "hallo": "ribbit",
   "Keno": "KePa",
+  "Jannik": "Froggy",
+  "Daniel": "Sigma",
+  "Sajid": "ribbiter",
+  "du": "ribbi",
+  "sie": "rib",
+  "er": "rib",
+  "ist": "ru",
+  "hi": "ribi",
   // hier weitere Wörter hinzufügen
 };
 
