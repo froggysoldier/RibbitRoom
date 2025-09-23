@@ -253,7 +253,7 @@ module.exports = function(socket, ctx) {
         return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
       }
 
-            // --- /timeout "username" DauerInSekunden ---
+ // --- /timeout "username" DauerInSekunden ---
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
       if (timeoutMatch) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
