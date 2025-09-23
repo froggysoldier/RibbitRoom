@@ -16,17 +16,30 @@ export function initSocket(state) {
     UI.setSendEnabled(!!state.token);
   });
 
-  state.socket.on("connect_error", (err) => console.warn("[SOCKET] connect_error", err?.message || err));
+  state.socket.on("connect_error", (err) =>
+    console.warn("[SOCKET] connect_error", err?.message || err)
+  );
 
   // --- Nachrichten empfangen ---
   state.socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === state.username;
-    UI.appendMessage(msg.sender || "SYSTEM", msg.content || "", msg.createdAt, msg._id, isSelf, msg.type || "user", msg.senderRole || "user");
+    UI.appendMessage(
+      msg.sender || "SYSTEM",
+      msg.content || "",
+      msg.createdAt,
+      msg._id,
+      isSelf,
+      msg.type || "user",
+      msg.senderRole || "user"
+    );
   });
 
   state.socket.on("systemMessage", (data) => {
-    if (typeof data === "string") UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
-    else UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
+    if (typeof data === "string") {
+      UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
+    } else {
+      UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
+    }
   });
 
   state.socket.on("adminNotice", (data) => {
@@ -59,26 +72,34 @@ export function initSocket(state) {
     ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-state.socket.on("forceReload", async (resetAll = true) => {
-  if (resetAll) {
-    state.token = null;
-    state.username = null;
-    state.myRole = "user";
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    if (state.socket) {
-      try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
-      state.socket = null;
+  // --- Force Reload ---
+  state.socket.on("forceReload", async (resetAll = true) => {
+    if (resetAll) {
+      state.token = null;
+      state.username = null;
+      state.myRole = "user";
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+      if (state.socket) {
+        try {
+          state.socket.auth = {};
+          state.socket.disconnect();
+        } catch {}
+        state.socket = null;
+      }
+      DOM.usersListEl.innerHTML = "";
+      DOM.chatWindow.innerHTML = "";
+      UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
+      setTimeout(() => window.location.reload(), 2000);
+    } else {
+      DOM.chatWindow.innerHTML = "";
+      setTimeout(async () => {
+        // ersetzt updateUsersAndMessages
+        state.socket.emit("requestActiveUsers");
+        await loadMessages(state);
+      }, 500);
     }
-    DOM.usersListEl.innerHTML = "";
-    DOM.chatWindow.innerHTML = "";
-    UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
-    setTimeout(() => window.location.reload(), 2000);
-  } else {
-    DOM.chatWindow.innerHTML = "";
-    setTimeout(async () => {
-      await updateUsersAndMessages(state);
-    }, 500
+  });
 
   // --- Neues Admin Token ---
   state.socket.on("newToken", (data) => {
@@ -105,7 +126,10 @@ state.socket.on("forceReload", async (resetAll = true) => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     setTimeout(() => {
-      try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
+      try {
+        state.socket.auth = {};
+        state.socket.disconnect();
+      } catch {}
       window.location.reload();
     }, 3000);
   });
@@ -114,7 +138,7 @@ state.socket.on("forceReload", async (resetAll = true) => {
   state.socket.on("roleUpdated", ({ username, role }) => {
     // update active users list
     const lis = DOM.usersListEl.querySelectorAll("li");
-    lis.forEach(li => {
+    lis.forEach((li) => {
       if (li.textContent === username) {
         li.classList.toggle("admin-user", role === "admin");
       }
@@ -122,7 +146,7 @@ state.socket.on("forceReload", async (resetAll = true) => {
 
     // update bestehende Chatnachrichten
     const messages = DOM.chatWindow.querySelectorAll(".message");
-    messages.forEach(msg => {
+    messages.forEach((msg) => {
       if (msg.querySelector("strong")?.textContent === username) {
         msg.querySelector("strong").classList.toggle("admin-name", role === "admin");
         msg.classList.toggle("admin-msg", role === "admin");
