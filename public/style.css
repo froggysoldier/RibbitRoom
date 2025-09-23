@@ -193,11 +193,6 @@ nav a:hover {
   font-weight: bold;
 }
 
-/* Admin-Nachrichten im Chat */
-.admin-msg {
-  color: var(--color-error);
-  font-weight: bold;
-}
 
 #userList li:hover {
   background: var(--color-panel-light);
@@ -230,7 +225,7 @@ nav a:hover {
 }
 
 /* Admin-Nachrichten rot */
-.message.admin {
+.message.admin-msg {
   background: var(--color-error);
   color: var(--color-input-bg);
 }
