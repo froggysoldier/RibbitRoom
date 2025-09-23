@@ -19,8 +19,19 @@ module.exports = function(socket, ctx) {
     io
   } = ctx;
 
+  const userTimeouts = new Map();
+
   socket.on("chatMessage", async (content) => {
     if (!username) return;
+
+    // --- Prüfen, ob der User gemutet ist ---
+    const timeoutUntil = userTimeouts.get(username);
+    if (timeoutUntil && now < timeoutUntil) {
+      return socket.emit("systemMessage", { 
+        text: `⚠️ Du bist noch für ${Math.ceil((timeoutUntil - now) / 1000)} Sekunden gemutet.`, 
+        type: "error" 
+      });
+    }
 
     const dbUser = await User.findOne({ username });
     let role = dbUser?.role || userRoles.get(username) || "user";
@@ -235,6 +246,33 @@ module.exports = function(socket, ctx) {
           socket.emit("systemMessage", { text: "Fehler beim Bannen des Nutzers.", type: "error" });
         }
         return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
+      }
+
+            // --- /timeout "username" DauerInSekunden ---
+      const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
+      if (timeoutMatch) {
+        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+
+        const target = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
+        const durationSec = parseInt(timeoutMatch[3], 10);
+
+        if (!target || isNaN(durationSec) || durationSec <= 0) {
+          return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
+        }
+        if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
+
+        userTimeouts.set(target, Date.now() + durationSec * 1000);
+        setTimeout(() => userTimeouts.delete(target), durationSec * 1000);
+
+        const socketsSet = activeUsers.get(target);
+        if (socketsSet && socketsSet.size) {
+          for (const sid of socketsSet) {
+            io.to(sid).emit("systemMessage", { text: `⚠️ Du wurdest für ${durationSec} Sekunden gemutet.`, type: "error" });
+          }
+        }
+
+        emitToAdmins("adminNotice", { text: `${target} wurde für ${durationSec} Sekunden gemutet.` });
+        return;
       }
             // andere "/" commands hier...
       return;
