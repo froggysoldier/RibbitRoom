@@ -27,7 +27,17 @@ module.exports = function(socket, ctx) {
     userRoles.set(username, role);
 
     let finalContent = (content || "").trim();
-    
+
+      // --- Anti-Spam: nur alle 2 Sekunden ---
+    const now = Date.now();
+    const lastTime = lastMessageTime.get(username) || 0;
+    if (now - lastTime < 650) {
+      return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error" });
+    }
+    lastMessageTime.set(username, now);
+
+    let finalContent = (content || "").trim();
+
     if (finalContent.startsWith("/")) {
           // --- /role ---
       if (finalContent === "/role") {
