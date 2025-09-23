@@ -74,7 +74,7 @@ export function initSocket(state) {
       setTimeout(() => window.location.reload(), 2000);
     } else {
       DOM.chatWindow.innerHTML = "";
-      setTimeout(() => window.location.reload(), 2000);
+       await updateUsersAndMessages(state);
     }
   });
 
