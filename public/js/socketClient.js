@@ -59,24 +59,26 @@ export function initSocket(state) {
     ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // --- ForceReload / Reset ---
-  state.socket.on("forceReload", (resetAll = true) => {
-    if (resetAll) {
-      state.token = null;
-      state.username = null;
-      state.myRole = "user";
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
-      if (state.socket) { try { state.socket.auth = {}; state.socket.disconnect(); } catch {} state.socket = null; }
-      DOM.usersListEl.innerHTML = "";
-      DOM.chatWindow.innerHTML = "";
-      UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
-      setTimeout(() => window.location.reload(), 2000);
-    } else {
-      DOM.chatWindow.innerHTML = "";
-      await updateUsersAndMessages(state);
+state.socket.on("forceReload", async (resetAll = true) => {
+  if (resetAll) {
+    state.token = null;
+    state.username = null;
+    state.myRole = "user";
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    if (state.socket) {
+      try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
+      state.socket = null;
     }
-  });
+    DOM.usersListEl.innerHTML = "";
+    DOM.chatWindow.innerHTML = "";
+    UI.showInfo("⚠️ Server wurde zurückgesetzt. Du wurdest abgemeldet.");
+    setTimeout(() => window.location.reload(), 2000);
+  } else {
+    DOM.chatWindow.innerHTML = "";
+    setTimeout(async () => {
+      await updateUsersAndMessages(state);
+    }, 500
 
   // --- Neues Admin Token ---
   state.socket.on("newToken", (data) => {
