@@ -76,8 +76,10 @@ module.exports = function(socket, ctx) {
       io.emit("deletedMessages", []); // clients emptyen chat
       // notify all authenticated clients to reload messages (but not logout)
       for (const sid of authenticatedSockets) {
-        io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
-        io.to(sid).emit("updateUsersAndMessages");
+        io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten werden in kürze gelöscht!", type: "error" });
+        setTimeout(() => {
+          io.to(sid).emit("updateUsersAndMessages");
+        }, 1500);
       }
       return;
     }
@@ -118,23 +120,21 @@ module.exports = function(socket, ctx) {
             userFilters.delete(uname);
           }
         }
-
-        // inform remaining authenticated clients: remove messages + refresh active users
-        for (const sid of authenticatedSockets) {
-          // notify to reload lists and messages
+        // 4) verbleibende Clients informieren: Nachrichten entfernen + active users aktualisieren
+        emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+        
+        for (let sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
           io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok" });
-          io.to(sid).emit("updateUsersAndMessages");
+          setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 2000);
         }
-
-        emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
       } catch (err) {
         console.error("deleteAllUsers Fehler:", err);
         socket.emit("systemMessage", { text: "Fehler beim Löschen der Nutzer.", type: "error" });
       }
+    
       return;
     }
-
     // --- /reset [passwort] ---
     if (finalContent.startsWith("/reset")) {
       if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
@@ -188,19 +188,24 @@ module.exports = function(socket, ctx) {
           userFilters.delete(target);
         }
 
-        // 4) Info an übrige authentifizierte Clients: entferne die Nachrichten + refresh
+        // 4) Broadcast an andere
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("deletedMessages", msgIds);
-          io.to(sid).emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error" });
-          io.to(sid).emit("updateUsersAndMessages");
+          io.to(sid).emit("systemMessage", {
+            text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`,
+            type: "error",
+          });
+          setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 2000);
         }
-
+    
         emitToAdmins("adminNotice", { text: `${username} hat ${target} gebannt.` });
       } catch (err) {
         console.error("Ban-Fehler:", err);
         socket.emit("systemMessage", { text: "Fehler beim Bannen des Nutzers.", type: "error" });
       }
-      return;
+      return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
+    }
+      return; // <--- Nachricht wird nicht im Chat angezeigt ( "/" Nachrichten )
     }
 
     // --- Normale Nachricht ---
