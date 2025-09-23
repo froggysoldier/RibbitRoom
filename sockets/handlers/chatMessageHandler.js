@@ -174,57 +174,79 @@ module.exports = function(socket, ctx) {
       return;
     }
 
-    // --- /ban "username" ADMIN_PASS ---
-    const banMatch = finalContent.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
-    if (banMatch) {
-      if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+// --- /ban "username" ADMIN_PASS ---
+const banMatch = finalContent.match(/^\/ban\s*(?:"([^"]+)"|(\S+))?\s*(\S+)?/i);
+if (banMatch) {
+  if (role !== "admin") {
+    socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+    return; // ❗ stoppt normale Nachricht
+  }
 
-      const target = (banMatch[1] || banMatch[2] || "").trim();
-      const providedPass = banMatch[3];
+  const target = (banMatch[1] || banMatch[2] || "").trim();
+  const providedPass = banMatch[3];
 
-      if (!target) return socket.emit("systemMessage", { text: "Benutzername fehlt.", type: "error" });
-      if (providedPass !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Ungültiges Admin-Passwort für /ban.", type: "error" });
-      if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
+  if (!target) {
+    socket.emit("systemMessage", { text: "Benutzername fehlt.", type: "error" });
+    return;
+  }
+  if (!providedPass) {
+    socket.emit("systemMessage", { text: "Admin-Passwort fehlt.", type: "error" });
+    return;
+  }
+  if (providedPass !== ADMIN_PASS) {
+    socket.emit("systemMessage", { text: "Ungültiges Admin-Passwort für /ban.", type: "error" });
+    return;
+  }
+  if (target === username) {
+    socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
+    return;
+  }
 
-      try {
-        // 1) User löschen
-        await User.findOneAndDelete({ username: target });
+  try {
+    // 1) User löschen
+    await User.findOneAndDelete({ username: target });
 
-        // 2) Nachrichten löschen (IDs sammeln)
-        const msgs = await Message.find({ sender: target }).select("_id");
-        const msgIds = msgs.map(m => m._id.toString());
-        if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
+    // 2) Nachrichten löschen
+    const msgs = await Message.find({ sender: target }).select("_id");
+    const msgIds = msgs.map((m) => m._id.toString());
+    if (msgIds.length) await Message.deleteMany({ _id: { $in: msgIds } });
 
-        // 3) Aktive Sessions kicken
-        const socketsSet = activeUsers.get(target);
-        if (socketsSet && socketsSet.size) {
-          for (const sid of socketsSet) {
-            io.to(sid).emit("banned", { text: "Du wurdest vom Admin gebannt und entfernt." });
-            const s = io.sockets.sockets.get(sid);
-            if (s) {
-              try { s.disconnect(true); } catch (e) {}
-            }
-            authenticatedSockets.delete(sid);
-          }
-          activeUsers.delete(target);
-          userRoles.delete(target);
-          userFilters.delete(target);
+    // 3) Sessions kicken
+    const socketsSet = activeUsers.get(target);
+    if (socketsSet && socketsSet.size) {
+      for (const sid of socketsSet) {
+        io.to(sid).emit("banned", { text: "Du wurdest vom Admin gebannt und entfernt." });
+        const s = io.sockets.sockets.get(sid);
+        if (s) {
+          try {
+            s.disconnect(true);
+          } catch (e) {}
         }
-
-        // 4) Info an übrige authentifizierte Clients: entferne die Nachrichten + refresh
-        for (const sid of authenticatedSockets) {
-          io.to(sid).emit("deletedMessages", msgIds);
-          io.to(sid).emit("systemMessage", { text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`, type: "error" });
-          io.to(sid).emit("updateUsersAndMessages");
-        }
-
-        emitToAdmins("adminNotice", { text: `${username} hat ${target} gebannt.` });
-      } catch (err) {
-        console.error("Ban-Fehler:", err);
-        socket.emit("systemMessage", { text: "Fehler beim Bannen des Nutzers.", type: "error" });
+        authenticatedSockets.delete(sid);
       }
-      return;
+      activeUsers.delete(target);
+      userRoles.delete(target);
+      userFilters.delete(target);
     }
+
+    // 4) Broadcast an andere
+    for (const sid of authenticatedSockets) {
+      io.to(sid).emit("deletedMessages", msgIds);
+      io.to(sid).emit("systemMessage", {
+        text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`,
+        type: "error",
+      });
+      setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 500);
+    }
+
+    emitToAdmins("adminNotice", { text: `${username} hat ${target} gebannt.` });
+  } catch (err) {
+    console.error("Ban-Fehler:", err);
+    socket.emit("systemMessage", { text: "Fehler beim Bannen des Nutzers.", type: "error" });
+  }
+  return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
+}
+
 
     // --- Normale Nachricht ---
     if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
