@@ -54,7 +54,8 @@ module.exports = function(socket, ctx) {
               /reset [passwort] - Server zurücksetzen
               /role - Zeigt deine aktuelle Rolle
               /help - Zeigt diese Nachricht`,
-          type: "info"
+              type: "info",
+              duration:10000
         });
         return;
       }
