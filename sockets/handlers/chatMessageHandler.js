@@ -149,15 +149,16 @@ module.exports = function(socket, ctx) {
               userFilters.delete(uname);
             }
           }
-      
+
+          
           // 4) verbleibende Clients informieren: Nachrichten entfernen + active users aktualisieren
-          for (const sid of authenticatedSockets) {
+          emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
+          
+          for (let sid of authenticatedSockets) {
             io.to(sid).emit("deletedMessages", msgIds);
             io.to(sid).emit("systemMessage", { text: "✅ Alle normalen Nutzer wurden gelöscht.", type: "ok" });
+            setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 2000);
           }
-      
-          emitToAdmins("adminNotice", { text: `${username} hat alle normalen Nutzer gelöscht.` });
-          setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 2000);
         } catch (err) {
           console.error("deleteAllUsers Fehler:", err);
           socket.emit("systemMessage", { text: "Fehler beim Löschen der Nutzer.", type: "error" });
