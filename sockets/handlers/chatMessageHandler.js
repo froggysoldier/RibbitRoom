@@ -61,7 +61,7 @@ module.exports = function(socket, ctx) {
 
     // --- Anti-Spam: nur alle 0.65 Sekunden ---
     const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 650) {
+    if (now - lastTime < 600) {
       return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error" });
     }
     lastMessageTime.set(username, now);
@@ -87,14 +87,14 @@ module.exports = function(socket, ctx) {
       // /help
       if (finalContent === "/help") {
         socket.emit("systemMessage", {
-          text: `/admin [passwort] - Admin werden
-/ban "username" [passwort] - User bannen
-/clear - Chat leeren (Admins)
-/deleteAllUsers [passwort] - Alle normalen User löschen
-/reset [passwort] - Server zurücksetzen
-/role - Zeigt deine aktuelle Rolle
-/timeout "username" DauerInSekunden - User temporär muten
-/help - Zeigt diese Nachricht`,
+          text: `/admin [passwort]                           - Admin werden
+                /ban "username" [passwort]                   - User bannen
+                /clear                                       - Chat leeren (Admins)
+                /deleteAllUsers [passwort]                   - Alle normalen User löschen
+                /reset [passwort]                            - Server zurücksetzen
+                /role                                        - Zeigt deine aktuelle Rolle
+                /timeout "username" DauerInSekunden           - User temporär muten (Admins)
+                /help                                        - Zeigt diese Nachricht`,
           type: "info",
           duration: 10000
         });
