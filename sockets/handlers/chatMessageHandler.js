@@ -24,6 +24,8 @@ module.exports = function(socket, ctx) {
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
+    const now = Date.now();
+    
     // --- Prüfen, ob der User gemutet ist ---
     const timeoutUntil = userTimeouts.get(username);
     if (timeoutUntil && now < timeoutUntil) {
@@ -38,7 +40,7 @@ module.exports = function(socket, ctx) {
     userRoles.set(username, role);
 
     // --- Anti-Spam: nur alle 2 Sekunden ---
-    const now = Date.now();
+    
     const lastTime = lastMessageTime.get(username) || 0;
     if (now - lastTime < 650) {
       return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error" });
