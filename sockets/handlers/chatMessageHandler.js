@@ -100,7 +100,7 @@ module.exports = function(socket, ctx) {
         io.emit("deletedMessages", []); // clients emptyen chat
         // notify all authenticated clients to reload messages (but not logout)
         for (const sid of authenticatedSockets) {
-          io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten werden gelöscht!", type: "error" });
+          io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten werden in kürze gelöscht!", type: "error" });
           setTimeout(() => {
             io.to(sid).emit("updateUsersAndMessages");
           }, 1500);
