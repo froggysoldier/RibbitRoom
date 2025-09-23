@@ -26,13 +26,30 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-      // --- Anti-Spam: nur alle 2 Sekunden ---
+    // global, am Anfang von server.js (oder oberhalb chatMessage-Handler)
+    const lastMessageTime = new Map();   // username -> timestamp der letzten erlaubten/nachricht (oder letzten spam-zeit)
+    const lastSpamWarnTime = new Map();  // username -> timestamp der letzten ausgegebenen Spam-Warnung
+    const SPAM_INTERVAL = 650; // milliseconds (du kannst hier 2000 setzen wenn du 2s willst)
+
+    // --- Anti-Spam (nur eine Warnung pro Burst, timer wird bei Spam zurückgesetzt) ---
     const now = Date.now();
-    const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 650) {
-      return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error" });
+    const last = lastMessageTime.get(username) || 0;
+    
+    if (now - last < SPAM_INTERVAL) {
+      // Wenn schon kurz zuvor eine Warnung geschickt wurde, nicht nochmal senden
+      const lastWarn = lastSpamWarnTime.get(username) || 0;
+      if (now - lastWarn >= SPAM_INTERVAL) {
+        socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error" });
+        lastSpamWarnTime.set(username, now);
+      }
+      // Timer zurücksetzen: nächstes erlaubtes Zeitfenster beginnt jetzt erneut
+      lastMessageTime.set(username, now);
+      return; // Nachricht nicht weiterverarbeiten / nicht speichern
     }
+    
+    // Nachricht ist erlaubt -> erlaubte Zeit merken und vorherige Warnung löschen
     lastMessageTime.set(username, now);
+    lastSpamWarnTime.delete(username);
 
     let finalContent = (content || "").trim();
 
