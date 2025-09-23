@@ -35,6 +35,10 @@ module.exports = function(socket, ctx) {
     lastMessageTime.set(username, now);
 
     let finalContent = (content || "").trim();
+    if (finalContent.startsWith("/")) {
+    // optional: nur Commands ausführen, sonst nichts tun
+    return; // <--- Nachricht wird nicht im Chat angezeigt
+  }
       
       // --- /role ---
     if (finalContent === "/role") {
