@@ -205,8 +205,8 @@ module.exports = function(socket, ctx) {
       }
       return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
     }
-      return; // <--- Nachricht wird nicht im Chat angezeigt ( "/" Nachrichten )
-    }
+    return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
+    }); // <-- closes socket.on("chatMessage")
 
     // --- Normale Nachricht ---
     if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
