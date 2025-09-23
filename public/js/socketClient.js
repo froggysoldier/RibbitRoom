@@ -35,11 +35,24 @@ export function initSocket(state) {
   });
 
   state.socket.on("systemMessage", (data) => {
+    let text = "";
+    let duration = 5000; // Standarddauer: 5 Sekunden
+  
     if (typeof data === "string") {
-      UI.appendMessage("SYSTEM", data, new Date(), "sys-" + Date.now(), false, "system");
+      text = data; // einfache Strings verwenden Standarddauer
     } else {
-      UI.appendMessage("SYSTEM", data.text || "", new Date(), "sys-" + Date.now(), false, "system");
+      text = data.text || "";
+      if (data.duration) duration = data.duration; // überschreibt Standarddauer
     }
+  
+    const id = "sys-" + Date.now();
+    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system");
+  
+    // Timer zum automatischen Entfernen nach der Dauer
+    setTimeout(() => {
+      const el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
+      if (el) el.remove();
+    }, duration);
   });
 
   state.socket.on("adminNotice", (data) => {
