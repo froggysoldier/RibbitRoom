@@ -26,13 +26,28 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    // --- Anti-Spam: nur alle 0,62 Sekunden ---
+    // Map, um zu tracken, wann die letzte Systemnachricht wegen Spam geschickt wurde
+    const lastSpamMessageTime = new Map();
+    
+    // Anti-Spam: z. B. 2 Sekunden (2000 ms)
+    const SPAM_INTERVAL = 620;
+    
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 620) {
-      return socket.emit("systemMessage", { text: "⚠️ Bitte nicht Nachrichten spammen.", type: "error" });
+    
+    // Prüfen, ob der User zu schnell schreibt
+    if (now - lastTime < SPAM_INTERVAL) {
+      const lastSpam = lastSpamMessageTime.get(username) || 0;
+      if (now - lastSpam >= SPAM_INTERVAL) {
+        socket.emit("systemMessage", {
+          text: "⚠️ Bitte nicht Nachrichten spammen.",
+          type: "error"
+        });
+        lastSpamMessageTime.set(username, now); // Zeit der letzten Spam-Meldung speichern
+      }
+      return; // Nachricht nicht speichern
     }
-    lastMessageTime.set(username, now);
+    lastMessageTime.set(username, now); // Update der letzten normalen Nachricht
 
     let finalContent = (content || "").trim();
     
