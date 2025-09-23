@@ -19,20 +19,23 @@ module.exports = function(socket, ctx) {
     io
   } = ctx;
 
-  const userTimeouts = new Map();
+  // --- Globale Map für Timeouts pro Server ---
+  ctx.userTimeouts = ctx.userTimeouts || new Map();
+  const userTimeouts = ctx.userTimeouts;
 
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
     const now = Date.now();
-    
+
     // --- Prüfen, ob der User gemutet ist ---
     const timeoutUntil = userTimeouts.get(username);
     if (timeoutUntil && now < timeoutUntil) {
-      return socket.emit("systemMessage", { 
+      socket.emit("systemMessage", { 
         text: `⚠️ Du bist noch für ${Math.ceil((timeoutUntil - now) / 1000)} Sekunden gemutet.`, 
         type: "error" 
       });
+      return; // ❗ Stoppt die Funktion sofort
     }
 
     const dbUser = await User.findOne({ username });
