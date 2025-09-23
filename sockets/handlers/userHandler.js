@@ -9,15 +9,18 @@ module.exports = function(socket, ctx) {
     userRoles,
     userFilters,
     broadcastActiveUsers,
+    authenticatedSockets,
     JWT_SECRET,
     io
   } = ctx;
 
   const addActive = (uname, socketId, role = "user") => {
+    if (!uname) return;
     const set = activeUsers.get(uname) || new Set();
     set.add(socketId);
     activeUsers.set(uname, set);
     userRoles.set(uname, role);
+    authenticatedSockets.add(socketId);
     broadcastActiveUsers();
   };
 
@@ -51,6 +54,8 @@ module.exports = function(socket, ctx) {
 
   socket.on("disconnect", () => {
     if (!username) return;
+
+    authenticatedSockets.delete(socket.id);
 
     const sockets = activeUsers.get(username);
     if (sockets) {
