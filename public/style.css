@@ -38,7 +38,7 @@ body {
   height: 125%;
   margin: 0;
   font-family: 'Poppins', Arial, sans-serif;
-  background-image: url("background.jpeg"); /* Pfad zum Bild */
+  background-image: url("images/background.jpeg"); /* Pfad zum Bild */
   background-size: cover; /* Bild auf ganze Fläche anpassen */
   background-repeat: no-repeat; /* Bild nicht wiederholen */
   background-position: center; /* Bild zentrieren */
