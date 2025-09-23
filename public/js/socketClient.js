@@ -36,7 +36,7 @@ export function initSocket(state) {
 
   state.socket.on("systemMessage", (data) => {
     let text = "";
-    let duration = 5000; // Standarddauer: 5 Sekunden
+    let duration = 4000; // Standarddauer: 5 Sekunden
   
     if (typeof data === "string") {
       text = data; // einfache Strings verwenden Standarddauer
