@@ -19,10 +19,6 @@ module.exports = function(socket, ctx) {
     io
   } = ctx;
 
-// global, am Anfang von server.js (oder oberhalb chatMessage-Handler)
-const lastMessageTime = new Map();   // username -> timestamp der letzten erlaubten/nachricht (oder letzten spam-zeit)
-const lastSpamWarnTime = new Map();  // username -> timestamp der letzten ausgegebenen Spam-Warnung
-
   socket.on("chatMessage", async (content) => {
     if (!username) return;
 
