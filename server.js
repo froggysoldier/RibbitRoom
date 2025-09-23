@@ -14,6 +14,26 @@ const initSockets = require("./sockets/initSockets");
 const lastMessageTime = new Map();
 const lastSpamWarnTime = new Map();
 
+const ctx = {
+  activeUsers: new Map(),
+  userRoles: new Map(),
+  userFilters: new Map(),
+  lastMessageTime: new Map(),
+  lastSpamWarnTime: new Map(),
+  trimOldMessages,
+  emitToAdmins,
+  authenticatedSockets: new Set(),
+  JWT_SECRET,
+  ADMIN_PASS,
+  io
+};
+
+
+
+
+
+
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
@@ -33,4 +53,5 @@ initSockets(io);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
