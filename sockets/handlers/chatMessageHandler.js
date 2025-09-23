@@ -254,10 +254,7 @@ module.exports = function(socket, ctx) {
     }
     return; // ❗ verhindert, dass /ban als normale Nachricht rausgeht
   }
-  
-  
-        
-    return; // <--- Nachricht wird nicht im Chat angezeigt
+    return; // <--- Nachricht wird nicht im Chat angezeigt ( "/" Nachrichten )
   }
       
   // --- Normale Nachricht ---
@@ -269,7 +266,6 @@ module.exports = function(socket, ctx) {
 
   const deletedIds = await trimOldMessages(100);
   if (deletedIds.length) {
-    // only authenticated clients should receive deletedMessages
     for (const sid of authenticatedSockets) {
       io.to(sid).emit("deletedMessages", deletedIds);
     }
