@@ -37,6 +37,13 @@ module.exports = function(socket, ctx) {
     let finalContent = (content || "").trim();
 
     if (finalContent.startsWith("/")) {
+
+      //kein Command
+      if (finalContent === "/") {
+        socket.emit("systemMessage", { text: `ℹ️ Kein Kommando eingegeben!`, type: "info" });
+        return;
+      }
+      
       // /role
       if (finalContent === "/role") {
         const r = userRoles.get(username) || dbUser?.role || "user";
