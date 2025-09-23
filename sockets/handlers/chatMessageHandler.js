@@ -239,7 +239,7 @@ module.exports = function(socket, ctx) {
           text: `⚠️ Nutzer "${target}" wurde gebannt und entfernt.`,
           type: "error",
         });
-        setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 500);
+        setTimeout(() => io.to(sid).emit("updateUsersAndMessages"), 2000);
       }
   
       emitToAdmins("adminNotice", { text: `${username} hat ${target} gebannt.` });
