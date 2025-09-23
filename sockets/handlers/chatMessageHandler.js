@@ -26,8 +26,6 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    let finalContent = (content || "").trim();
-
       // --- Anti-Spam: nur alle 2 Sekunden ---
     const now = Date.now();
     const lastTime = lastMessageTime.get(username) || 0;
