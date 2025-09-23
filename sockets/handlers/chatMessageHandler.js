@@ -4,6 +4,20 @@ const Message = require("../../models/Message");
 const User = require("../../models/User");
 const filterMessage = require("../../utils/filter");
 
+module.exports = function(socket, ctx) {
+  let {
+    username,
+    activeUsers,
+    userRoles,
+    userFilters,
+    lastMessageTime,
+    trimOldMessages,
+    emitToAdmins,
+    authenticatedSockets,
+    JWT_SECRET,
+    ADMIN_PASS,
+    io
+  } = ctx;
 
 // global, am Anfang von server.js (oder oberhalb chatMessage-Handler)
 const lastMessageTime = new Map();   // username -> timestamp der letzten erlaubten/nachricht (oder letzten spam-zeit)
