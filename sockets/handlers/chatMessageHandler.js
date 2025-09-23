@@ -14,6 +14,8 @@ module.exports = function(socket, ctx) {
     trimOldMessages,
     emitToAdmins,
     authenticatedSockets,
+    lastMessageTime: new Map(),
+    lastSpamWarnTime: new Map(),
     JWT_SECRET,
     ADMIN_PASS,
     io
