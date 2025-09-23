@@ -36,19 +36,18 @@ export function initSocket(state) {
 
   state.socket.on("systemMessage", (data) => {
     let text = "";
-    let duration = 4000; // Standarddauer: 5 Sekunden
+    let duration = 3500; /
   
     if (typeof data === "string") {
-      text = data; // einfache Strings verwenden Standarddauer
+      text = data; 
     } else {
       text = data.text || "";
-      if (data.duration) duration = data.duration; // überschreibt Standarddauer
+      if (data.duration) duration = data.duration; 
     }
   
     const id = "sys-" + Date.now();
-    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system");
-  
-    // Timer zum automatischen Entfernen nach der Dauer
+    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", duration);
+
     setTimeout(() => {
       const el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
       if (el) el.remove();
