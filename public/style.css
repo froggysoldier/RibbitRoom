@@ -79,7 +79,30 @@ main {
   max-width: 1200px;
   gap: 20px;
 }
-
+/* ========Navigationsleiste ===================================*/
+nav{
+  background-color: #e0e0e0;
+  padding: 10px;
+}
+nav ul{
+  list-style-type: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+}
+nav li{
+  margin-right: 20px;
+}
+nav a {
+  color: white;
+  text-decoration: none;
+  font-weight:bold;
+  padding: 5px 10px;
+}
+nav a:hover {
+  backround-color:#e0e0e1;
+  border-radius: 5px;
+  
 /* ====== Sidebar (User List) ====== */
 #userList {
   width: 220px;
