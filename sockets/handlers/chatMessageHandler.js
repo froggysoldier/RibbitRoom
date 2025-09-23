@@ -101,7 +101,9 @@ module.exports = function(socket, ctx) {
         // notify all authenticated clients to reload messages (but not logout)
         for (const sid of authenticatedSockets) {
           io.to(sid).emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht.", type: "error" });
-          io.to(sid).emit("updateUsersAndMessages");
+          setTimeout(() => {
+            io.to(sid).emit("updateUsersAndMessages");
+          }, 2000);
         }
         return;
       }
