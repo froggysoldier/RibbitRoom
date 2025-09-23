@@ -37,7 +37,7 @@ export function setSendEnabled(enabled) {
   DOM.messageInput.disabled = !enabled;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user") {
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration = null) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
@@ -64,8 +64,9 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 
   if (type === "system") {
-    setTimeout(() => {
-      if (p.parentNode) p.parentNode.removeChild(p);
-    }, 4000);
-  }
+  const removeAfter = duration ?? 4000; // wenn duration übergeben, benutze sie, sonst 4000ms
+  setTimeout(() => {
+    if (p.parentNode) p.parentNode.removeChild(p);
+  }, removeAfter);
+}
 }
