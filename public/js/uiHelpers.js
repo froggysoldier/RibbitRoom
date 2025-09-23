@@ -37,7 +37,7 @@ export function setSendEnabled(enabled) {
   DOM.messageInput.disabled = !enabled;
 }
 
-export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration = null) {
+export function appendMessage(sender, content, createdAt, id, self = false, type = "user", senderRole = "user", duration) {
   const p = document.createElement("p");
   p.classList.add("message");
   if (self) p.classList.add("self");
