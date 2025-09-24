@@ -282,52 +282,60 @@ module.exports = function(socket, ctx) {
         return;
       }
 
-      // --- /timeout "username" DauerInSekunden ---
+         // --- /timeout "username" DauerInSekunden ---
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
       if (timeoutMatch) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       
         const target = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
         let durationSec = parseInt(timeoutMatch[3], 10);
-        const MAX_TIMEOUT = 2592000; // 1 Std. : 3600 | 1 Tag : 86.400 | 7 Tage : 604.800 | 30 Tage: 2.592.000
+        const MAX_TIMEOUT = 86400; // z.B. 24 Std.
       
         if (!target || isNaN(durationSec) || durationSec <= 0) {
           return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
         }
-        if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT; // Limit setzen
+        if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT;
         if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
       
-        // Helper: Zeit formatieren
-       function formatDuration(seconds) {
-          const days = Math.floor(seconds / 86400);
-          seconds %= 86400;
-          const hours = Math.floor(seconds / 3600);
-          seconds %= 3600;
-          const minutes = Math.floor(seconds / 60);
-          seconds %= 60;
-          
-          const parts = [];
-          if (days) parts.push(`${days} Tag${days === 1 ? '' : 'e'}`);
-          if (hours) parts.push(`${hours} Stunde${hours === 1 ? '' : 'n'}`);
-          if (minutes) parts.push(`${minutes} Minute${minutes === 1 ? '' : 'n'}`);
-          if (seconds) parts.push(`${seconds} Sekunde${seconds === 1 ? '' : 'n'}`);
-          
-          return parts.join(' ');
-        }
-      
-        userTimeouts.set(target, Date.now() + durationSec * 1000);
-        setTimeout(() => userTimeouts.delete(target), durationSec * 1000);
+        const timeoutUntil = Date.now() + durationSec * 1000;
+        userTimeouts.set(target, timeoutUntil);
       
         const socketsSet = activeUsers.get(target);
         if (socketsSet && socketsSet.size) {
           for (const sid of socketsSet) {
-            io.to(sid).emit("systemMessage", { text: `⚠️ Du wurdest für ${formatDuration(durationSec)} gemutet.`, type: "error" });
+            const socketTarget = io.sockets.sockets.get(sid);
+            if (!socketTarget) continue;
+      
+            // initiale Nachricht
+            socketTarget.emit("timeoutUpdate", {
+              text: `⚠️ Du bist gemutet für ${durationSec} Sekunden.`,
+              remaining: durationSec
+            });
+      
+            // Countdown
+            const intervalId = setInterval(() => {
+              const now = Date.now();
+              const remaining = Math.ceil((timeoutUntil - now) / 1000);
+      
+              if (remaining <= 0) {
+                clearInterval(intervalId);
+                userTimeouts.delete(target);
+                socketTarget.emit("timeoutUpdate", { text: "✔️ Du kannst wieder schreiben.", remaining: 0 });
+                return;
+              }
+      
+              socketTarget.emit("timeoutUpdate", {
+                text: `⚠️ Du bist noch für ${remaining} Sekunden gemutet.`,
+                remaining
+              });
+            }, 1000);
           }
         }
       
-        emitToAdmins("adminNotice", { text: `${target} wurde für ${formatDuration(durationSec)} gemutet.` });
+        emitToAdmins("adminNotice", { text: `${target} wurde für ${durationSec} Sekunden gemutet.` });
         return;
       }
+
       // --- Ungültiges oder unbekanntes Command ---
       if (finalContent.startsWith("/")) {
         const knownCommands = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout"];
