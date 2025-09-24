@@ -205,7 +205,7 @@ export function initSocket(state) {
     await loadMessages(state);
   });
 
-  socket.on("timeoutUpdate", ({ text, remaining }) => {
+  state.socket.on("timeoutUpdate", ({ text, remaining }) => {
     updateOrShowTimeoutMessage(text, remaining);
   });
 
