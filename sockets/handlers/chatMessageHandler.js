@@ -282,8 +282,9 @@ module.exports = function(socket, ctx) {
         return;
       }
 
-      ctx.timeoutIntervals = ctx.timeoutIntervals || new Map();
-      const timeoutIntervals = ctx.timeoutIntervals;
+      // Modul-Scope im Chat-Handler
+      ctx.userTimeoutIntervals = ctx.userTimeoutIntervals || new Map(); 
+      // Struktur: normalizedUsername -> Set von intervalIds
       
       // --- /timeout "username" DauerInSekunden ---
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
@@ -302,9 +303,16 @@ module.exports = function(socket, ctx) {
       
         const timeoutUntil = Date.now() + durationSec * 1000;
         userTimeouts.set(target, timeoutUntil);
-
-                // Hilfsfunktion: Dauer formatieren
-        function formatDuration(seconds) {
+      
+        // Alle alten Intervalle des Users löschen
+        const oldIntervals = ctx.userTimeoutIntervals.get(target);
+        if (oldIntervals) {
+          oldIntervals.forEach(id => clearInterval(id));
+        }
+        ctx.userTimeoutIntervals.set(target, new Set());
+      
+        // Hilfsfunktion: Dauer formatieren
+        const formatDuration = (seconds) => {
           if (seconds < 60) return `${seconds} Sekunde${seconds === 1 ? '' : 'n'}`;
           const min = Math.floor(seconds / 60);
           const sec = seconds % 60;
@@ -313,9 +321,6 @@ module.exports = function(socket, ctx) {
           const remMin = min % 60;
           return remMin === 0 ? `${hours} Stunde${hours === 1 ? '' : 'n'}` : `${hours} Stunde${hours === 1 ? '' : 'n'} ${remMin} Minute${remMin === 1 ? '' : 'n'}`;
         }
-      
-        // Alte Intervalle löschen
-        if (timeoutIntervals.has(target)) clearInterval(timeoutIntervals.get(target));
       
         const socketsSet = activeUsers.get(target);
         if (socketsSet && socketsSet.size) {
@@ -335,8 +340,11 @@ module.exports = function(socket, ctx) {
       
               if (remaining <= 0) {
                 clearInterval(intervalId);
-                timeoutIntervals.delete(target);
+                const userIntervals = ctx.userTimeoutIntervals.get(target);
+                if (userIntervals) userIntervals.delete(intervalId);
+                if (ctx.userTimeoutIntervals.get(target)?.size === 0) ctx.userTimeoutIntervals.delete(target);
                 userTimeouts.delete(target);
+      
                 socketTarget.emit("timeoutUpdate", { text: "✔️ Du kannst wieder schreiben.", remaining: 0 });
                 return;
               }
@@ -347,16 +355,18 @@ module.exports = function(socket, ctx) {
               });
             }, 1000);
       
-            timeoutIntervals.set(target, intervalId);
+            // Intervall speichern
+            ctx.userTimeoutIntervals.get(target).add(intervalId);
           }
         }
       
-        // Spam-History zurücksetzen, falls vorhanden
+        // Spam-History zurücksetzen
         messageHistory.set(target, []);
       
         emitToAdmins("adminNotice", { text: `${target} wurde für ${formatDuration(durationSec)} gemutet.` });
         return;
       }
+
       // --- Ungültiges oder unbekanntes Command ---
       if (finalContent.startsWith("/")) {
         const knownCommands = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout"];
