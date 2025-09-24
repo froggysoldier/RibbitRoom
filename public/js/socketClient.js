@@ -3,67 +3,6 @@ import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
 import { loadMessages } from "./chatHandlers.js";
 
-// robustere updateOrShowTimeoutMessage
-export function updateOrShowTimeoutMessage(id, text, remaining) {
-  if (!DOM.chatWindow) return;
-
-  // Suche vorhandene Nachricht per data-id
-  let el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
-
-  // falls nicht vorhanden -> neu anlegen via UI.appendMessage mit sehr großer duration
-  if (!el) {
-    const longDuration = 24 * 60 * 60 * 1000; // 24h
-    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", longDuration);
-    el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
-    if (!el) {
-      console.warn("[timeout] konnte element nach appendMessage nicht finden, id=", id);
-      return;
-    }
-  }
-
-  // Aktualisiere Header-Zeit (optional: Anzeige [mm:ss] oder [HH:MM])
-  try {
-    const headerTime = el.querySelector(".msg-header .time");
-    if (headerTime) {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mm = String(now.getMinutes()).padStart(2, "0");
-      headerTime.textContent = `[${hh}:${mm}]`;
-    }
-  } catch (e) {
-    // nicht kritisch
-  }
-
-  // Aktualisiere den Inhalt
-  const contentEl = el.querySelector(".msg-content");
-  if (contentEl) {
-    contentEl.innerHTML = UI.formatMessage(text);
-  } else {
-    // fallback: ersetze innerHTML komplett
-    el.innerHTML = `
-      <div class="msg-header"><strong>SYSTEM</strong> <span class="time">[--:--]</span></div>
-      <div class="msg-content">${UI.formatMessage(text)}</div>
-    `;
-  }
-
-  // Scroll zur Nachricht
-  el.scrollIntoView({ behavior: "smooth", block: "end" });
-
-  // Wenn Timeout vorbei: markiere und entferne nach kurzer Zeit (nur dieses Element)
-  if (typeof remaining === "number" && remaining <= 0) {
-    el.classList.add("timeout-ended");
-    // optional: ändere style sofort
-    const contentEl2 = el.querySelector(".msg-content");
-    if (contentEl2) contentEl2.innerHTML = UI.formatMessage(text);
-
-    // entferne nur diese Nachricht nach 3s
-    setTimeout(() => {
-      const e = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
-      if (e) e.remove();
-    }, 3000);
-  }
-}
-
 // ---------------- initSocket ----------------
 export function initSocket(state) {
   if (!state) return;
@@ -229,10 +168,5 @@ export function initSocket(state) {
     await loadMessages(state);
   });
 
-  // --- Timeout-Update vom Server ---
-  state.socket.on("timeoutUpdate", (data) => {
-      if (!data || !data.id) return;
-      updateOrShowTimeoutMessage(data.id, data.text, data.remaining);
-  });
 
 }
