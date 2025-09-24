@@ -89,7 +89,7 @@ module.exports = function (socket, ctx) {
     lastMessageTime.set(username, now);
 
     // --- Spam-History (nur Warnung, kein Auto-Timeout) ---
-    const HISTORY_LIMIT = 5;
+    const HISTORY_LIMIT = 10;
     const TIME_WINDOW = 10000; // ms
     const hist = messageHistory.get(myNorm) || [];
     const recent = hist.filter((ts) => now - ts <= TIME_WINDOW);
