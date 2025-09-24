@@ -33,7 +33,12 @@ module.exports = function(socket, ctx) {
   
   socket.on("chatMessage", async (content) => {
     if (!username) return;
-  
+
+    // --- Lade DB-User & Rolle --- 
+    const dbUser = await User.findOne({ username }); 
+    let role = dbUser?.role || userRoles.get(username) || "user"; 
+    userRoles.set(username, role);
+
     const now = Date.now();
     const myNorm = normalize(username);
   
