@@ -282,23 +282,40 @@ module.exports = function(socket, ctx) {
         return;
       }
 
-         // --- /timeout "username" DauerInSekunden ---
+      ctx.timeoutIntervals = ctx.timeoutIntervals || new Map();
+      const timeoutIntervals = ctx.timeoutIntervals;
+      
+      // --- /timeout "username" DauerInSekunden ---
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
       if (timeoutMatch) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
       
         const target = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
         let durationSec = parseInt(timeoutMatch[3], 10);
-        const MAX_TIMEOUT = 86400; // z.B. 24 Std.
+        const MAX_TIMEOUT = 604800; // z.B. 24 Std.
       
         if (!target || isNaN(durationSec) || durationSec <= 0) {
           return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
         }
         if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT;
-        if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
+        if (normalize(target) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
       
         const timeoutUntil = Date.now() + durationSec * 1000;
         userTimeouts.set(target, timeoutUntil);
+
+                // Hilfsfunktion: Dauer formatieren
+        function formatDuration(seconds) {
+          if (seconds < 60) return `${seconds} Sekunde${seconds === 1 ? '' : 'n'}`;
+          const min = Math.floor(seconds / 60);
+          const sec = seconds % 60;
+          if (min < 60) return sec === 0 ? `${min} Minute${min === 1 ? '' : 'n'}` : `${min} Minute${min === 1 ? '' : 'n'} ${sec} Sekunde${sec === 1 ? '' : 'n'}`;
+          const hours = Math.floor(min / 60);
+          const remMin = min % 60;
+          return remMin === 0 ? `${hours} Stunde${hours === 1 ? '' : 'n'}` : `${hours} Stunde${hours === 1 ? '' : 'n'} ${remMin} Minute${remMin === 1 ? '' : 'n'}`;
+        }
+      
+        // Alte Intervalle löschen
+        if (timeoutIntervals.has(target)) clearInterval(timeoutIntervals.get(target));
       
         const socketsSet = activeUsers.get(target);
         if (socketsSet && socketsSet.size) {
@@ -308,34 +325,38 @@ module.exports = function(socket, ctx) {
       
             // initiale Nachricht
             socketTarget.emit("timeoutUpdate", {
-              text: `⚠️ Du bist gemutet für ${durationSec} Sekunden.`,
+              text: `⚠️ Du bist gemutet für ${formatDuration(durationSec)}.`,
               remaining: durationSec
             });
       
             // Countdown
             const intervalId = setInterval(() => {
-              const now = Date.now();
-              const remaining = Math.ceil((timeoutUntil - now) / 1000);
+              const remaining = Math.ceil((timeoutUntil - Date.now()) / 1000);
       
               if (remaining <= 0) {
                 clearInterval(intervalId);
+                timeoutIntervals.delete(target);
                 userTimeouts.delete(target);
                 socketTarget.emit("timeoutUpdate", { text: "✔️ Du kannst wieder schreiben.", remaining: 0 });
                 return;
               }
       
               socketTarget.emit("timeoutUpdate", {
-                text: `⚠️ Du bist noch für ${remaining} Sekunden gemutet.`,
+                text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
                 remaining
               });
             }, 1000);
+      
+            timeoutIntervals.set(target, intervalId);
           }
         }
       
-        emitToAdmins("adminNotice", { text: `${target} wurde für ${durationSec} Sekunden gemutet.` });
+        // Spam-History zurücksetzen, falls vorhanden
+        messageHistory.set(target, []);
+      
+        emitToAdmins("adminNotice", { text: `${target} wurde für ${formatDuration(durationSec)} gemutet.` });
         return;
       }
-
       // --- Ungültiges oder unbekanntes Command ---
       if (finalContent.startsWith("/")) {
         const knownCommands = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout"];
