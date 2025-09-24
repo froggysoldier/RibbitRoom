@@ -260,7 +260,7 @@ module.exports = function(socket, ctx) {
       
         const target = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
         let durationSec = parseInt(timeoutMatch[3], 10);
-        const MAX_TIMEOUT = 3600; // 1 Std. : 3600 | 24 Std. : 86.400 | 1 Woche : 604.800 | 30 Tage: 2.592.000
+        const MAX_TIMEOUT = 2592000; // 1 Std. : 3600 | 1 Tag : 86.400 | 7 Tage : 604.800 | 30 Tage: 2.592.000
       
         if (!target || isNaN(durationSec) || durationSec <= 0) {
           return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
@@ -269,12 +269,21 @@ module.exports = function(socket, ctx) {
         if (target === username) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
       
         // Helper: Zeit formatieren
-        function formatDuration(seconds) {
-          if (seconds < 60) return `${seconds} Sekunde${seconds === 1 ? '' : 'n'}`;
-          const min = Math.floor(seconds / 60);
-          const sec = seconds % 60;
-          if (sec === 0) return `${min} Minute${min === 1 ? '' : 'n'}`;
-          return `${min} Minute${min === 1 ? '' : 'n'} ${sec} Sekunde${sec === 1 ? '' : 'n'}`;
+       function formatDuration(seconds) {
+          const days = Math.floor(seconds / 86400);
+          seconds %= 86400;
+          const hours = Math.floor(seconds / 3600);
+          seconds %= 3600;
+          const minutes = Math.floor(seconds / 60);
+          seconds %= 60;
+          
+          const parts = [];
+          if (days) parts.push(`${days} Tag${days === 1 ? '' : 'e'}`);
+          if (hours) parts.push(`${hours} Stunde${hours === 1 ? '' : 'n'}`);
+          if (minutes) parts.push(`${minutes} Minute${minutes === 1 ? '' : 'n'}`);
+          if (seconds) parts.push(`${seconds} Sekunde${seconds === 1 ? '' : 'n'}`);
+          
+          return parts.join(' ');
         }
       
         userTimeouts.set(target, Date.now() + durationSec * 1000);
