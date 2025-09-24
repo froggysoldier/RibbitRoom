@@ -22,67 +22,62 @@ module.exports = function(socket, ctx) {
     io
   } = ctx;
 
-  // Hilfsfunktionen
+    // Hilfsfunktionen
   const normalize = (u) => String(u || "").trim().toLowerCase();
-  const messageHistory = new Map();
-
-  const findActiveSocketsFor = (targetNorm) => {
-    // activeUsers kann keys in original-case haben -> suche case-insensitiv
-    for (const [uname, socketsSet] of activeUsers.entries()) {
-      if (normalize(uname) === targetNorm) return socketsSet;
-    }
-    return null;
-  };
-
+  
+  // --- Globale Maps für Timeouts und Message-History ---
+  ctx.userTimeouts = ctx.userTimeouts || new Map();
+  ctx.messageHistory = ctx.messageHistory || new Map();
+  const userTimeouts = ctx.userTimeouts;
+  const messageHistory = ctx.messageHistory;
+  
   socket.on("chatMessage", async (content) => {
-    // username ist pro-socket; falls nicht gesetzt, ignorieren
     if (!username) return;
-
-    // NOW definieren (unbedingt VOR Timeout-Check)
+  
     const now = Date.now();
-
-    // --- Prüfen, ob der User gemutet ist (normalized) ---
     const myNorm = normalize(username);
+  
+    // --- Prüfen, ob der User gemutet ist ---
     const timeoutUntil = userTimeouts.get(myNorm);
     if (timeoutUntil && now < timeoutUntil) {
-      // sende eine System-Nachricht mit verbleibender Dauer (ms)
-      const remainingMs = timeoutUntil - now;
+      const remainingSec = Math.ceil((timeoutUntil - now) / 1000);
       socket.emit("systemMessage", {
-        text: `⚠️ Du bist noch für ${Math.ceil(remainingMs / 1000)} Sekunden gemutet.`,
-        type: "error",
-        duration: remainingMs
+        text: remainingSec < 60
+          ? `⚠️ Du bist noch für ${remainingSec} Sekunde${remainingSec === 1 ? '' : 'n'} gemutet.`
+          : (() => {
+              const min = Math.floor(remainingSec / 60);
+              const sec = remainingSec % 60;
+              if (sec === 0) return `${min} Minute${min === 1 ? '' : 'n'}`;
+              return `${min} Minute${min === 1 ? '' : 'n'} ${sec} Sekunde${sec === 1 ? '' : 'n'}`;
+            })(),
+        type: "error"
       });
-      return; // wichtig: Verarbeitungs-Stopp
+      return; // ❗ Nachricht stoppen
     }
-
-    // --- Lade DB-User & Rolle ---
-    const dbUser = await User.findOne({ username });
-    let role = dbUser?.role || userRoles.get(username) || "user";
-    userRoles.set(username, role);
-
+  
+    // --- Anti-Spam: max. 5 Nachrichten / 10 Sekunden ---
     const HISTORY_LIMIT = 5;
     const TIME_WINDOW = 10000; // 10 Sekunden
     const SPAM_TIMEOUT = 30;   // 30 Sekunden
-    
-    const history = messageHistory.get(username) || [];
-    
-    // Nur die letzten 10 Sekunden behalten
+  
+    const history = messageHistory.get(myNorm) || [];
     const recent = history.filter(ts => now - ts <= TIME_WINDOW);
     recent.push(now);
-    messageHistory.set(username, recent);
-    
+    messageHistory.set(myNorm, recent);
+  
     if (recent.length > HISTORY_LIMIT) {
-      // User für 30 Sekunden muten
       const timeoutUntil = now + SPAM_TIMEOUT * 1000;
-      userTimeouts.set(username, timeoutUntil);
-      setTimeout(() => userTimeouts.delete(username), SPAM_TIMEOUT * 1000);
-    
+      userTimeouts.set(myNorm, timeoutUntil);
+      setTimeout(() => userTimeouts.delete(myNorm), SPAM_TIMEOUT * 1000);
+  
+      // Nachricht an den User
       socket.emit("systemMessage", { 
         text: `⚠️ Du hast zu viele Nachrichten gesendet und wurdest für ${SPAM_TIMEOUT} Sekunden gemutet.`, 
         type: "error" 
       });
-      
+      return; // ❗ Nachricht stoppen
     }
+
 
     let finalContent = (content || "").trim();
 
