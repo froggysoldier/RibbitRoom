@@ -19,10 +19,10 @@ module.exports = function (socket, ctx) {
     io
   } = ctx;
 
-  // ensure server-wide maps on ctx (use normalized usernames as keys)
-  ctx.userTimeouts = ctx.userTimeouts || new Map();         // normalizedUsername -> timestamp(ms)
-  ctx.messageHistory = ctx.messageHistory || new Map();     // normalizedUsername -> [timestamps]
-  ctx.userTimeoutIntervals = ctx.userTimeoutIntervals || new Map(); // normalizedUsername -> Set(intervalIds)
+  // Ensure server-wide maps on ctx (normalized keys)
+  ctx.userTimeouts = ctx.userTimeouts || new Map();           // normalizedUsername -> timestamp(ms)
+  ctx.messageHistory = ctx.messageHistory || new Map();       // normalizedUsername -> [timestamps(ms)]
+  ctx.userTimeoutIntervals = ctx.userTimeoutIntervals || new Map(); // normalizedUsername -> Map(socketId -> intervalId)
 
   const userTimeouts = ctx.userTimeouts;
   const messageHistory = ctx.messageHistory;
@@ -31,7 +31,7 @@ module.exports = function (socket, ctx) {
   // Helpers
   const normalize = (u) => String(u || "").trim().toLowerCase();
 
-  // find active sockets set for a username (case-insensitive) -> returns Set or null
+  // find active sockets set for a username (case-insensitive) -> returns Set of socketIds or null
   const findActiveSocketsFor = (targetNorm) => {
     for (const [uname, socketsSet] of activeUsers.entries()) {
       if (normalize(uname) === targetNorm) return socketsSet;
@@ -39,7 +39,7 @@ module.exports = function (socket, ctx) {
     return null;
   };
 
-  // nice duration formatter (sec -> human readable)
+  // human readable duration
   const formatDuration = (seconds) => {
     seconds = Math.max(0, Math.floor(seconds));
     if (seconds < 60) return `${seconds} Sekunde${seconds === 1 ? '' : 'n'}`;
@@ -57,13 +57,110 @@ module.exports = function (socket, ctx) {
     return parts.join(' ');
   };
 
+  /**
+   * Start a timeout for a user (normalized internally). This:
+   * - sets userTimeouts[targetNorm]
+   * - clears existing intervals for that user
+   * - creates per-socket intervals that emit "timeoutUpdate" every second
+   * - when finished emits final message and clears intervals/map
+   *
+   * @param {string} targetRaw  original username (will be normalized)
+   * @param {number} durationSec seconds
+   * @param {string} initiatedBy optional info (unused for logic, useful for logs)
+   */
+  const startTimeoutForUser = (targetRaw, durationSec, initiatedBy = '') => {
+    const targetNorm = normalize(targetRaw);
+    const timeoutUntil = Date.now() + Math.max(0, Math.floor(durationSec)) * 1000;
+    userTimeouts.set(targetNorm, timeoutUntil);
+
+    // clear old intervals
+    const prevMap = userTimeoutIntervals.get(targetNorm);
+    if (prevMap) {
+      for (const id of prevMap.values()) {
+        try { clearInterval(id); } catch (e) { /* ignore */ }
+      }
+      userTimeoutIntervals.delete(targetNorm);
+    }
+
+    // prepare new map
+    const intervalsMap = new Map();
+    userTimeoutIntervals.set(targetNorm, intervalsMap);
+
+    // id for client message
+    const timeoutMsgId = `timeout-${targetNorm}`;
+
+    // find active sockets (case-insensitive)
+    const socketsSet = findActiveSocketsFor(targetNorm);
+
+    // If sockets exist: notify each socket and create per-socket interval
+    if (socketsSet && socketsSet.size) {
+      for (const sid of socketsSet) {
+        const socketTarget = io.sockets.sockets.get(sid);
+        if (!socketTarget) continue;
+
+        // initial emit
+        try {
+          socketTarget.emit("timeoutUpdate", {
+            id: timeoutMsgId,
+            text: `⚠️ Du bist gemutet für ${formatDuration(durationSec)}.`,
+            remaining: durationSec
+          });
+        } catch (e) {
+          // ignore
+        }
+
+        // per-socket interval
+        const intervalId = setInterval(() => {
+          const until = userTimeouts.get(targetNorm) || 0;
+          const remaining = Math.ceil((until - Date.now()) / 1000);
+
+          if (remaining <= 0) {
+            try {
+              socketTarget.emit("timeoutUpdate", {
+                id: timeoutMsgId,
+                text: "✔️ Du kannst wieder schreiben.",
+                remaining: 0
+              });
+            } catch (e) { /* ignore */ }
+
+            // clear this interval and cleanup maps
+            try { clearInterval(intervalId); } catch (e) {}
+            const m = userTimeoutIntervals.get(targetNorm);
+            if (m) {
+              m.delete(sid);
+              if (m.size === 0) userTimeoutIntervals.delete(targetNorm);
+            }
+            // If no more intervals remain for this user, remove the userTimeouts key
+            if (!userTimeoutIntervals.has(targetNorm)) {
+              userTimeouts.delete(targetNorm);
+            }
+            return;
+          }
+
+          // regular update
+          try {
+            socketTarget.emit("timeoutUpdate", {
+              id: timeoutMsgId,
+              text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
+              remaining
+            });
+          } catch (e) { /* ignore */ }
+        }, 1000);
+
+        intervalsMap.set(sid, intervalId);
+      }
+    } else {
+      // user offline right now: we still keep userTimeouts entry so server-side checks block sending,
+      // and when user reconnects they will not be able to send until timeout expires.
+      // No interval is created because no socket to push updates to.
+    }
+
+    // reset spam history for that user
+    messageHistory.set(targetNorm, []);
+  };
+
   socket.on("chatMessage", async (content) => {
     if (!username) return;
-
-    // --- Load DB user & role early ---
-    const dbUser = await User.findOne({ username });
-    let role = dbUser?.role || userRoles.get(username) || "user";
-    userRoles.set(username, role);
 
     const now = Date.now();
     const myNorm = normalize(username);
@@ -79,13 +176,22 @@ module.exports = function (socket, ctx) {
         type: "error",
         duration: Math.min(60000, (timeoutUntil - now))
       });
-      return; // stop further processing
+      return;
     }
 
-    // --- Anti-Spam: max. 5 messages / 10s (server-side) ---
+    // --- Minimaler Zeitabstand zwischen zwei Nachrichten (anti-flood) ---
+    const MIN_INTERVAL = 600; // ms, z.B. 600ms
+    const lastTime = lastMessageTime.get(username) || 0;
+    if (now - lastTime < MIN_INTERVAL) {
+      lastMessageTime.set(username, now); // update to slow down attempts
+      return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error", duration: 2500 });
+    }
+    lastMessageTime.set(username, now);
+
+    // --- Spam: max. 5 Nachrichten / 10 Sekunden (server-side) ---
     const HISTORY_LIMIT = 5;
     const TIME_WINDOW = 10000; // ms
-    const SPAM_TIMEOUT = 30; // seconds
+    const SPAM_TIMEOUT = 30; // seconds (auto-mute)
 
     const hist = messageHistory.get(myNorm) || [];
     const recent = hist.filter(ts => now - ts <= TIME_WINDOW);
@@ -93,19 +199,9 @@ module.exports = function (socket, ctx) {
     messageHistory.set(myNorm, recent);
 
     if (recent.length > HISTORY_LIMIT) {
-      const until = now + SPAM_TIMEOUT * 1000;
-      userTimeouts.set(myNorm, until);
-
-      // clear existing intervals for this user (if any)
-      const oldSet = userTimeoutIntervals.get(myNorm);
-      if (oldSet) {
-        for (const id of oldSet) clearInterval(id);
-        userTimeoutIntervals.delete(myNorm);
-      }
-
-      // reset history so user doesn't immediately retrigger
-      messageHistory.set(myNorm, []);
-
+      // automatic timeout for this user
+      startTimeoutForUser(username, SPAM_TIMEOUT, 'spam-auto');
+      // Inform initiating socket (instant feedback)
       socket.emit("systemMessage", {
         text: `⚠️ Zu viele Nachrichten! Du wurdest automatisch für ${SPAM_TIMEOUT} Sekunden gemutet.`,
         type: "error",
@@ -114,16 +210,15 @@ module.exports = function (socket, ctx) {
       return;
     }
 
+    // --- Load DB user & role (needed for commands) ---
+    const dbUser = await User.findOne({ username });
+    let role = dbUser?.role || userRoles.get(username) || "user";
+    userRoles.set(username, role);
+
     let finalContent = (content || "").trim();
 
     // --- Commands (startsWith "/") ---
     if (finalContent.startsWith("/")) {
-      // list of known commands (used at the end for unknown command)
-      const knownCommands = [
-        "/role", "/help", "/admin", "/clear", "/deleteAllUsers",
-        "/reset", "/ban", "/timeout", "/listUsers"
-      ];
-
       // /role
       if (finalContent === "/role") {
         const r = userRoles.get(username) || dbUser?.role || "user";
@@ -131,7 +226,7 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // /help
+      // /help (nicely formatted)
       if (finalContent === "/help") {
         socket.emit("systemMessage", {
           text: `
@@ -152,7 +247,7 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // /admin
+      // /admin [passwort]
       const adminMatch = finalContent.match(/^\/admin\s*(?:[:]\s*)?(.*)$/i);
       if (adminMatch) {
         const provided = (adminMatch[1] || "").trim();
@@ -211,7 +306,7 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // /deleteAllUsers
+      // /deleteAllUsers [passwort]
       if (finalContent.startsWith("/deleteAllUsers")) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
         const provided = finalContent.split(" ")[1]?.trim();
@@ -321,13 +416,12 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // --- /timeout "username" DauerInSekunden ---
+      // /timeout "username" DauerInSekunden (Admin)
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
       if (timeoutMatch) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
 
         const targetRaw = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
-        const targetNorm = normalize(targetRaw);
         let durationSec = parseInt(timeoutMatch[3], 10);
         const MAX_TIMEOUT = 604800; // 7 Tage
 
@@ -335,77 +429,20 @@ module.exports = function (socket, ctx) {
           return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
         }
         if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT;
-        if (targetNorm === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
+        if (normalize(targetRaw) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
 
-        const timeoutUntilTime = Date.now() + durationSec * 1000;
-        userTimeouts.set(targetNorm, timeoutUntilTime);
+        // start timeout for target user (handles per-socket intervals)
+        startTimeoutForUser(targetRaw, durationSec, `admin:${username}`);
 
-        // clear existing intervals for this user (if any)
-        const oldSet = userTimeoutIntervals.get(targetNorm);
-        if (oldSet) {
-          for (const id of oldSet) clearInterval(id);
-        }
-        userTimeoutIntervals.set(targetNorm, new Set());
-
-        const timeoutMsgId = `timeout-${targetNorm}`;
-
-        // notify all sockets of that user and create per-socket intervals
-        const socketsSet = findActiveSocketsFor(targetNorm);
-        if (socketsSet && socketsSet.size) {
-          for (const sid of socketsSet) {
-            const socketTarget = io.sockets.sockets.get(sid);
-            if (!socketTarget) continue;
-
-            // initial message (with id)
-            socketTarget.emit("timeoutUpdate", {
-              id: timeoutMsgId,
-              text: `⚠️ Du bist gemutet für ${formatDuration(durationSec)}.`,
-              remaining: durationSec
-            });
-
-            // per-socket countdown interval
-            const intervalId = setInterval(() => {
-              const remaining = Math.ceil((userTimeouts.get(targetNorm) - Date.now()) / 1000);
-
-              if (remaining <= 0) {
-                clearInterval(intervalId);
-                // remove intervalId from set
-                const sset = userTimeoutIntervals.get(targetNorm);
-                if (sset) sset.delete(intervalId);
-                if (!sset || sset.size === 0) userTimeoutIntervals.delete(targetNorm);
-                userTimeouts.delete(targetNorm);
-
-                socketTarget.emit("timeoutUpdate", {
-                  id: timeoutMsgId,
-                  text: "✔️ Du kannst wieder schreiben.",
-                  remaining: 0
-                });
-                return;
-              }
-
-              socketTarget.emit("timeoutUpdate", {
-                id: timeoutMsgId,
-                text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
-                remaining
-              });
-            }, 1000);
-
-            // save interval
-            userTimeoutIntervals.get(targetNorm).add(intervalId);
-          }
-        }
-
-        // reset message history for that user (normalized key)
-        messageHistory.set(targetNorm, []);
-
+        // notify any online sockets of the target (startTimeoutForUser already sends timeoutUpdate)
         emitToAdmins("adminNotice", { text: `${targetRaw} wurde für ${formatDuration(durationSec)} gemutet.` });
         return;
       }
 
-      // Unknown command handling (last)
+      // unknown command -> last
       if (finalContent.startsWith("/")) {
-        const knownCommands2 = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout", "/listUsers"];
-        const isKnown = knownCommands2.some(cmd => finalContent.startsWith(cmd));
+        const knownCommands = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout", "/listUsers"];
+        const isKnown = knownCommands.some(cmd => finalContent.startsWith(cmd));
         if (!isKnown) {
           socket.emit("systemMessage", { text: `ℹ️ Unbekanntes Kommando: ${finalContent}`, type: "info" });
           return;
@@ -419,25 +456,30 @@ module.exports = function (socket, ctx) {
     if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
     if (userFilters.get(username)) finalContent = filterMessage(finalContent);
 
-    const msg = new Message({ sender: username, content: finalContent, senderRole: role });
-    await msg.save();
+    try {
+      const msg = new Message({ sender: username, content: finalContent, senderRole: role });
+      await msg.save();
 
-    const deletedIds = await trimOldMessages(100);
-    if (deletedIds.length) {
-      for (const sid of authenticatedSockets) {
-        io.to(sid).emit("deletedMessages", deletedIds);
+      const deletedIds = await trimOldMessages(100);
+      if (deletedIds.length) {
+        for (const sid of authenticatedSockets) {
+          io.to(sid).emit("deletedMessages", deletedIds);
+        }
       }
-    }
 
-    for (const sid of authenticatedSockets) {
-      io.to(sid).emit("newMessage", {
-        _id: msg._id.toString(),
-        sender: msg.sender,
-        content: msg.content,
-        createdAt: msg.createdAt,
-        senderRole: role,
-        type: "user"
-      });
+      for (const sid of authenticatedSockets) {
+        io.to(sid).emit("newMessage", {
+          _id: msg._id.toString(),
+          sender: msg.sender,
+          content: msg.content,
+          createdAt: msg.createdAt,
+          senderRole: role,
+          type: "user"
+        });
+      }
+    } catch (err) {
+      console.error("Fehler beim Speichern/Senden der Nachricht:", err);
+      socket.emit("systemMessage", { text: "Fehler beim Senden der Nachricht.", type: "error" });
     }
   });
 
