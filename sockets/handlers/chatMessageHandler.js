@@ -24,6 +24,7 @@ module.exports = function(socket, ctx) {
 
   // Hilfsfunktionen
   const normalize = (u) => String(u || "").trim().toLowerCase();
+  const messageHistory = new Map();
 
   const findActiveSocketsFor = (targetNorm) => {
     // activeUsers kann keys in original-case haben -> suche case-insensitiv
@@ -59,12 +60,29 @@ module.exports = function(socket, ctx) {
     let role = dbUser?.role || userRoles.get(username) || "user";
     userRoles.set(username, role);
 
-    // --- Anti-Spam: nur alle 0.65 Sekunden ---
-    const lastTime = lastMessageTime.get(username) || 0;
-    if (now - lastTime < 600) {
-      return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error" });
+    const HISTORY_LIMIT = 5;
+    const TIME_WINDOW = 10000; // 10 Sekunden
+    const SPAM_TIMEOUT = 30;   // 30 Sekunden
+    
+    const history = messageHistory.get(username) || [];
+    
+    // Nur die letzten 10 Sekunden behalten
+    const recent = history.filter(ts => now - ts <= TIME_WINDOW);
+    recent.push(now);
+    messageHistory.set(username, recent);
+    
+    if (recent.length > HISTORY_LIMIT) {
+      // User für 30 Sekunden muten
+      const timeoutUntil = now + SPAM_TIMEOUT * 1000;
+      userTimeouts.set(username, timeoutUntil);
+      setTimeout(() => userTimeouts.delete(username), SPAM_TIMEOUT * 1000);
+    
+      socket.emit("systemMessage", { 
+        text: `⚠️ Du hast zu viele Nachrichten gesendet und wurdest für ${SPAM_TIMEOUT} Sekunden gemutet.`, 
+        type: "error" 
+      });
+      return; // stoppt die Nachricht
     }
-    lastMessageTime.set(username, now);
 
     let finalContent = (content || "").trim();
 
