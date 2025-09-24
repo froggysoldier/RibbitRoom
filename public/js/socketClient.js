@@ -224,11 +224,10 @@ export function initSocket(state) {
     await loadMessages(state);
   });
 
-  // --- timeoutUpdate (server sends id,text,remaining) ---
-  state.socket.on("timeoutUpdate", ({ id, text, remaining }) => {
-    // ensure fallback id
-    const msgId = id || `timeout-${state.username ? state.username.trim().toLowerCase() : "unknown"}`;
-    updateOrShowTimeoutMessage(msgId, text, remaining);
+  state.socketTarget.emit("timeoutUpdate", {
+    id: timeoutMsgId,
+    text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
+    remaining
   });
 
 }
