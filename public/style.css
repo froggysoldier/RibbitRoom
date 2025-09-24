@@ -6,18 +6,18 @@
   --color-header-bg: transparent; /*Header*/
   --color-header-text: #ffffff;
 
-  --color-primary: #4CAF50; /*loginBtn*/ /*sendBtn*/
+  --color-primary: #719254; /*loginBtn*/ /*sendBtn*/
   --color-primary-alt: #00C9A7; /*sendBtnGradient*/
   --color-accent: #7DDAA2; /*LoginBtnHoverBorder*/ /*SendBtnHover*/
 
   --color-error: #ff4c4c; /*ErrorMsg*/ /*AdminMsg*/ /*Admincolor*/
   --color-system: #888; /*UserMsgBg*/
 
-  --color-panel: #1e1e1e; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
+  --color-panel: #5c7270; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
   --color-panel-light: #2a2a2a; /*InfoMsg*/
   --color-input-bg: #121212;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
 
-  --color-nav-bg: #7DDAA2; /*NavLeiste*/
+  --color-nav-bg: #719254; /*NavLeiste*/
   --color-link: #ffffff; /*Links*/
   --color-link-hover-bg: #58423F;/*LinksHover*/
 
@@ -32,7 +32,7 @@
 
 /* ====== Global ====================================================== */
 body {
-  transform: scale(0.8);
+  transform: scale(0.7);
   transform-origin: top left; /* Skalierung startet oben links */
   width: 125%; /* damit es nicht zu schmal wirkt */
   height: 125%;
