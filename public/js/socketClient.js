@@ -5,33 +5,26 @@ import { loadMessages } from "./chatHandlers.js";
 
 // --- Timeout-Nachrichten verwalten ---
 let timeoutMessageId = null;
+const activeTimeoutMessages = new Map();
 
-function updateOrShowTimeoutMessage(text, remaining) {
-  const chatWindow = document.querySelector("#chatWindow");
-  if (!chatWindow) return;
+export function updateOrShowTimeoutMessage(text, remaining, id = "timeout-msg") {
+  let msgEl = activeTimeoutMessages.get(id);
 
-  let msgElem = timeoutMessageId ? document.getElementById(timeoutMessageId) : null;
-
-  if (!msgElem) {
-    msgElem = document.createElement("div");
-    timeoutMessageId = "timeoutMessage";
-    msgElem.id = timeoutMessageId;
-    msgElem.classList.add("system-message", "timeout");
-    msgElem.textContent = text;
-    chatWindow.appendChild(msgElem);
+  if (!msgEl) {
+    // Neue Nachricht im Chat erstellen
+    msgEl = document.createElement("div");
+    msgEl.classList.add("message", "system-msg", "timeout-msg");
+    msgEl.dataset.id = id;
+    msgEl.innerHTML = `<strong>SYSTEM:</strong> <span class="timeout-text">${text}</span>`;
+    document.querySelector("#chatWindow").appendChild(msgEl);
+    activeTimeoutMessages.set(id, msgEl);
   } else {
-    msgElem.textContent = text;
+    // Vorhandene Nachricht aktualisieren
+    msgEl.querySelector(".timeout-text").textContent = text;
   }
 
-  if (remaining <= 0) {
-    setTimeout(() => {
-      if (msgElem) {
-        msgElem.textContent = "✔️ Du kannst wieder schreiben.";
-        msgElem.classList.add("timeout-ended");
-      }
-      timeoutMessageId = null;
-    }, 1000);
-  }
+  // Optional: automatisch scrollen
+  msgEl.scrollIntoView({ behavior: "smooth", block: "end" });
 }
 
 export function initSocket(state) {
