@@ -89,12 +89,6 @@ module.exports = function(socket, ctx) {
     // --- Befehle (beginnt mit "/") ---
     if (finalContent.startsWith("/")) {
 
-      // kein Command
-      if (finalContent === "/") {
-        socket.emit("systemMessage", { text: `ℹ️ Kein Kommando eingegeben!`, type: "info" });
-        return;
-      }
-
       // /role
       if (finalContent === "/role") {
         const r = userRoles.get(username) || dbUser?.role || "user";
@@ -334,6 +328,16 @@ module.exports = function(socket, ctx) {
         emitToAdmins("adminNotice", { text: `${target} wurde für ${formatDuration(durationSec)} gemutet.` });
         return;
       }
+      // --- Ungültiges oder unbekanntes Command ---
+      if (finalContent.startsWith("/")) {
+        const knownCommands = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout"];
+        const isKnown = knownCommands.some(cmd => finalContent.startsWith(cmd));
+        if (!isKnown) {
+          socket.emit("systemMessage", { text: `ℹ️ Unbekanntes Kommando: ${finalContent}`, type: "info" });
+          return;
+        }
+      }
+
 
       // andere "/" commands hier...
       return;
