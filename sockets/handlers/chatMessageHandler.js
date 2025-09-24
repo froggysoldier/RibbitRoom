@@ -81,7 +81,7 @@ module.exports = function(socket, ctx) {
         text: `⚠️ Du hast zu viele Nachrichten gesendet und wurdest für ${SPAM_TIMEOUT} Sekunden gemutet.`, 
         type: "error" 
       });
-      return; // stoppt die Nachricht
+      
     }
 
     let finalContent = (content || "").trim();
