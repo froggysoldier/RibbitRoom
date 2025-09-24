@@ -3,59 +3,64 @@ import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
 import { loadMessages } from "./chatHandlers.js";
 
-// --- Timeout-Nachrichten verwalten (client-side) ---
-// Map id -> element (nur im DOM des Tabs)
-const activeTimeoutMessages = new Map();
-
-/**
- * updateOrShowTimeoutMessage(id, text, remaining)
- * - id: eindeutige data-id der Chat-Nachricht (z.B. "timeout-username")
- * - text: anzuzeigender Text (bereits formatiert)
- * - remaining: verbleibende Sekunden (number). Wenn 0 => Timeout vorbei.
- */
+// robustere updateOrShowTimeoutMessage
 export function updateOrShowTimeoutMessage(id, text, remaining) {
   if (!DOM.chatWindow) return;
 
+  // Suche vorhandene Nachricht per data-id
   let el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
 
+  // falls nicht vorhanden -> neu anlegen via UI.appendMessage mit sehr großer duration
   if (!el) {
-    // appendMessage: appendMessage(sender, content, createdAt, id, self=false, type="user", senderRole="user", duration)
-    // wir verwenden type="system" damit CSS passt, senderRole irrelevant
     const longDuration = 24 * 60 * 60 * 1000; // 24h
     UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", longDuration);
     el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
-    if (el) activeTimeoutMessages.set(id, el);
-  } else {
-    // update existing .msg-content
-    const contentEl = el.querySelector(".msg-content");
-    if (contentEl) {
-      contentEl.innerHTML = UI.formatMessage(text);
-    } else {
-      // fallback: replace innerHTML
-      el.innerHTML = `
-        <div class="msg-header"><strong>SYSTEM</strong><span class="time">[--:--]</span></div>
-        <div class="msg-content">${UI.formatMessage(text)}</div>
-      `;
+    if (!el) {
+      console.warn("[timeout] konnte element nach appendMessage nicht finden, id=", id);
+      return;
     }
   }
 
-  // scroll into view
-  if (el) el.scrollIntoView({ behavior: "smooth", block: "end" });
+  // Aktualisiere Header-Zeit (optional: Anzeige [mm:ss] oder [HH:MM])
+  try {
+    const headerTime = el.querySelector(".msg-header .time");
+    if (headerTime) {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      headerTime.textContent = `[${hh}:${mm}]`;
+    }
+  } catch (e) {
+    // nicht kritisch
+  }
 
-  // if finished, mark and remove after a short delay
-  if (remaining === 0) {
+  // Aktualisiere den Inhalt
+  const contentEl = el.querySelector(".msg-content");
+  if (contentEl) {
+    contentEl.innerHTML = UI.formatMessage(text);
+  } else {
+    // fallback: ersetze innerHTML komplett
+    el.innerHTML = `
+      <div class="msg-header"><strong>SYSTEM</strong> <span class="time">[--:--]</span></div>
+      <div class="msg-content">${UI.formatMessage(text)}</div>
+    `;
+  }
+
+  // Scroll zur Nachricht
+  el.scrollIntoView({ behavior: "smooth", block: "end" });
+
+  // Wenn Timeout vorbei: markiere und entferne nach kurzer Zeit (nur dieses Element)
+  if (typeof remaining === "number" && remaining <= 0) {
+    el.classList.add("timeout-ended");
+    // optional: ändere style sofort
+    const contentEl2 = el.querySelector(".msg-content");
+    if (contentEl2) contentEl2.innerHTML = UI.formatMessage(text);
+
+    // entferne nur diese Nachricht nach 3s
     setTimeout(() => {
-      const el2 = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
-      if (!el2) return;
-      const contentEl = el2.querySelector(".msg-content");
-      if (contentEl) contentEl.innerHTML = UI.formatMessage(text);
-      el2.classList.add("timeout-ended");
-      // remove after 3s
-      setTimeout(() => {
-        el2.remove();
-        activeTimeoutMessages.delete(id);
-      }, 3000);
-    }, 500);
+      const e = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
+      if (e) e.remove();
+    }, 3000);
   }
 }
 
