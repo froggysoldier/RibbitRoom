@@ -142,7 +142,24 @@ module.exports = function(socket, ctx) {
         }
         return;
       }
-
+      // userlist anzeigen
+      if (finalContent === "/listUsers") {
+          if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+      
+          const users = Array.from(activeUsers.keys()).map(u => {
+              const userRole = userRoles.get(u) || "user";
+              const timeoutUntil = userTimeouts.get(u);
+              const isMuted = timeoutUntil && timeoutUntil > Date.now();
+              return `${u} - Rolle: ${userRole}${isMuted ? " (gemutet)" : ""}`;
+          });
+      
+          socket.emit("systemMessage", {
+              text: `ℹ️ Online-User:\n${users.join("\n")}`,
+              type: "info"
+          });
+          return;
+      }
+      
       // /deleteAllUsers [passwort]
       if (finalContent.startsWith("/deleteAllUsers")) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
