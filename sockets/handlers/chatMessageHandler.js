@@ -89,7 +89,7 @@ module.exports = function (socket, ctx) {
     lastMessageTime.set(username, now);
 
     // --- Spam-History (nur Warnung, kein Auto-Timeout) ---
-    const HISTORY_LIMIT = 10;
+    const HISTORY_LIMIT = 7;
     const TIME_WINDOW = 10000; // ms
     const hist = messageHistory.get(myNorm) || [];
     const recent = hist.filter((ts) => now - ts <= TIME_WINDOW);
@@ -302,7 +302,7 @@ module.exports = function (socket, ctx) {
         const MAX_TIMEOUT = 604800;
         if (!target || isNaN(durationSec) || durationSec <= 0) return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
         if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT;
-        if (normalize(target) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
+        //if (normalize(target) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
 
         const until = Date.now() + durationSec * 1000;
         userTimeouts.set(normalize(target), until);
