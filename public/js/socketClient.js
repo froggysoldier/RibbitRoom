@@ -173,4 +173,12 @@ export function initSocket(state) {
     state.socket.emit("requestActiveUsers");
     await loadMessages(state);
   });
+  
+  socket.on("timeoutUpdate", ({ text, remaining }) => {
+    updateOrShowTimeoutMessage(text, remaining);
+  });
+
+
 }
+
+
