@@ -3,6 +3,37 @@ import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
 import { loadMessages } from "./chatHandlers.js";
 
+// --- Timeout-Nachrichten verwalten ---
+let timeoutMessageId = null;
+
+function updateOrShowTimeoutMessage(text, remaining) {
+  const chatWindow = document.querySelector("#chatWindow");
+  if (!chatWindow) return;
+
+  let msgElem = timeoutMessageId ? document.getElementById(timeoutMessageId) : null;
+
+  if (!msgElem) {
+    msgElem = document.createElement("div");
+    timeoutMessageId = "timeoutMessage";
+    msgElem.id = timeoutMessageId;
+    msgElem.classList.add("system-message", "timeout");
+    msgElem.textContent = text;
+    chatWindow.appendChild(msgElem);
+  } else {
+    msgElem.textContent = text;
+  }
+
+  if (remaining <= 0) {
+    setTimeout(() => {
+      if (msgElem) {
+        msgElem.textContent = "✔️ Du kannst wieder schreiben.";
+        msgElem.classList.add("timeout-ended");
+      }
+      timeoutMessageId = null;
+    }, 1000);
+  }
+}
+
 export function initSocket(state) {
   if (!state) return;
   if (state.socket && state.socket.connected) return;
@@ -173,7 +204,7 @@ export function initSocket(state) {
     state.socket.emit("requestActiveUsers");
     await loadMessages(state);
   });
-  
+
   socket.on("timeoutUpdate", ({ text, remaining }) => {
     updateOrShowTimeoutMessage(text, remaining);
   });
