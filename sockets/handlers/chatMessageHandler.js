@@ -80,11 +80,11 @@ module.exports = function (socket, ctx) {
     }
 
     // --- Minimaler Zeitabstand zwischen Nachrichten ---
-    const MIN_INTERVAL = 600; // ms
+    const MIN_INTERVAL = 350; // ms
     const lastTime = lastMessageTime.get(username) || 0;
     if (now - lastTime < MIN_INTERVAL) {
       lastMessageTime.set(username, now);
-      return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error", duration: 2500 });
+      return socket.emit("systemMessage", { text: "⚠️ Bitte keine Nachrichten spammen.", type: "error", duration: 1500 });
     }
     lastMessageTime.set(username, now);
 
