@@ -19,7 +19,7 @@ module.exports = function (socket, ctx) {
     io
   } = ctx;
 
-  // --- Ensure server-wide maps on ctx ---
+  // ensure server-wide maps on ctx (use normalized usernames as keys)
   ctx.userTimeouts = ctx.userTimeouts || new Map();         // normalizedUsername -> timestamp(ms)
   ctx.messageHistory = ctx.messageHistory || new Map();     // normalizedUsername -> [timestamps]
   ctx.userTimeoutIntervals = ctx.userTimeoutIntervals || new Map(); // normalizedUsername -> Set(intervalIds)
@@ -77,9 +77,9 @@ module.exports = function (socket, ctx) {
           ? `⚠️ Du bist noch für ${remainingSec} Sekunde${remainingSec === 1 ? '' : 'n'} gemutet.`
           : `⚠️ Du bist noch für ${formatDuration(remainingSec)} gemutet.`,
         type: "error",
-        duration: Math.min(60000, (timeoutUntil - now)) // optional client-useful duration
+        duration: Math.min(60000, (timeoutUntil - now))
       });
-      return; // important: stop further processing
+      return; // stop further processing
     }
 
     // --- Anti-Spam: max. 5 messages / 10s (server-side) ---
@@ -95,11 +95,14 @@ module.exports = function (socket, ctx) {
     if (recent.length > HISTORY_LIMIT) {
       const until = now + SPAM_TIMEOUT * 1000;
       userTimeouts.set(myNorm, until);
-      // clear any existing intervals for this user (we'll not create per-spam intervals — admin timeout flow handles notifications)
-      if (userTimeoutIntervals.has(myNorm)) {
-        for (const id of userTimeoutIntervals.get(myNorm)) clearInterval(id);
+
+      // clear existing intervals for this user (if any)
+      const oldSet = userTimeoutIntervals.get(myNorm);
+      if (oldSet) {
+        for (const id of oldSet) clearInterval(id);
         userTimeoutIntervals.delete(myNorm);
       }
+
       // reset history so user doesn't immediately retrigger
       messageHistory.set(myNorm, []);
 
@@ -115,8 +118,7 @@ module.exports = function (socket, ctx) {
 
     // --- Commands (startsWith "/") ---
     if (finalContent.startsWith("/")) {
-
-      // quick known-commands list (used later for unknown command detection)
+      // list of known commands (used at the end for unknown command)
       const knownCommands = [
         "/role", "/help", "/admin", "/clear", "/deleteAllUsers",
         "/reset", "/ban", "/timeout", "/listUsers"
@@ -129,7 +131,7 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // /help (pretty formatted)
+      // /help
       if (finalContent === "/help") {
         socket.emit("systemMessage", {
           text: `
@@ -319,7 +321,7 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // --- /timeout "username" DauerInSekunden --- single match, normalized usage
+      // --- /timeout "username" DauerInSekunden ---
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
       if (timeoutMatch) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
@@ -345,6 +347,8 @@ module.exports = function (socket, ctx) {
         }
         userTimeoutIntervals.set(targetNorm, new Set());
 
+        const timeoutMsgId = `timeout-${targetNorm}`;
+
         // notify all sockets of that user and create per-socket intervals
         const socketsSet = findActiveSocketsFor(targetNorm);
         if (socketsSet && socketsSet.size) {
@@ -352,8 +356,9 @@ module.exports = function (socket, ctx) {
             const socketTarget = io.sockets.sockets.get(sid);
             if (!socketTarget) continue;
 
-            // initial message
+            // initial message (with id)
             socketTarget.emit("timeoutUpdate", {
+              id: timeoutMsgId,
               text: `⚠️ Du bist gemutet für ${formatDuration(durationSec)}.`,
               remaining: durationSec
             });
@@ -370,11 +375,16 @@ module.exports = function (socket, ctx) {
                 if (!sset || sset.size === 0) userTimeoutIntervals.delete(targetNorm);
                 userTimeouts.delete(targetNorm);
 
-                socketTarget.emit("timeoutUpdate", { text: "✔️ Du kannst wieder schreiben.", remaining: 0 });
+                socketTarget.emit("timeoutUpdate", {
+                  id: timeoutMsgId,
+                  text: "✔️ Du kannst wieder schreiben.",
+                  remaining: 0
+                });
                 return;
               }
 
               socketTarget.emit("timeoutUpdate", {
+                id: timeoutMsgId,
                 text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
                 remaining
               });
@@ -385,7 +395,7 @@ module.exports = function (socket, ctx) {
           }
         }
 
-        // reset message history for that user
+        // reset message history for that user (normalized key)
         messageHistory.set(targetNorm, []);
 
         emitToAdmins("adminNotice", { text: `${targetRaw} wurde für ${formatDuration(durationSec)} gemutet.` });
@@ -394,8 +404,8 @@ module.exports = function (socket, ctx) {
 
       // Unknown command handling (last)
       if (finalContent.startsWith("/")) {
-        const knownCommands = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout", "/listUsers"];
-        const isKnown = knownCommands.some(cmd => finalContent.startsWith(cmd));
+        const knownCommands2 = ["/role", "/help", "/admin", "/clear", "/deleteAllUsers", "/reset", "/ban", "/timeout", "/listUsers"];
+        const isKnown = knownCommands2.some(cmd => finalContent.startsWith(cmd));
         if (!isKnown) {
           socket.emit("systemMessage", { text: `ℹ️ Unbekanntes Kommando: ${finalContent}`, type: "info" });
           return;
