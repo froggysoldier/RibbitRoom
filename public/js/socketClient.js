@@ -3,30 +3,63 @@ import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
 import { loadMessages } from "./chatHandlers.js";
 
-// --- Timeout-Nachrichten verwalten ---
-let timeoutMessageId = null;
+// --- Timeout-Nachrichten verwalten (client-side) ---
+// Map id -> element (nur im DOM des Tabs)
 const activeTimeoutMessages = new Map();
 
-export function updateOrShowTimeoutMessage(text, remaining, id = "timeout-msg") {
-  let msgEl = activeTimeoutMessages.get(id);
+/**
+ * updateOrShowTimeoutMessage(id, text, remaining)
+ * - id: eindeutige data-id der Chat-Nachricht (z.B. "timeout-username")
+ * - text: anzuzeigender Text (bereits formatiert)
+ * - remaining: verbleibende Sekunden (number). Wenn 0 => Timeout vorbei.
+ */
+export function updateOrShowTimeoutMessage(id, text, remaining) {
+  if (!DOM.chatWindow) return;
 
-  if (!msgEl) {
-    // Neue Nachricht im Chat erstellen
-    msgEl = document.createElement("div");
-    msgEl.classList.add("message", "system-msg", "timeout-msg");
-    msgEl.dataset.id = id;
-    msgEl.innerHTML = `<strong>SYSTEM:</strong> <span class="timeout-text">${text}</span>`;
-    document.querySelector("#chatWindow").appendChild(msgEl);
-    activeTimeoutMessages.set(id, msgEl);
+  let el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
+
+  if (!el) {
+    // appendMessage: appendMessage(sender, content, createdAt, id, self=false, type="user", senderRole="user", duration)
+    // wir verwenden type="system" damit CSS passt, senderRole irrelevant
+    const longDuration = 24 * 60 * 60 * 1000; // 24h
+    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", longDuration);
+    el = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
+    if (el) activeTimeoutMessages.set(id, el);
   } else {
-    // Vorhandene Nachricht aktualisieren
-    msgEl.querySelector(".timeout-text").textContent = text;
+    // update existing .msg-content
+    const contentEl = el.querySelector(".msg-content");
+    if (contentEl) {
+      contentEl.innerHTML = UI.formatMessage(text);
+    } else {
+      // fallback: replace innerHTML
+      el.innerHTML = `
+        <div class="msg-header"><strong>SYSTEM</strong><span class="time">[--:--]</span></div>
+        <div class="msg-content">${UI.formatMessage(text)}</div>
+      `;
+    }
   }
 
-  // Optional: automatisch scrollen
-  msgEl.scrollIntoView({ behavior: "smooth", block: "end" });
+  // scroll into view
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "end" });
+
+  // if finished, mark and remove after a short delay
+  if (remaining === 0) {
+    setTimeout(() => {
+      const el2 = DOM.chatWindow.querySelector(`[data-id="${id}"]`);
+      if (!el2) return;
+      const contentEl = el2.querySelector(".msg-content");
+      if (contentEl) contentEl.innerHTML = UI.formatMessage(text);
+      el2.classList.add("timeout-ended");
+      // remove after 3s
+      setTimeout(() => {
+        el2.remove();
+        activeTimeoutMessages.delete(id);
+      }, 3000);
+    }, 500);
+  }
 }
 
+// ---------------- initSocket ----------------
 export function initSocket(state) {
   if (!state) return;
   if (state.socket && state.socket.connected) return;
@@ -61,20 +94,17 @@ export function initSocket(state) {
   state.socket.on("systemMessage", (data) => {
     let text = "";
     let duration = 4000; // Standarddauer
-  
+
     if (typeof data === "string") {
       text = data;
     } else {
       text = data.text || "";
       if (data.duration) duration = data.duration;
     }
-  
-    const id = "sys-" + Date.now();
-    // Duration wird an appendMessage weitergegeben
-    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", duration);
-    // Kein zusätzliches setTimeout nötig!
-  });
 
+    const id = "sys-" + Date.now();
+    UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", duration);
+  });
 
   state.socket.on("adminNotice", (data) => {
     UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
@@ -128,7 +158,6 @@ export function initSocket(state) {
     } else {
       DOM.chatWindow.innerHTML = "";
       setTimeout(async () => {
-        // ersetzt updateUsersAndMessages
         state.socket.emit("requestActiveUsers");
         await loadMessages(state);
       }, 500);
@@ -170,7 +199,6 @@ export function initSocket(state) {
 
   // --- Role Update für Admin-Namen ---
   state.socket.on("roleUpdated", ({ username, role }) => {
-    // update active users list
     const lis = DOM.usersListEl.querySelectorAll("li");
     lis.forEach((li) => {
       if (li.textContent === username) {
@@ -178,7 +206,6 @@ export function initSocket(state) {
       }
     });
 
-    // update bestehende Chatnachrichten
     const messages = DOM.chatWindow.querySelectorAll(".message");
     messages.forEach((msg) => {
       if (msg.querySelector("strong")?.textContent === username) {
@@ -187,7 +214,6 @@ export function initSocket(state) {
       }
     });
 
-    // update eigene Rolle
     if (username === state.username) state.myRole = role;
   });
 
@@ -198,11 +224,11 @@ export function initSocket(state) {
     await loadMessages(state);
   });
 
-  state.socket.on("timeoutUpdate", ({ text, remaining }) => {
-    updateOrShowTimeoutMessage(text, remaining);
+  // --- timeoutUpdate (server sends id,text,remaining) ---
+  state.socket.on("timeoutUpdate", ({ id, text, remaining }) => {
+    // ensure fallback id
+    const msgId = id || `timeout-${state.username ? state.username.trim().toLowerCase() : "unknown"}`;
+    updateOrShowTimeoutMessage(msgId, text, remaining);
   });
 
-
 }
-
-
