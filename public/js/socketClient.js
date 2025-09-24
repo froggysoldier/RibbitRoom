@@ -229,10 +229,10 @@ export function initSocket(state) {
     await loadMessages(state);
   });
 
-  state.socketTarget.emit("timeoutUpdate", {
-    id: timeoutMsgId,
-    text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
-    remaining
+  // --- Timeout-Update vom Server ---
+  state.socket.on("timeoutUpdate", (data) => {
+      if (!data || !data.id) return;
+      updateOrShowTimeoutMessage(data.id, data.text, data.remaining);
   });
 
 }
