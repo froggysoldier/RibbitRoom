@@ -260,7 +260,7 @@ module.exports = function(socket, ctx) {
       
         const target = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
         let durationSec = parseInt(timeoutMatch[3], 10);
-        const MAX_TIMEOUT = 3600; // 5 Min
+        const MAX_TIMEOUT = 3600; // 1 Std. : 3600 | 24 Std. : 86.400 | 1 Woche : 604.800 | 30 Tage: 2.592.000
       
         if (!target || isNaN(durationSec) || durationSec <= 0) {
           return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
