@@ -10,7 +10,7 @@ export const sendBtn = document.getElementById("sendBtn");
 export const messageInput = document.getElementById("messageInput");
 export const filterBtn = document.getElementById("filterBtn");
 
-// Code-Modal
-export const codeModal = document.getElementById("codeBlock");
-export const codeSubmit = document.getElementById("codeSubmit");
+export const codeModal = document.getElementById("codeModal");
 export const codeInput = document.getElementById("code");
+export const codeSubmit = document.getElementById("codeSubmit");
+
