@@ -1,8 +1,6 @@
 // public/js/domElements.js
-// Wir exportieren Live-Variablen (let) und eine Init-Funktion.
-// Andere Module können die Variablen wie bisher als DOM.loginBtn lesen
-// — sie werden später gesetzt und sind dann aktuell (ESM live bindings).
 
+// Alle DOM-Elemente als `let`, werden später initialisiert
 export let loginBtn = null;
 export let modal = null;
 export let closeModal = null;
@@ -18,31 +16,30 @@ export let codeModal = null;
 export let codeInput = null;
 export let codeSubmit = null;
 
-// Init-Funktion: muss aufgerufen werden, sobald DOMContentLoaded ist.
+// Init-Funktion: muss aufgerufen werden, sobald DOM geladen ist
 export function initDomElements() {
-  // Only assign if current value is null (idempotent)
-  if (!loginBtn) loginBtn = document.getElementById("loginBtn");
-  if (!modal) modal = document.getElementById("loginModal");
-  if (!closeModal) closeModal = document.querySelector(".close");
-  if (!loginSubmit) loginSubmit = document.getElementById("loginSubmit");
-  if (!registerSubmit) registerSubmit = document.getElementById("registerSubmit");
-  if (!usersListEl) usersListEl = document.getElementById("users");
-  if (!chatWindow) chatWindow = document.getElementById("chatWindow");
-  if (!sendBtn) sendBtn = document.getElementById("sendBtn");
-  if (!messageInput) messageInput = document.getElementById("messageInput");
-  if (!filterBtn) filterBtn = document.getElementById("filterBtn");
+  loginBtn = document.getElementById("loginBtn");
+  modal = document.getElementById("loginModal");
+  closeModal = document.querySelector(".close");
+  loginSubmit = document.getElementById("loginSubmit");
+  registerSubmit = document.getElementById("registerSubmit");
+  usersListEl = document.getElementById("users");
+  chatWindow = document.getElementById("chatWindow");
+  sendBtn = document.getElementById("sendBtn");
+  messageInput = document.getElementById("messageInput");
+  filterBtn = document.getElementById("filterBtn");
 
-  if (!codeModal) codeModal = document.getElementById("codeModal");
-  if (!codeInput) codeInput = document.getElementById("code");
-  if (!codeSubmit) codeSubmit = document.getElementById("codeSubmit");
+  codeModal = document.getElementById("codeModal");
+  codeInput = document.getElementById("code");
+  codeSubmit = document.getElementById("codeSubmit");
 
-  // Debug: gibt Warnung in Konsole, falls ein Element fehlt
+  // Debug: Warnung, falls ein Element fehlt
   const missing = [];
   if (!loginBtn) missing.push("loginBtn");
   if (!modal) missing.push("loginModal");
   if (!loginSubmit) missing.push("loginSubmit");
   if (!registerSubmit) missing.push("registerSubmit");
-  if (!codeInput) missing.push("code input (#code)");
+  if (!codeInput) missing.push("codeInput");
   if (!codeSubmit) missing.push("codeSubmit");
   if (!chatWindow) missing.push("chatWindow");
   if (!sendBtn) missing.push("sendBtn");
