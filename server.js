@@ -1,36 +1,26 @@
-// server.js
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
-const mongoose = require("mongoose");
-const cors = require("cors");
-require("dotenv").config();
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import authRoutes from "./routes/authRoutes.js"; // ES Module import
+import path from "path";
+import { fileURLToPath } from "url";
 
-const authRoutes = require("./routes/authRoutes");
-const messageRoutes = require("./routes/messageRoutes");
-const initSockets = require("./sockets/initSockets");
+dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
-
-app.use(cors());
-app.use(express.json());
-app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes);
-app.use(express.static(path.join(__dirname, "public")));
-
-// MongoDB
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB verbunden"))
-  .catch(err => console.error("❌ MongoDB Fehler:", err));
-
-// Socket-Events
-initSockets(io);
-
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
+// Bodyparser
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Mongoose verbinden
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log("MongoDB verbunden"))
+.catch(err => console.error("MongoDB Fehler:", err));
 
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
@@ -64,3 +54,21 @@ async function testMail() {
 }
 
 testMail();
+
+
+
+
+
+// Routes
+app.use("/api/auth", authRoutes);
+
+// Public Ordner
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use(express.static(path.join(__dirname, "public")));
+
+// Start
+app.listen(PORT, () => {
+  console.log(`Server läuft auf http://localhost:${PORT}`);
+});
+
