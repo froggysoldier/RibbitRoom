@@ -1,188 +1,100 @@
-// routes/authRoutes.js
 import express from "express";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
+import bcrypt from "bcrypt";
 import User from "../models/User.js";
+import sendMail from "../utils/sendMail.js";
+import dotenv from "dotenv";
+dotenv.config();
 
 const router = express.Router();
-
-const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_PASS = process.env.ADMIN_PASS || "adminsecret";
-
-// Setup nodemailer transporter (ESM-safe)
-async function createTransporter() {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || "587", 10),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
-  }
-
-  // Dev fallback: Ethereal (nur wenn kein SMTP gesetzt)
-  const testAccount = await nodemailer.createTestAccount();
-  return nodemailer.createTransport({
-    host: "smtp.ethereal.email",
-    port: 587,
-    secure: false,
-    auth: {
-      user: testAccount.user,
-      pass: testAccount.pass
-    }
-  });
-}
 
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Registrierung
+// --- Registrierung ---
 router.post("/register", async (req, res) => {
   try {
     const { username, password, email, adminPass } = req.body;
-    if (!username || !password || !email)
-      return res.status(400).json({ error: "Bitte alle Felder ausfüllen" });
+    if (!username || !password || !email) return res.status(400).json({ error: "Alle Felder nötig" });
 
-    const exists = await User.findOne({ username });
-    if (exists) return res.status(400).json({ error: "Benutzername existiert bereits" });
+    if (await User.findOne({ username })) return res.status(400).json({ error: "Benutzername existiert" });
 
     const role = adminPass && adminPass === ADMIN_PASS ? "admin" : "user";
-
+    const hashed = await bcrypt.hash(password, 10);
     const code = generateVerificationCode();
-    const codeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const user = new User({
       username,
+      password: hashed,
       email,
-      password,
       role,
       verificationCode: code,
-      codeExpiresAt
+      verified: false
     });
     await user.save();
 
-    try {
-      const transporter = await createTransporter();
-      const mail = {
-        from: process.env.EMAIL_FROM || '"ChatApp" <no-reply@example.com>',
-        to: email,
-        subject: "Dein Verifizierungscode",
-        text: `Dein Verifizierungscode: ${code}\nGültig für 15 Minuten.`,
-        html: `<p>Dein Verifizierungscode: <b>${code}</b></p><p>Gültig für 15 Minuten.</p>`
-      };
-      const info = await transporter.sendMail(mail);
+    // SendGrid Mail senden
+    const subject = "RibbitRoom Verifizierungscode";
+    const html = `<p>Hallo ${username},</p><p>Dein Code lautet: <b>${code}</b></p>`;
+    await sendMail({ to: email, subject, html, text: `Dein Code lautet: ${code}` });
 
-      // If ethereal used, return preview url for debug
-      let preview = null;
-      if (nodemailer.getTestMessageUrl && info) preview = nodemailer.getTestMessageUrl(info);
-
-      res.status(201).json({ message: "Registrierung erfolgreich. Bitte Code aus E-Mail bestätigen.", preview });
-    } catch (mailErr) {
-      console.error("Mail error:", mailErr);
-      // user created anyway
-      res.status(201).json({ message: "Registrierung erstellt, konnte aber keine E-Mail versenden. Bitte Admin kontaktieren." });
-    }
+    res.status(201).json({ message: "Registrierung erfolgreich. Bitte Code aus E-Mail bestätigen." });
   } catch (err) {
-    console.error("Register error:", err);
-    res.status(500).json({ error: "Fehler bei der Registrierung" });
+    console.error(err);
+    res.status(500).json({ error: "Registrierung fehlgeschlagen" });
   }
 });
 
-// Code bestätigen
+// --- Code verifizieren ---
 router.post("/verify", async (req, res) => {
   try {
     const { username, code } = req.body;
-    if (!username || !code) return res.status(400).json({ error: "Benutzername und Code erforderlich" });
-
     const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ error: "Benutzer nicht gefunden" });
+    if (!user) return res.status(404).json({ error: "User nicht gefunden" });
+    if (user.verificationCode !== code) return res.status(403).json({ error: "Code ungültig" });
 
-    if (!user.verificationCode || !user.codeExpiresAt) return res.status(400).json({ error: "Kein Verifizierungscode vorhanden" });
-
-    if (new Date() > user.codeExpiresAt) {
-      user.verificationCode = undefined;
-      user.codeExpiresAt = undefined;
-      await user.save();
-      return res.status(400).json({ error: "Code abgelaufen" });
-    }
-
-    if (user.verificationCode !== String(code).trim()) {
-      return res.status(400).json({ error: "Ungültiger Code" });
-    }
-
+    user.verified = true;
     user.verificationCode = undefined;
-    user.codeExpiresAt = undefined;
     await user.save();
-
-    const token = jwt.sign({ username: user.username, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
-    res.json({ message: "Verifiziert. Du bist nun eingeloggt.", token, role: user.role });
-  } catch (err) {
-    console.error("Verify error:", err);
-    res.status(500).json({ error: "Fehler bei der Verifikation" });
-  }
-});
-
-// Login
-router.post("/login", async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Benutzername und Passwort erforderlich" });
-
-    const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ error: "Benutzer nicht gefunden" });
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ error: "Falsches Passwort" });
-
-    if (user.verificationCode)
-      return res.status(403).json({ error: "Account nicht verifiziert. Bitte Code eingeben." });
 
     const token = jwt.sign({ username: user.username, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
     res.json({ token, role: user.role });
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Fehler beim Login" });
+    console.error(err);
+    res.status(500).json({ error: "Code-Verifizierung fehlgeschlagen" });
   }
 });
 
-// Resend code (optional)
-router.post("/resend-code", async (req, res) => {
+// --- Login ---
+router.post("/login", async (req, res) => {
   try {
-    const { username } = req.body;
-    if (!username) return res.status(400).json({ error: "Benutzername erforderlich" });
-
+    const { username, password } = req.body;
     const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ error: "Benutzer nicht gefunden" });
+    if (!user) return res.status(404).json({ error: "User nicht gefunden" });
 
-    const code = generateVerificationCode();
-    user.verificationCode = code;
-    user.codeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    await user.save();
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(403).json({ error: "Falsches Passwort" });
 
-    try {
-      const transporter = await createTransporter();
-      const mail = {
-        from: process.env.EMAIL_FROM || '"ChatApp" <no-reply@example.com>',
-        to: user.email,
-        subject: "Neuer Verifizierungscode",
-        text: `Dein neuer Verifizierungscode: ${code}\nGültig für 15 Minuten.`,
-        html: `<p>Dein neuer Verifizierungscode: <b>${code}</b></p><p>Gültig für 15 Minuten.</p>`
-      };
-      const info = await transporter.sendMail(mail);
-      let preview = null;
-      if (nodemailer.getTestMessageUrl && info) preview = nodemailer.getTestMessageUrl(info);
-      res.json({ message: "Code versendet", preview });
-    } catch (err) {
-      console.error("Mail-send failed:", err);
-      res.status(500).json({ error: "Konnte keine E-Mail versenden" });
+    if (!user.verified) {
+      const code = generateVerificationCode();
+      user.verificationCode = code;
+      await user.save();
+
+      const subject = "RibbitRoom Verifizierungscode";
+      const html = `<p>Hallo ${username},</p><p>Dein Code lautet: <b>${code}</b></p>`;
+      await sendMail({ to: user.email, subject, html, text: `Dein Code lautet: ${code}` });
+
+      return res.status(403).json({ error: "Account nicht verifiziert. Code gesendet." });
     }
+
+    const token = jwt.sign({ username: user.username, role: user.role }, JWT_SECRET, { expiresIn: "7d" });
+    res.json({ token, role: user.role });
   } catch (err) {
-    console.error("resend-code error:", err);
-    res.status(500).json({ error: "Fehler" });
+    console.error(err);
+    res.status(500).json({ error: "Login fehlgeschlagen" });
   }
 });
 
