@@ -1,15 +1,15 @@
 // routes/authRoutes.js
 import express from "express";
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
 import nodemailer from "nodemailer";
+import User from "../models/User.js";
 
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "change_this_secret";
 const ADMIN_PASS = process.env.ADMIN_PASS || "adminsecret";
 
-// Setup nodemailer transporter
+// Setup nodemailer transporter (ESM-safe)
 async function createTransporter() {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
     return nodemailer.createTransport({
@@ -22,7 +22,8 @@ async function createTransporter() {
       }
     });
   }
-  // Dev: Ethereal fallback
+
+  // Dev fallback: Ethereal (nur wenn kein SMTP gesetzt)
   const testAccount = await nodemailer.createTestAccount();
   return nodemailer.createTransport({
     host: "smtp.ethereal.email",
@@ -35,7 +36,6 @@ async function createTransporter() {
   });
 }
 
-// 6-stelliger Code
 function generateVerificationCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -55,7 +55,14 @@ router.post("/register", async (req, res) => {
     const code = generateVerificationCode();
     const codeExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    const user = new User({ username, email, password, role, verificationCode: code, codeExpiresAt });
+    const user = new User({
+      username,
+      email,
+      password,
+      role,
+      verificationCode: code,
+      codeExpiresAt
+    });
     await user.save();
 
     try {
@@ -67,10 +74,16 @@ router.post("/register", async (req, res) => {
         text: `Dein Verifizierungscode: ${code}\nGültig für 15 Minuten.`,
         html: `<p>Dein Verifizierungscode: <b>${code}</b></p><p>Gültig für 15 Minuten.</p>`
       };
-      await transporter.sendMail(mail);
-      res.status(201).json({ message: "Registrierung erfolgreich. Bitte Code aus E-Mail bestätigen." });
+      const info = await transporter.sendMail(mail);
+
+      // If ethereal used, return preview url for debug
+      let preview = null;
+      if (nodemailer.getTestMessageUrl && info) preview = nodemailer.getTestMessageUrl(info);
+
+      res.status(201).json({ message: "Registrierung erfolgreich. Bitte Code aus E-Mail bestätigen.", preview });
     } catch (mailErr) {
       console.error("Mail error:", mailErr);
+      // user created anyway
       res.status(201).json({ message: "Registrierung erstellt, konnte aber keine E-Mail versenden. Bitte Admin kontaktieren." });
     }
   } catch (err) {
@@ -136,7 +149,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Code erneut senden
+// Resend code (optional)
 router.post("/resend-code", async (req, res) => {
   try {
     const { username } = req.body;
@@ -159,8 +172,10 @@ router.post("/resend-code", async (req, res) => {
         text: `Dein neuer Verifizierungscode: ${code}\nGültig für 15 Minuten.`,
         html: `<p>Dein neuer Verifizierungscode: <b>${code}</b></p><p>Gültig für 15 Minuten.</p>`
       };
-      await transporter.sendMail(mail);
-      res.json({ message: "Code versendet" });
+      const info = await transporter.sendMail(mail);
+      let preview = null;
+      if (nodemailer.getTestMessageUrl && info) preview = nodemailer.getTestMessageUrl(info);
+      res.json({ message: "Code versendet", preview });
     } catch (err) {
       console.error("Mail-send failed:", err);
       res.status(500).json({ error: "Konnte keine E-Mail versenden" });
@@ -172,4 +187,3 @@ router.post("/resend-code", async (req, res) => {
 });
 
 export default router;
-
