@@ -1,11 +1,10 @@
-// public/js/app.js
 import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
 import { initSocket } from "./socketClient.js";
 import { initAuthHandlers } from "./authHandlers.js";
 import { initChatHandlers, loadMessages } from "./chatHandlers.js";
 
-// --- State initialisieren ---
+// --- State ---
 const state = {
   token: localStorage.getItem("token") || null,
   username: localStorage.getItem("username") || null,
@@ -13,21 +12,22 @@ const state = {
   filterActive: false,
   socket: null,
   socketConnected: false,
-  chatWindow: DOM.chatWindow,
-  sendBtn: DOM.sendBtn,
-  messageInput: DOM.messageInput,
-  filterBtn: DOM.filterBtn
+  chatWindow: null,
+  sendBtn: null,
+  messageInput: null,
+  filterBtn: null
 };
 
-// --- Socket, Auth & Chat initialisieren ---
-initSocket(state);
-initAuthHandlers(state);
-initChatHandlers(state);
+// --- Warten bis DOM geladen ist ---
+document.addEventListener("DOMContentLoaded", () => {
+  state.chatWindow = DOM.getChatWindow();
+  state.sendBtn = DOM.getSendBtn();
+  state.messageInput = DOM.getMessageInput();
+  state.filterBtn = DOM.getFilterBtn();
 
-// --- Alte Nachrichten laden, falls Token vorhanden ---
-if (state.token) {
-  loadMessages(state).catch(err => {
-    console.error("Fehler beim Laden der Nachrichten:", err);
-    UI.showError("Konnte Nachrichten nicht laden.");
-  });
-}
+  initSocket(state);
+  initAuthHandlers(state);
+  initChatHandlers(state);
+
+  if (state.token) loadMessages(state);
+});
