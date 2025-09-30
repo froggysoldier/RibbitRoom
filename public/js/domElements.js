@@ -1,6 +1,7 @@
 // public/js/domElements.js
+// Exports live bindings (let) and an init function.
+// Call initDomElements() after DOMContentLoaded.
 
-// Alle DOM-Elemente als `let`, werden später initialisiert
 export let loginBtn = null;
 export let modal = null;
 export let closeModal = null;
@@ -16,33 +17,37 @@ export let codeModal = null;
 export let codeInput = null;
 export let codeSubmit = null;
 
-// Init-Funktion: muss aufgerufen werden, sobald DOM geladen ist
 export function initDomElements() {
-  loginBtn = document.getElementById("loginBtn");
-  modal = document.getElementById("loginModal");
-  closeModal = document.querySelector(".close");
-  loginSubmit = document.getElementById("loginSubmit");
-  registerSubmit = document.getElementById("registerSubmit");
-  usersListEl = document.getElementById("users");
-  chatWindow = document.getElementById("chatWindow");
-  sendBtn = document.getElementById("sendBtn");
-  messageInput = document.getElementById("messageInput");
-  filterBtn = document.getElementById("filterBtn");
+  // assign once
+  if (!loginBtn) loginBtn = document.getElementById("loginBtn");
+  if (!modal) modal = document.getElementById("loginModal");
+  if (!closeModal) closeModal = document.querySelector("#loginModal .close");
+  if (!loginSubmit) loginSubmit = document.getElementById("loginSubmit");
+  if (!registerSubmit) registerSubmit = document.getElementById("registerSubmit");
+  if (!usersListEl) usersListEl = document.getElementById("users");
+  if (!chatWindow) chatWindow = document.getElementById("chatWindow");
+  if (!sendBtn) sendBtn = document.getElementById("sendBtn");
+  if (!messageInput) messageInput = document.getElementById("messageInput");
+  if (!filterBtn) filterBtn = document.getElementById("filterBtn");
 
-  codeModal = document.getElementById("codeModal");
-  codeInput = document.getElementById("code");
-  codeSubmit = document.getElementById("codeSubmit");
+  if (!codeModal) codeModal = document.getElementById("codeModal");
+  if (!codeInput) codeInput = document.getElementById("code");
+  if (!codeSubmit) codeSubmit = document.getElementById("codeSubmit");
 
-  // Debug: Warnung, falls ein Element fehlt
+  // Debug: warn if elements missing
   const missing = [];
   if (!loginBtn) missing.push("loginBtn");
   if (!modal) missing.push("loginModal");
   if (!loginSubmit) missing.push("loginSubmit");
   if (!registerSubmit) missing.push("registerSubmit");
-  if (!codeInput) missing.push("codeInput");
+  if (!codeInput) missing.push("code input (#code)");
   if (!codeSubmit) missing.push("codeSubmit");
   if (!chatWindow) missing.push("chatWindow");
   if (!sendBtn) missing.push("sendBtn");
 
-  if (missing.length) console.warn("[initDomElements] fehlende Elemente:", missing.join(", "));
+  if (missing.length) {
+    console.warn("[initDomElements] fehlende Elemente:", missing.join(", "));
+  } else {
+    console.log("[initDomElements] alle nötigen DOM-Elemente gefunden.");
+  }
 }
