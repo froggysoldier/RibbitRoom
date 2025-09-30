@@ -22,37 +22,39 @@
 </header>
   
 <main>
-  <div id="container">
-    <!-- Sidebar für aktive Nutzer -->
-    <div id="userList">
-      <h3><span class="highlight">Aktive Nutzer</span></h3>
-      <ul id="users"></ul>
+  <center>
+    <div id="container">
+      <!-- Sidebar für aktive Nutzer -->
+      <div id="userList">
+        <h3><span class="highlight">Aktive Nutzer</span></h3>
+        <ul id="users"></ul>
+      </div>
+  
+      <!-- Chatbereich -->
+      <div id="chatArea">
+        <div id="chatWindow">
+         <!--- <p><strong>System:</strong> Willkommen im Chat!</p>
+          <p><strong>System:</strong> Erst Anmelden!</p> --->
+        </div>
+  
+        <div id="inputArea">
+          <textarea id="messageInput" placeholder="Nachricht eingeben..." rows="2"></textarea>
+          <button id="sendBtn">Senden</button>
+        </div>
+  
+        <!-- Filter Switch unter dem Input-Bereich -->
+        <div id="filterContainer">
+          <label class="switch">
+            <input type="checkbox" id="filterBtn">
+            <span class="slider round"></span>
+          </label>
+          <span class="filterLabel">🐸 FroschFilter</span>
+        </div>
+  
+  
+      </div>
     </div>
-
-    <!-- Chatbereich -->
-    <div id="chatArea">
-      <div id="chatWindow">
-       <!--- <p><strong>System:</strong> Willkommen im Chat!</p>
-        <p><strong>System:</strong> Erst Anmelden!</p> --->
-      </div>
-
-      <div id="inputArea">
-        <textarea id="messageInput" placeholder="Nachricht eingeben..." rows="2"></textarea>
-        <button id="sendBtn">Senden</button>
-      </div>
-
-      <!-- Filter Switch unter dem Input-Bereich -->
-      <div id="filterContainer">
-        <label class="switch">
-          <input type="checkbox" id="filterBtn">
-          <span class="slider round"></span>
-        </label>
-        <span class="filterLabel">🐸 FroschFilter</span>
-      </div>
-
-
-    </div>
-  </div>
+  </center>
 </main>
 
 <!-- Modal für Login/Register -->
@@ -80,6 +82,7 @@
 
 </body>
 </html>
+
 
 
 
