@@ -63,10 +63,11 @@
     <input type="text" id="username" placeholder="Benutzername">
     <input type="password" id="password" placeholder="Passwort">
     <button id="loginSubmit">Einloggen</button>
-    <!-- Modal für Code-Eingabe -->
-    <input type="text" id="code" placeholder="Bestätigungscode" />
-    <button id="codeSubmit">Bestätigen</button>
-    <hr>
+    <!-- Code-Eingabe nur anzeigen wenn nötig -->
+    <div id="codeBlock" style="display:none; margin-top:10px;">
+      <input type="text" id="code" placeholder="Bestätigungscode" />
+      <button id="codeSubmit">Bestätigen</button>
+    </div>
     <h3>Oder registrieren</h3>
     <input type="text" id="newUser" placeholder="Benutzername">
     <input type="password" id="newPass" placeholder="Passwort">
@@ -80,6 +81,7 @@
 
 </body>
 </html>
+
 
 
 
