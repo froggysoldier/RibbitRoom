@@ -1,9 +1,13 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <title>Ribbit Room</title>
   <link rel="stylesheet" href="style.css">
+        <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+        <link rel="manifest" href="images/site.webmanifest">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -13,24 +17,33 @@
   <img src="images/logo.png" alt="Mein Logo" class="logo">
   <nav>
     <ul>
-     <li> <a href="start.html">Startseite</a></li>
+    <li> <a href="start.html">Startseite</a></li>
     <li> <a href="index.html">Chatroom</a></li>
     <li> <a href="Kontakt.html">Kontakt</a></li>
     <li> <a href="Impressum.html">Impressum</a></li>
-     </ul> 
+     </ul>
   </nav>
 </header>
-  
-<main>
- 
 
-      
+<main>
+    <div class="center-block">
+         <ul class="regeln">
+                  <h3><span class="highlight">Chatroom Regeln:</span></h3>
+           <li>Sei Respektvoll gegenüber den anderen im Chat.</li>
+           <li>Kein Sexismus, Rassismus, Antisemitismus oder andere Hassrede.</li>
+           <li>Vermeide Politische, Religiöse oder negative Themen.</li>
+           <li>Kein Spamming.</li>
+           <li>Keine sexuell unangebrachten oder respektlose Kommentare.</li>
+           <li>Bitte frag nicht nach extra Rechten (Mod, Admin).</li>
+         </ul>
+         </div>
+
 </main>
 
 <!-- Modal für Login/Register -->
 <div id="loginModal" class="modal">
   <div class="modal-content">
-    <span class="close">&times;</span>
+    <span class="close">×</span>
     <h2>Login</h2>
     <input type="text" id="username" placeholder="Benutzername">
     <input type="password" id="password" placeholder="Passwort">
