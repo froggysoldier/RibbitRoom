@@ -1,9 +1,7 @@
-// public/js/chatHandlers.js
 import * as UI from "./uiHelpers.js";
-import * as DOM from "./domElements.js";
 
 export async function loadMessages(state) {
-  if (!state.token) return;
+  if (!state.token || !state.chatWindow) return;
 
   const headers = { 
     "Content-Type": "application/json", 
@@ -37,7 +35,7 @@ export async function loadMessages(state) {
 }
 
 export function initChatHandlers(state) {
-  if (!state) return;
+  if (!state || !state.sendBtn || !state.messageInput || !state.filterBtn) return;
 
   const sendMessage = () => {
     const content = state.messageInput.value.trim();
@@ -51,20 +49,14 @@ export function initChatHandlers(state) {
   };
 
   state.messageInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
   state.messageInput.addEventListener("input", () => {
     state.sendBtn.disabled = !state.messageInput.value.trim();
   });
 
-  state.sendBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    sendMessage();
-  });
+  state.sendBtn.addEventListener("click", (e) => { e.preventDefault(); sendMessage(); });
 
   state.filterBtn.addEventListener("change", () => {
     if (!state.socket || !state.socket.connected) return;
