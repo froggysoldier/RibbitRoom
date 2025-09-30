@@ -52,12 +52,16 @@ export function initAuthHandlers(state) {
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
-
+      
       if (res.status === 403 && data.error.includes("nicht verifiziert")) {
         UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte eingeben.");
         state.pendingUsername = username;
-        document.getElementById("code").style.display = "inline-block";
-        document.getElementById("codeSubmit").style.display = "inline-block";
+      
+        // Ganze Code-Modal anzeigen
+        DOM.codeModal.style.display = "block";
+        // Optional: Input und Button
+        DOM.codeInput.style.display = "inline-block";
+        DOM.codeSubmit.style.display = "inline-block";
         return;
       }
 
