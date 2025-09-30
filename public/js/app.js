@@ -5,7 +5,7 @@ import { initSocket } from "./socketClient.js";
 import { initAuthHandlers } from "./authHandlers.js";
 import { initChatHandlers, loadMessages } from "./chatHandlers.js";
 
-// State initialisieren
+// --- State initialisieren ---
 const state = {
   token: localStorage.getItem("token") || null,
   username: localStorage.getItem("username") || null,
@@ -19,10 +19,15 @@ const state = {
   filterBtn: DOM.filterBtn
 };
 
-// Socket, Auth & Chat initialisieren
+// --- Socket, Auth & Chat initialisieren ---
 initSocket(state);
 initAuthHandlers(state);
 initChatHandlers(state);
 
-// Alte Nachrichten laden, falls Token vorhanden
-if (state.token) loadMessages(state);
+// --- Alte Nachrichten laden, falls Token vorhanden ---
+if (state.token) {
+  loadMessages(state).catch(err => {
+    console.error("Fehler beim Laden der Nachrichten:", err);
+    UI.showError("Konnte Nachrichten nicht laden.");
+  });
+}
