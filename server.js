@@ -31,3 +31,36 @@ initSockets(io);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+async function testMail() {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: "ribbitroomrender@gmail.com", // test-eMail an dich selbst
+      subject: "Test-Mail von RibbitRoom",
+      text: "Hallo, das ist ein Test!",
+      html: "<b>Hallo, das ist ein Test!</b>"
+    });
+
+    console.log("Mail gesendet:", info.messageId);
+  } catch (err) {
+    console.error("Mail-Test fehlgeschlagen:", err);
+  }
+}
+
+testMail();
