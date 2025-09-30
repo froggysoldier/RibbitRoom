@@ -356,9 +356,10 @@ nav a:hover {
 .modal-content {
   background: var(--color-panel);
   margin: 10% auto;
-  padding: 20px;
+  padding: 30px;
   border-radius: 12px;
   width: 320px;
+  box-sizing: border-box; 
   box-shadow: 0 6px 16px var(--shadow-strong);
   color: var(--color-text);
 }
