@@ -59,7 +59,6 @@ export function initAuthHandlers(state) {
       
         // Ganze Code-Modal anzeigen
         DOM.codeModal.style.display = "block";
-        // Optional: Input und Button
         DOM.codeInput.style.display = "inline-block";
         DOM.codeSubmit.style.display = "inline-block";
         return;
