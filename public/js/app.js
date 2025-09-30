@@ -5,8 +5,11 @@ import { initSocket } from "./socketClient.js";
 import { initAuthHandlers } from "./authHandlers.js";
 import { initChatHandlers, loadMessages } from "./chatHandlers.js";
 
-document.addEventListener("DOMContentLoaded", () => {
-  // State initialisieren (lese DOM-Elemente hier, wenn du willst)
+document.addEventListener("DOMContentLoaded", async () => {
+  // init DOM element bindings (wichtig!)
+  DOM.initDomElements();
+
+  // State initialisieren
   const state = {
     token: localStorage.getItem("token") || null,
     username: localStorage.getItem("username") || null,
@@ -21,11 +24,14 @@ document.addEventListener("DOMContentLoaded", () => {
     usersListEl: DOM.usersListEl
   };
 
+  // Debug
+  console.log("app.js ready — DOM elements initialised. loginBtn:", DOM.loginBtn);
+
   // Socket, Auth & Chat initialisieren
   initSocket(state);
   initAuthHandlers(state);
   initChatHandlers(state);
 
   // Alte Nachrichten laden, falls Token vorhanden
-  if (state.token) loadMessages(state);
+  if (state.token) await loadMessages(state);
 });
