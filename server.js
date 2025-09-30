@@ -23,6 +23,7 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log("MongoDB verbunden"))
 .catch(err => console.error("MongoDB Fehler:", err));
 
+/*
 async function testMail() {
   try {
     const transporter = nodemailer.createTransport({
@@ -51,10 +52,7 @@ async function testMail() {
 
 testMail();
 
-
-
-
-
+*/
 // Routes
 app.use("/api/auth", authRoutes);
 
@@ -67,5 +65,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });
+
 
 
