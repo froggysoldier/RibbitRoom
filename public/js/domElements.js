@@ -9,7 +9,8 @@ export const chatWindow = document.getElementById("chatWindow");
 export const sendBtn = document.getElementById("sendBtn");
 export const messageInput = document.getElementById("messageInput");
 export const filterBtn = document.getElementById("filterBtn");
-export const codeBlock = document.getElementById("codeBlock");
+
+// Code-Modal
+export const codeModal = document.getElementById("codeBlock");
 export const codeSubmit = document.getElementById("codeSubmit");
 export const codeInput = document.getElementById("code");
-
