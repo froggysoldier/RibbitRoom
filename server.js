@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 import authRoutes from "./routes/authRoutes.js"; // ES Module import
 import path from "path";
 import { fileURLToPath } from "url";
@@ -21,11 +22,6 @@ mongoose.connect(process.env.MONGO_URI, {
 })
 .then(() => console.log("MongoDB verbunden"))
 .catch(err => console.error("MongoDB Fehler:", err));
-
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 async function testMail() {
   try {
@@ -71,4 +67,5 @@ app.use(express.static(path.join(__dirname, "public")));
 app.listen(PORT, () => {
   console.log(`Server läuft auf http://localhost:${PORT}`);
 });
+
 
