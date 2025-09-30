@@ -7,10 +7,10 @@ import { initSocket } from "./socketClient.js";
 export function initAuthHandlers(state) {
   if (!state) return;
 
-  function refreshLoginButton() {
+  const refreshLoginButton = () => {
     DOM.loginBtn.textContent =
       state.token && state.username ? "Abmelden" : "Login / Registrieren";
-  }
+  };
 
   refreshLoginButton();
 
@@ -23,17 +23,16 @@ export function initAuthHandlers(state) {
       localStorage.removeItem("token");
       localStorage.removeItem("username");
       if (state.socket) {
-        try {
-          state.socket.auth = {};
-          state.socket.disconnect();
-        } catch {}
+        try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
         state.socket = null;
       }
       DOM.usersListEl.innerHTML = "";
       refreshLoginButton();
       UI.showInfo("Abgemeldet");
       window.location.reload();
-    } else DOM.modal.style.display = "block";
+    } else {
+      DOM.modal.style.display = "block";
+    }
   };
 
   DOM.closeModal.onclick = () => { DOM.modal.style.display = "none"; };
@@ -41,8 +40,8 @@ export function initAuthHandlers(state) {
 
   // --- Login Schritt 1 ---
   DOM.loginSubmit.addEventListener("click", async () => {
-    const username = document.getElementById("username").value.trim();
-    const password = document.getElementById("password").value.trim();
+    const username = DOM.username.value.trim();
+    const password = DOM.password.value.trim();
     if (!username || !password) return UI.showError("Bitte Benutzername und Passwort eingeben.");
 
     try {
@@ -52,13 +51,13 @@ export function initAuthHandlers(state) {
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
-      
-      if (res.status === 403 && data.error.includes("nicht verifiziert")) {
+
+      if (res.status === 403 && data.error?.includes("nicht verifiziert")) {
         UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte eingeben.");
         state.pendingUsername = username;
-      
-        // Ganze Code-Modal anzeigen
-        DOM.codeModal.style.display = "block";
+
+        // Code-Modal sichtbar machen
+        DOM.codeBlock.style.display = "block";
         DOM.codeInput.style.display = "inline-block";
         DOM.codeSubmit.style.display = "inline-block";
         return;
@@ -91,7 +90,7 @@ export function initAuthHandlers(state) {
 
   // --- Login Schritt 2: Code bestätigen ---
   DOM.codeSubmit.addEventListener("click", async () => {
-    const code = document.getElementById("code").value.trim();
+    const code = DOM.codeInput.value.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
 
     try {
@@ -129,14 +128,14 @@ export function initAuthHandlers(state) {
 
   // --- Registrierung ---
   DOM.registerSubmit.addEventListener("click", async () => {
-    const newU = document.getElementById("newUser").value.trim();
-    const newP = document.getElementById("newPass").value.trim();
-    const email = document.getElementById("email").value.trim();
+    const newU = DOM.newUser.value.trim();
+    const newP = DOM.newPass.value.trim();
+    const email = DOM.email.value.trim();
     if (!newU || !newP || !email) return UI.showError("Bitte alle Felder ausfüllen.");
 
     try {
       const body = { username: newU, password: newP, email };
-      const adminPassField = document.getElementById("adminPass")?.value?.trim();
+      const adminPassField = DOM.adminPass?.value?.trim();
       if (adminPassField) body.adminPass = adminPassField;
 
       const res = await fetch("/api/auth/register", {
