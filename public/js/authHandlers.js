@@ -1,8 +1,7 @@
-// public/js/authHandlers.js
 import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
-import { loadMessages } from "./chatHandlers.js";
 import { initSocket } from "./socketClient.js";
+import { loadMessages } from "./chatHandlers.js";
 
 export function initAuthHandlers(state) {
   if (!state) return;
@@ -17,7 +16,7 @@ export function initAuthHandlers(state) {
   // --- Login / Logout ---
   DOM.loginBtn?.addEventListener("click", () => {
     if (state.token) {
-      // Logout
+      // logout
       state.token = null;
       state.username = null;
       state.myRole = "user";
@@ -41,8 +40,32 @@ export function initAuthHandlers(state) {
   DOM.closeModal?.addEventListener("click", () => {
     if (DOM.modal) DOM.modal.style.display = "none";
   });
-  window.addEventListener("click", (e) => {
-    if (e.target === DOM.modal) DOM.modal.style.display = "none";
+  window.addEventListener("click", e => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; });
+
+  // --- Registration ---
+  DOM.registerSubmit?.addEventListener("click", async () => {
+    const newU = document.getElementById("newUser")?.value?.trim();
+    const newP = document.getElementById("newPass")?.value?.trim();
+    const email = document.getElementById("email")?.value?.trim();
+    const adminPass = document.getElementById("adminPass")?.value?.trim();
+    if (!newU || !newP || !email) return UI.showError("Bitte alle Felder ausfüllen.");
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: newU, password: newP, email, adminPass })
+      });
+      const data = await res.json();
+
+      if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
+
+      UI.showInfo(data.message);
+      if (DOM.modal) DOM.modal.style.display = "none";
+    } catch (err) {
+      console.error("Register error:", err);
+      UI.showError("Registrieren-Fehler");
+    }
   });
 
   // --- Login ---
@@ -59,15 +82,9 @@ export function initAuthHandlers(state) {
       });
       const data = await res.json();
 
-      // ❗ Account nicht verifiziert
       if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
         UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte Code eingeben.");
         state.pendingUsername = username;
-
-        // 1️⃣ Login-Modal sichtbar machen
-        if (DOM.modal) DOM.modal.style.display = "block";
-
-        // 2️⃣ Code-Feld sichtbar machen
         if (DOM.codeModal) DOM.codeModal.style.display = "block";
         return;
       }
@@ -120,10 +137,8 @@ export function initAuthHandlers(state) {
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
-      // ✅ Modal + Code-Feld schließen
       if (DOM.modal) DOM.modal.style.display = "none";
       if (DOM.codeModal) DOM.codeModal.style.display = "none";
-
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
@@ -137,34 +152,6 @@ export function initAuthHandlers(state) {
     } catch (err) {
       console.error("Verify error:", err);
       UI.showError("Fehler bei Code-Bestätigung");
-    }
-  });
-
-  // --- Registration ---
-  DOM.registerSubmit?.addEventListener("click", async () => {
-    const newU = document.getElementById("newUser")?.value?.trim();
-    const newP = document.getElementById("newPass")?.value?.trim();
-    const email = document.getElementById("email")?.value?.trim();
-    const adminPass = document.getElementById("adminPass")?.value?.trim();
-    if (!newU || !newP || !email) return UI.showError("Bitte alle Felder ausfüllen.");
-
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newU, password: newP, email, adminPass })
-      });
-      const data = await res.json();
-      if (!res.ok) return UI.showError(data.error || "Registrierung fehlgeschlagen");
-
-      // ✅ Login-Modal offen lassen, Code-Feld sichtbar machen
-      if (DOM.modal) DOM.modal.style.display = "block";
-      if (DOM.codeModal) DOM.codeModal.style.display = "block";
-
-      UI.showInfo("Registrierung erfolgreich — bitte prüfe deine E-Mail für den Code.");
-    } catch (err) {
-      console.error("Register error:", err);
-      UI.showError("Registrieren-Fehler");
     }
   });
 }
