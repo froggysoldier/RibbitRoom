@@ -37,24 +37,28 @@ body {
   width: 125%; /* damit es nicht zu schmal wirkt */
   height: 125%;
   margin: 0;
+  padding: 0;
   font-family: 'Poppins', Arial, sans-serif;
   background-image: url("images/background.jpeg"); /* Pfad zum Bild */
-  background-size: cover; /* Bild auf ganze Fläche anpassen */
+  background-size: cover; /* Bild auf ganze FlÃ¤che anpassen */
   background-repeat: no-repeat; /* Bild nicht wiederholen */
   background-position: center; /* Bild zentrieren */
   color: var(--color-text);
+  background-attachment: fixed; /* (optional) Bild bleibt beim Scrollen */
 }
 
 /* ====== Header ====================================================== */
 header {
   background: var(--color-header-bg);
   color: var(--color-header-text);
-  padding: 15px 0;
+  width: 115%;
+  margin: 0;
+  padding: 0 20px;
   display: flex;
   justify-content: center;
   align-items: center;
   position: relative;
-  box-shadow: 0 2px 6px var(--shadow-medium);
+  box-sizing: border-box;
 }
 /* ====== LoginButton ====================================================== */
 #loginBtn {
@@ -123,19 +127,24 @@ main {
 /* ======== Navigationsleiste ========================================================= */
 nav {
   position: absolute;
-  right: 30px;
-  top: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt));
+  top: 65%;          /* etwas tiefer als der Login-Button */
+  right: 0px;       /* näher am rechten Rand */
+  transform: translateY(-50%); /* vertikal zentrieren */
+
   border: 2px solid transparent;
   border-radius: 8px;
   color: white;
-  padding: 30px 2px;
+  padding: 28px 32px;  /* gleiche Höhe wie Login-Button */
   font-weight: bold;
   font-size: 18px;
   cursor: pointer;
+  display: flex;       /* damit die <ul> horizontal bleibt */
+  gap: 10px;           /* Abstand zwischen den Links */
   transition: box-shadow 0.3s ease, color 0.3s ease;
-
 }
+
+
+
 nav ul {
   list-style-type: none;
   display: flex;
@@ -143,19 +152,22 @@ nav ul {
   padding: 0;
 }
 nav li {
-  margin-right: 2px;
+  margin-right: 20px;
 }
 nav a {
-  color: var(--color-link);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt)); /* sichtbar */
+  color: white;
   text-decoration: none;
   font-weight: bold;
   padding: 30px 42px;
   border-radius: 8px;
-
+  transition: background 0.3s ease, border 0.3s ease, color 0.3s ease;
 }
+
 nav a:hover {
-  border: 2px solid var(--color-header-bg);;
-  background:var(--color-header-bg);
+  background-image: none; /* Gradient verschwindet */
+  background: transparent; /* jetzt wird durchsichtig */
+  border: 2px solid var(--color-accent);
   color: var(--color-accent);
 }
 
@@ -451,8 +463,9 @@ nav a:hover {
 }
 
 input:checked + .slider {
-  background-color: var(--color-primary); /* aktiv: grün */
+  background-color: var(--color-primary); /* aktiv: grÃ¼n */
 }
 
 input:checked + .slider:before {
-  transform: tr
+  transform: translateX(24px);
+}
