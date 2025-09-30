@@ -1,12 +1,11 @@
 // public/js/app.js
 import * as DOM from "./domElements.js";
-import * as UI from "./uiHelpers.js";
-import { initSocket } from "./socketClient.js";
 import { initAuthHandlers } from "./authHandlers.js";
+import { initSocket } from "./socketClient.js";
 import { initChatHandlers, loadMessages } from "./chatHandlers.js";
 
-document.addEventListener("DOMContentLoaded", async () => {
-  // init DOM element bindings (wichtig!)
+document.addEventListener("DOMContentLoaded", () => {
+  // DOM-Elemente setzen
   DOM.initDomElements();
 
   // State initialisieren
@@ -14,18 +13,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     token: localStorage.getItem("token") || null,
     username: localStorage.getItem("username") || null,
     myRole: "user",
-    filterActive: false,
     socket: null,
     socketConnected: false,
-    chatWindow: DOM.chatWindow,
-    sendBtn: DOM.sendBtn,
-    messageInput: DOM.messageInput,
-    filterBtn: DOM.filterBtn,
-    usersListEl: DOM.usersListEl
+    filterActive: false
   };
-
-  // Debug
-  console.log("app.js ready — DOM elements initialised. loginBtn:", DOM.loginBtn);
 
   // Socket, Auth & Chat initialisieren
   initSocket(state);
@@ -33,5 +24,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   initChatHandlers(state);
 
   // Alte Nachrichten laden, falls Token vorhanden
-  if (state.token) await loadMessages(state);
+  if (state.token) loadMessages(state);
 });
