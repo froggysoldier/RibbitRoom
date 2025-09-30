@@ -1,7 +1,3 @@
-// public/js/domElements.js
-// Exports live bindings (let) and an init function.
-// Call initDomElements() after DOMContentLoaded.
-
 export let loginBtn = null;
 export let modal = null;
 export let closeModal = null;
@@ -18,36 +14,29 @@ export let codeInput = null;
 export let codeSubmit = null;
 
 export function initDomElements() {
-  // assign once
-  if (!loginBtn) loginBtn = document.getElementById("loginBtn");
-  if (!modal) modal = document.getElementById("loginModal");
-  if (!closeModal) closeModal = document.querySelector("#loginModal .close");
-  if (!loginSubmit) loginSubmit = document.getElementById("loginSubmit");
-  if (!registerSubmit) registerSubmit = document.getElementById("registerSubmit");
-  if (!usersListEl) usersListEl = document.getElementById("users");
-  if (!chatWindow) chatWindow = document.getElementById("chatWindow");
-  if (!sendBtn) sendBtn = document.getElementById("sendBtn");
-  if (!messageInput) messageInput = document.getElementById("messageInput");
-  if (!filterBtn) filterBtn = document.getElementById("filterBtn");
+  loginBtn = loginBtn || document.getElementById("loginBtn");
+  modal = modal || document.getElementById("loginModal");
+  closeModal = closeModal || document.querySelector(".close");
+  loginSubmit = loginSubmit || document.getElementById("loginSubmit");
+  registerSubmit = registerSubmit || document.getElementById("registerSubmit");
+  usersListEl = usersListEl || document.getElementById("users");
+  chatWindow = chatWindow || document.getElementById("chatWindow");
+  sendBtn = sendBtn || document.getElementById("sendBtn");
+  messageInput = messageInput || document.getElementById("messageInput");
+  filterBtn = filterBtn || document.getElementById("filterBtn");
 
-  if (!codeModal) codeModal = document.getElementById("codeModal");
-  if (!codeInput) codeInput = document.getElementById("code");
-  if (!codeSubmit) codeSubmit = document.getElementById("codeSubmit");
+  codeModal = codeModal || document.getElementById("codeModal");
+  codeInput = codeInput || document.getElementById("code");
+  codeSubmit = codeSubmit || document.getElementById("codeSubmit");
 
-  // Debug: warn if elements missing
   const missing = [];
   if (!loginBtn) missing.push("loginBtn");
-  if (!modal) missing.push("loginModal");
+  if (!modal) missing.push("modal");
   if (!loginSubmit) missing.push("loginSubmit");
   if (!registerSubmit) missing.push("registerSubmit");
-  if (!codeInput) missing.push("code input (#code)");
+  if (!codeInput) missing.push("codeInput");
   if (!codeSubmit) missing.push("codeSubmit");
   if (!chatWindow) missing.push("chatWindow");
   if (!sendBtn) missing.push("sendBtn");
-
-  if (missing.length) {
-    console.warn("[initDomElements] fehlende Elemente:", missing.join(", "));
-  } else {
-    console.log("[initDomElements] alle nötigen DOM-Elemente gefunden.");
-  }
+  if (missing.length) console.warn("[initDomElements] fehlende Elemente:", missing.join(", "));
 }
