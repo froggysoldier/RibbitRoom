@@ -1,3 +1,4 @@
+// public/js/authHandlers.js
 import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
 import { loadMessages } from "./chatHandlers.js";
@@ -26,7 +27,7 @@ export function initAuthHandlers(state) {
         try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
         state.socket = null;
       }
-      DOM.usersListEl.innerHTML = "";
+      if (DOM.usersListEl) DOM.usersListEl.innerHTML = "";
       refreshLoginButton();
       UI.showInfo("Abgemeldet");
       window.location.reload();
@@ -58,9 +59,15 @@ export function initAuthHandlers(state) {
       });
       const data = await res.json();
 
+      // ❗ Account nicht verifiziert
       if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
         UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte Code eingeben.");
         state.pendingUsername = username;
+
+        // 1️⃣ Login-Modal sichtbar machen
+        if (DOM.modal) DOM.modal.style.display = "block";
+
+        // 2️⃣ Code-Feld sichtbar machen
         if (DOM.codeModal) DOM.codeModal.style.display = "block";
         return;
       }
@@ -113,8 +120,10 @@ export function initAuthHandlers(state) {
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
+      // ✅ Modal + Code-Feld schließen
       if (DOM.modal) DOM.modal.style.display = "none";
       if (DOM.codeModal) DOM.codeModal.style.display = "none";
+
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
@@ -148,8 +157,11 @@ export function initAuthHandlers(state) {
       const data = await res.json();
       if (!res.ok) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
+      // ✅ Login-Modal offen lassen, Code-Feld sichtbar machen
+      if (DOM.modal) DOM.modal.style.display = "block";
+      if (DOM.codeModal) DOM.codeModal.style.display = "block";
+
       UI.showInfo("Registrierung erfolgreich — bitte prüfe deine E-Mail für den Code.");
-      if (DOM.modal) DOM.modal.style.display = "none";
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
