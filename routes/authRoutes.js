@@ -1,8 +1,8 @@
 // routes/authRoutes.js
-const express = require("express");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const nodemailer = require("nodemailer");
+import express from "express";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import nodemailer from "nodemailer";
 
 const router = express.Router();
 
@@ -171,4 +171,5 @@ router.post("/resend-code", async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
+
