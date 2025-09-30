@@ -13,9 +13,9 @@
   --color-error: #ff4c4c; /*ErrorMsg*/ /*AdminMsg*/ /*Admincolor*/
   --color-system: #888; /*UserMsgBg*/
 
-  --color-panel: #121212; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
+  --color-panel: #272E37; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
   --color-panel-light: #2a2a2a; /*InfoMsg*/
-  --color-input-bg: #121212;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
+  --color-input-bg: #545C53;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
 
   --color-nav-bg: #719254; /*NavLeiste*/
   --color-link: #ffffff; /*Links*/
@@ -161,7 +161,7 @@ main {
   border-radius: 12px;
   padding: 15px;
   height: 605px;
-  margin-left: 40px;  /* verschiebt den Block nach rechts */           
+  margin-left: 40px;  /* verschiebt den Block nach rechts */
   overflow-y: auto;
   box-shadow: 0 4px 10px var(--shadow-medium);
 }
@@ -169,7 +169,7 @@ main {
 #userList h3 {
   margin-top: 0;
   text-align: center;
-  font-size: 20px;
+  font-size: 30px;
   color: var(--color-accent);
   font-weight: 600;
 }
@@ -229,7 +229,7 @@ main {
 /* Systemnachrichten */
 .message.system {
   background: var(--color-system);
-  color: var(--color-input-bg);
+  color: var(--color-panel);
   font-style: italic;
 }
 
@@ -279,7 +279,7 @@ main {
   border: 1px solid #333;
   border-radius: 8px;
   outline: none;
-  background: var(--color-input-bg);
+  background: var(--color-panel);
   color: var(--color-text);
   font-family: 'Poppins', sans-serif;
   font-size: 16px;
@@ -335,7 +335,7 @@ main {
   padding: 10px;
   border: 1px solid #333;
   border-radius: 8px;
-  background: var(--color-input-bg);
+  background: var(--color-panel);
   color: var(--color-text);
   font-family: 'Poppins', sans-serif;
   font-size: 18px;
@@ -438,7 +438,7 @@ input:checked + .slider:before {
 /* ====== Startseite ====================================== */
 
  .center-block {
-  min-height: 100vh;
+  min-height: 0vh;
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -459,6 +459,15 @@ input:checked + .slider:before {
   text-align: left;
   font-size: var(--font-size);      /* größere Schrift */
   font-family: 'Poppins', sans-serif;
+  font-weight: 600;
   line-height: 3;
   margin-left: 340px;  /* verschiebt den Block nach rechts */
+}
+
+.regeln h3{
+  margin-top: 0;
+  text-align: center;
+  font-size: 30px;
+  color: var(--color-accent);
+  font-weight: 600;
 }
