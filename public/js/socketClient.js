@@ -1,4 +1,3 @@
-// public/js/socketClient.js
 import * as UI from "./uiHelpers.js";
 import * as DOM from "./domElements.js";
 import { loadMessages } from "./chatHandlers.js";
@@ -10,18 +9,16 @@ export function initSocket(state) {
   // Socket.IO initialisieren
   state.socket = io({ auth: { token: state.token } });
 
-  // Verbindung hergestellt
   state.socket.on("connect", () => {
     state.socketConnected = true;
     if (state.token) state.socket.emit("identify", { token: state.token });
-    UI.setSendEnabled(!!state.token);
+    if (state.sendBtn && state.messageInput) UI.setSendEnabled(!!state.token);
   });
 
   state.socket.on("connect_error", (err) =>
     console.warn("[SOCKET] connect_error", err?.message || err)
   );
 
-  // Neue Nachricht empfangen
   state.socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === state.username;
     UI.appendMessage(
@@ -35,54 +32,45 @@ export function initSocket(state) {
     );
   });
 
-  // Systemnachrichten
   state.socket.on("systemMessage", (data) => {
     let text = "";
     let duration = 4000;
-
     if (typeof data === "string") text = data;
     else {
       text = data.text || "";
       if (data.duration) duration = data.duration;
     }
-
     const id = "sys-" + Date.now();
     UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", duration);
   });
 
-  // Admin-Benachrichtigungen
-  state.socket.on("adminNotice", (data) => {
-    UI.appendMessage("ADMIN", data.text || "", new Date(), "admin-notice-" + Date.now(), false, "system");
-  });
-
-  // Identifiziert
   state.socket.on("identified", (data) => {
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
     state.filterActive = data.filterActive || false;
-    DOM.filterBtn.checked = state.filterActive;
+    if (state.filterBtn) state.filterBtn.checked = state.filterActive;
     localStorage.setItem("username", state.username || "");
   });
 
-  // Aktive Nutzer
   state.socket.on("activeUsers", (users) => {
-    DOM.usersListEl.innerHTML = "";
+    if (!state.usersListEl) return;
+    state.usersListEl.innerHTML = "";
     if (!state.token) return;
     users.forEach((u) => {
       const li = document.createElement("li");
       li.textContent = u.username;
       if (u.role === "admin") li.classList.add("admin-user");
-      DOM.usersListEl.appendChild(li);
+      state.usersListEl.appendChild(li);
     });
   });
 
-  // Nachrichten löschen
   state.socket.on("deletedMessages", (ids) => {
-    ids.forEach((id) => DOM.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
+    if (!state.chatWindow) return;
+    ids.forEach((id) => state.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
-  // Force Reload
   state.socket.on("forceReload", async (resetAll = true) => {
+    if (!state.chatWindow || !state.usersListEl) return;
     if (resetAll) {
       state.token = null;
       state.username = null;
@@ -90,18 +78,15 @@ export function initSocket(state) {
       localStorage.removeItem("token");
       localStorage.removeItem("username");
       if (state.socket) {
-        try {
-          state.socket.auth = {};
-          state.socket.disconnect();
-        } catch {}
+        try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
         state.socket = null;
       }
-      DOM.usersListEl.innerHTML = "";
-      DOM.chatWindow.innerHTML = "";
-      UI.showInfo("⚠️ Server zurückgesetzt, Du wurdest abgemeldet.");
+      state.usersListEl.innerHTML = "";
+      state.chatWindow.innerHTML = "";
+      UI.showInfo("⚠️ Server zurückgesetzt. Du wurdest abgemeldet.");
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      DOM.chatWindow.innerHTML = "";
+      state.chatWindow.innerHTML = "";
       setTimeout(async () => {
         state.socket.emit("requestActiveUsers");
         await loadMessages(state);
@@ -109,7 +94,11 @@ export function initSocket(state) {
     }
   });
 
-  // Neues Admin-Token
+  state.socket.on("disconnect", () => {
+    state.socketConnected = false;
+    if (state.sendBtn && state.messageInput) UI.setSendEnabled(false);
+  });
+   // Neues Admin-Token
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
@@ -164,4 +153,5 @@ export function initSocket(state) {
     state.socket.emit("requestActiveUsers");
     await loadMessages(state);
   });
+  // Admin-Token, Banned, roleUpdated etc. unverändert
 }
