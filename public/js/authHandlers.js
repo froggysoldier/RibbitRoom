@@ -16,7 +16,7 @@ export function initAuthHandlers(state) {
   // --- Login / Logout ---
   DOM.loginBtn?.addEventListener("click", () => {
     if (state.token) {
-      // Logout
+      // logout
       state.token = null;
       state.username = null;
       state.myRole = "user";
@@ -58,83 +58,22 @@ export function initAuthHandlers(state) {
       });
       const data = await res.json();
 
-      if (!res.ok) return UI.showError(data.error || "Registrierung fehlgeschlagen");
+      if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-      // Direkt anmelden
-      state.token = data.token || null;  // Token zurückgeben muss API
-      state.username = newU;
-      state.myRole = data.role || "user";
-      localStorage.setItem("token", state.token);
-      localStorage.setItem("username", state.username);
+      // Code-Feld immer anzeigen
+      if (DOM.codeModal) DOM.codeModal.style.display = "block";
+      state.pendingUsername = newU;
 
-      UI.showInfo("Registrierung erfolgreich. Du bist jetzt eingeloggt.");
-      if (DOM.modal) DOM.modal.style.display = "none";
-      refreshLoginButton();
-
-      if (state.socket) {
-        state.socket.auth = { token: state.token };
-        state.socket.disconnect();
-        setTimeout(() => initSocket(state), 50);
-      } else initSocket(state);
-
-      await loadMessages(state);
+      UI.showInfo("Registrierung erfolgreich. Bitte überprüfe deine E-Mail und gib den Code ein.");
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
     }
   });
 
-  // --- Login ---
-  DOM.loginSubmit?.addEventListener("click", async () => {
-    const username = document.getElementById("username")?.value?.trim();
-    const password = document.getElementById("password")?.value?.trim();
-    if (!username || !password) return UI.showError("Bitte Benutzername und Passwort eingeben.");
-
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-
-      if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
-        UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte Code eingeben.");
-        state.pendingUsername = username;
-        if (DOM.codeModal) DOM.codeModal.style.display = "block";
-        return;
-      }
-
-      if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
-
-      // logged in
-      state.token = data.token;
-      state.username = username;
-      state.myRole = data.role || "user";
-      localStorage.setItem("token", state.token);
-      localStorage.setItem("username", state.username);
-
-      if (DOM.modal) DOM.modal.style.display = "none";
-      UI.showInfo(`Eingeloggt als ${state.username}`);
-      refreshLoginButton();
-
-      if (state.socket) {
-        state.socket.auth = { token: state.token };
-        state.socket.disconnect();
-        setTimeout(() => initSocket(state), 50);
-      } else initSocket(state);
-
-      await loadMessages(state);
-    } catch (err) {
-      console.error("Login error:", err);
-      UI.showError("Login-Fehler");
-    }
-  });
-
-  // --- Verify code (nur für Login) ---
+  // --- Code bestätigen (nach Registrierung) ---
   DOM.codeSubmit?.addEventListener("click", async () => {
-    if (!DOM.codeInput) return UI.showError("Code-Feld nicht gefunden");
-    const code = DOM.codeInput.value.trim();
+    const code = DOM.codeInput?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
 
     try {
@@ -169,6 +108,53 @@ export function initAuthHandlers(state) {
     } catch (err) {
       console.error("Verify error:", err);
       UI.showError("Fehler bei Code-Bestätigung");
+    }
+  });
+
+  // --- Login ---
+  DOM.loginSubmit?.addEventListener("click", async () => {
+    const username = document.getElementById("username")?.value?.trim();
+    const password = document.getElementById("password")?.value?.trim();
+    if (!username || !password) return UI.showError("Bitte Benutzername und Passwort eingeben.");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
+        UI.showInfo("Dein Account ist nicht verifiziert. Bitte Registrierungs-Code eingeben.");
+        state.pendingUsername = username;
+        if (DOM.codeModal) DOM.codeModal.style.display = "block";
+        return;
+      }
+
+      if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
+
+      // Login success
+      state.token = data.token;
+      state.username = username;
+      state.myRole = data.role || "user";
+      localStorage.setItem("token", state.token);
+      localStorage.setItem("username", state.username);
+
+      if (DOM.modal) DOM.modal.style.display = "none";
+      UI.showInfo(`Eingeloggt als ${state.username}`);
+      refreshLoginButton();
+
+      if (state.socket) {
+        state.socket.auth = { token: state.token };
+        state.socket.disconnect();
+        setTimeout(() => initSocket(state), 50);
+      } else initSocket(state);
+
+      await loadMessages(state);
+    } catch (err) {
+      console.error("Login error:", err);
+      UI.showError("Login-Fehler");
     }
   });
 }
