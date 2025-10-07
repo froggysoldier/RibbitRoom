@@ -27,14 +27,14 @@ button:active {
 /* Button */
 #showBtn {
   position: fixed;
-  right: -80px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   background: #00bfa6;
   color: white;
   border: none;
   padding: 20px 25px;
-  border-radius: 6px;
+  border-radius: 6px 0 0 6px; /* abgerundete linke Ecke */
   cursor: pointer;
   z-index: 1001; /* über allem */
   transition: background 0.2s ease;
@@ -49,9 +49,9 @@ button:active {
 #slideBox {
  position: fixed;
   top: 0;
-  right: -690px; /* versteckt außerhalb des Bildschirms */
-  width: 300px;
-  height: 70%;
+  right: -350px; /* versteckt außerhalb des Bildschirms */
+  width: 350px;
+  height: 70vh;
    transform: translateY(+50%);
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
@@ -59,6 +59,10 @@ button:active {
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.4);
   transition: right 0.4s ease;
   z-index: 1000; /* über allem anderen */
+  isplay: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
 }
 
 #slideBox img {
@@ -70,6 +74,7 @@ button:active {
 #slideBox.show {
   right: 0; /* sichtbar */
 }
+
 
 
 
