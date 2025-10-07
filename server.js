@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB verbunden"))
   .catch(err => console.error("MongoDB Fehler:", err));
-
+/*
 // Test-Mail
 async function testMail() {
   try {
@@ -36,7 +36,7 @@ async function testMail() {
 }
 
 testMail();
-
+*/
 // Routes
 app.use("/api/auth", authRoutes);
 
@@ -47,3 +47,4 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Start
 app.listen(PORT, () => console.log(`Server läuft auf http://localhost:${PORT}`));
+
