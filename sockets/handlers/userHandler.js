@@ -3,12 +3,10 @@ import jwt from "jsonwebtoken";
 import User from "../../models/User.js";
 
 /**
- * User-Identifikation und Management für Socket.IO (ESM)
- * - prüft JWT_SECRET
- * - sendet identifyError bei Problemen
- * - fügt socket.id zu authenticatedSockets hinzu
- * - entfernt socket.id beim disconnect
- * - ruft broadcastActiveUsers() nach Änderungen auf
+ * userHandler: identifiziert Benutzer via JWT (oder username payload),
+ * setzt socket.data.username und socket.data.role,
+ * fügt socket.id zu authenticatedSockets hinzu und entfernt beim disconnect,
+ * broadcastet active users.
  */
 export default function userHandler(socket, ctx) {
   const {
@@ -33,22 +31,26 @@ export default function userHandler(socket, ctx) {
 
   socket.on("identify", async (payload) => {
     try {
-      if (!payload) {
-        socket.emit("identifyError", { error: "Keine Nutzerdaten erhalten" });
+      // token kann über payload.token oder handshake.auth.token gesendet werden
+      const token = payload?.token || socket.handshake?.auth?.token;
+      const maybeUsername = payload?.username;
+
+      if (!token && !maybeUsername) {
+        socket.emit("identifyError", { error: "Kein Token oder Benutzername übermittelt" });
         return;
       }
 
-      // --- JWT_SECRET Check ---
-      if (payload.token) {
+      // Wenn Token vorhanden → JWT prüfen
+      if (token) {
         if (!JWT_SECRET) {
           console.error("[userHandler] JWT_SECRET nicht gesetzt!");
           socket.emit("identifyError", { error: "Serverfehler: Authentifizierung nicht konfiguriert" });
           return;
         }
 
+        let decoded;
         try {
-          const decoded = jwt.verify(payload.token, JWT_SECRET);
-          username = decoded.username;
+          decoded = jwt.verify(token, JWT_SECRET);
         } catch (err) {
           console.warn("[userHandler] Ungültiger Token:", err.message);
           socket.emit("identifyError", {
@@ -56,23 +58,34 @@ export default function userHandler(socket, ctx) {
           });
           return;
         }
-      } else if (payload.username) {
-        username = payload.username;
+        username = decoded.username || decoded.user || decoded.id && decoded.username;
+      } else {
+        // Fallback: username direkt über payload.username (nicht empfohlen für Produktion)
+        username = maybeUsername;
       }
 
       if (!username) {
-        socket.emit("identifyError", { error: "Kein Benutzername erkannt" });
+        socket.emit("identifyError", { error: "Token enthält keinen Benutzernamen" });
         return;
       }
 
-      // DB lookup für Rolle (optional)
+      // DB lookup für Rolle
       const dbUser = await User.findOne({ username });
       const role = dbUser?.role || "user";
 
       // Active user eintragen
       addActive(username, socket.id, role);
 
-      // AuthenticatedSockets verwalten (wichtig für message broadcasting)
+      // socket.data setzen (wird vom chatHandler genutzt)
+      try {
+        socket.data = socket.data || {};
+        socket.data.username = username;
+        socket.data.role = role;
+      } catch (e) {
+        // falls socket.data nicht verfügbar (sehr unwahrscheinlich), ignore
+      }
+
+      // Authenticated socket merken (wichtig für broadcasting Granularität)
       try {
         if (authenticatedSockets && typeof authenticatedSockets.add === "function") {
           authenticatedSockets.add(socket.id);
@@ -82,14 +95,14 @@ export default function userHandler(socket, ctx) {
         console.warn("[userHandler] authenticatedSockets not available:", err);
       }
 
-      // Client bestätigen
+      // Bestätigung an Client
       socket.emit("identified", {
         username,
-        filterActive: userFilters.get(username) || false,
-        role
+        role,
+        filterActive: userFilters.get(username) || false
       });
 
-      console.log(`[userHandler] ${username} identifiziert (${role}) -> socket ${socket.id}`);
+      console.log(`[userHandler] ${username} identifiziert -> socket ${socket.id}`);
     } catch (err) {
       console.error("[userHandler] Identify-Fehler:", err);
       socket.emit("identifyError", { error: "Interner Fehler bei Identifizierung" });
@@ -98,30 +111,27 @@ export default function userHandler(socket, ctx) {
 
   socket.on("disconnect", () => {
     // Entferne socket aus activeUsers
-    if (username) {
-      const sockets = activeUsers.get(username);
-      if (sockets) {
-        sockets.delete(socket.id);
-        if (sockets.size === 0) {
-          activeUsers.delete(username);
-          userRoles.delete(username);
-          userFilters.delete(username);
+    if (socket.data?.username) {
+      const uname = socket.data.username;
+      const set = activeUsers.get(uname);
+      if (set) {
+        set.delete(socket.id);
+        if (set.size === 0) {
+          activeUsers.delete(uname);
+          userRoles.delete(uname);
+          userFilters.delete(uname);
         } else {
-          activeUsers.set(username, sockets);
+          activeUsers.set(uname, set);
         }
         broadcastActiveUsers();
       }
     }
 
-    // Entferne socket aus authenticatedSockets
+    // Entferne aus authenticatedSockets
     try {
-      if (authenticatedSockets && typeof authenticatedSockets.delete === "function") {
-        authenticatedSockets.delete(socket.id);
-      }
-    } catch (err) {
-      console.warn("[userHandler] Error removing from authenticatedSockets:", err);
-    }
+      authenticatedSockets?.delete(socket.id);
+    } catch (e) {}
 
-    console.log(`[userHandler] disconnected: ${socket.id} (user: ${username || "unknown"})`);
+    console.log(`[userHandler] disconnected: ${socket.id} (user: ${socket.data?.username || "unknown"})`);
   });
 }
