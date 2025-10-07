@@ -1,3 +1,4 @@
+// domElements.js
 export let loginBtn = null;
 export let modal = null;
 export let closeModal = null;
@@ -14,32 +15,29 @@ export let codeInput = null;
 export let codeSubmit = null;
 
 export function initDomElements() {
-  loginBtn = loginBtn || document.getElementById("loginBtn");
-  modal = modal || document.getElementById("loginModal");
-  closeModal = closeModal || document.querySelector(".close");
-  loginSubmit = loginSubmit || document.getElementById("loginSubmit");
-  registerSubmit = registerSubmit || document.getElementById("registerSubmit");
-  usersListEl = usersListEl || document.getElementById("users");
-  chatWindow = chatWindow || document.getElementById("chatWindow");
-  sendBtn = sendBtn || document.getElementById("sendBtn");
-  messageInput = messageInput || document.getElementById("messageInput");
-  filterBtn = filterBtn || document.getElementById("filterBtn");
+  loginBtn = document.getElementById("loginBtn");
+  modal = document.getElementById("loginModal");
+  closeModal = document.querySelector(".close");
+  loginSubmit = document.getElementById("loginSubmit");
+  registerSubmit = document.getElementById("registerSubmit");
+  usersListEl = document.getElementById("users");
+  chatWindow = document.getElementById("chatWindow");
+  sendBtn = document.getElementById("sendBtn");
+  messageInput = document.getElementById("messageInput");
+  filterBtn = document.getElementById("filterBtn");
 
-  codeModal = codeModal || document.getElementById("codeModal");
-  codeInput = codeInput || document.getElementById("code");
-  codeSubmit = codeSubmit || document.getElementById("codeSubmit");
+  codeModal = document.getElementById("codeModal");
+  codeInput = document.getElementById("code");
+  codeSubmit = document.getElementById("codeSubmit");
 
   const missing = [];
   if (!loginBtn) missing.push("loginBtn");
   if (!modal) missing.push("modal");
   if (!loginSubmit) missing.push("loginSubmit");
   if (!registerSubmit) missing.push("registerSubmit");
-  if (!chatWindow) missing.push("chatWindow");
-  if (!sendBtn) missing.push("sendBtn");
-  if (!messageInput) missing.push("messageInput");
-  if (!filterBtn) missing.push("filterBtn");
   if (!codeInput) missing.push("codeInput");
   if (!codeSubmit) missing.push("codeSubmit");
-
+  if (!chatWindow) missing.push("chatWindow");
+  if (!sendBtn) missing.push("sendBtn");
   if (missing.length) console.warn("[initDomElements] fehlende Elemente:", missing.join(", "));
 }
