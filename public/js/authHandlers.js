@@ -32,7 +32,7 @@ export function initAuthHandlers(state) {
       window.location.reload();
       return;
     }
-    // Open modal
+    // open modal
     if (DOM.modal) DOM.modal.style.display = "block";
   });
 
@@ -42,47 +42,46 @@ export function initAuthHandlers(state) {
   });
   window.addEventListener("click", e => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; });
 
-// --- Registration ---
-DOM.registerSubmit?.addEventListener("click", async () => {
-  const newU = DOM.newUser?.value?.trim();
-  const newP = DOM.newPass?.value?.trim();
-  const email = DOM.email?.value?.trim();
-  const adminPass = DOM.adminPass?.value?.trim();
+  // --- Registration ---
+  DOM.registerSubmit?.addEventListener("click", async () => {
+    const newU = DOM.newUser?.value?.trim();
+    const newP = DOM.newPass?.value?.trim();
+    const email = DOM.email?.value?.trim();
+    const adminPass = DOM.adminPass?.value?.trim();
 
-  // Nur die wirklich erforderlichen Felder prüfen
-  if (!newU || !newP || !email) {
-    return UI.showError("Bitte Benutzername, Passwort und E-Mail ausfüllen.");
-  }
+    if (!newU || !newP || !email) {
+      return UI.showError("Bitte Benutzername, Passwort und E-Mail ausfüllen.");
+    }
 
-  try {
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: newU, password: newP, email, adminPass })
-    });
-    const data = await res.json();
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: newU, password: newP, email, adminPass })
+      });
+      const data = await res.json();
 
-    if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
+      if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-    UI.showInfo(data.message);
+      UI.showInfo(data.message);
 
-    // Setze pendingUsername für Code-Verify
-    state.pendingUsername = newU;
+      // Setze pendingUsername für Code-Verify
+      state.pendingUsername = newU;
 
-    // Öffne Codefeld direkt, damit Nutzer den Code eingeben kann
-    if (DOM.codeModal) DOM.codeModal.style.display = "block";
+      // Code-Feld immer sichtbar
+      if (DOM.codeModal) DOM.codeModal.style.display = "block";
 
-  } catch (err) {
-    console.error("Register error:", err);
-    UI.showError("Registrieren-Fehler");
-  }
-});
-
+    } catch (err) {
+      console.error("Register error:", err);
+      UI.showError("Registrieren-Fehler");
+    }
+  });
 
   // --- Login ---
   DOM.loginSubmit?.addEventListener("click", async () => {
     const username = DOM.username?.value?.trim();
     const password = DOM.password?.value?.trim();
+
     if (!username || !password) return UI.showError("Bitte Benutzername und Passwort eingeben.");
 
     try {
@@ -96,12 +95,13 @@ DOM.registerSubmit?.addEventListener("click", async () => {
       if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
         UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte Code eingeben.");
         state.pendingUsername = username;
+        if (DOM.codeModal) DOM.codeModal.style.display = "block";
         return;
       }
 
       if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
 
-      // Logged in
+      // logged in
       state.token = data.token;
       state.username = username;
       state.myRole = data.role || "user";
@@ -125,9 +125,9 @@ DOM.registerSubmit?.addEventListener("click", async () => {
     }
   });
 
-  // --- Code-Verify ---
+  // --- Verify code ---
   DOM.codeSubmit?.addEventListener("click", async () => {
-    const code = DOM.code?.value?.trim();
+    const code = DOM.codeInput?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
 
     try {
@@ -139,7 +139,6 @@ DOM.registerSubmit?.addEventListener("click", async () => {
       const data = await res.json();
       if (!res.ok) return UI.showError(data.error || "Code ungültig");
 
-      // Direkt einloggen
       state.token = data.token;
       state.username = state.pendingUsername;
       state.myRole = data.role || "user";
@@ -148,6 +147,8 @@ DOM.registerSubmit?.addEventListener("click", async () => {
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
+      if (DOM.modal) DOM.modal.style.display = "none";
+      if (DOM.codeModal) DOM.codeModal.style.display = "block"; // Codefeld immer sichtbar
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
