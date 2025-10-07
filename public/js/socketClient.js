@@ -6,26 +6,29 @@ export function initSocket(state) {
   if (!state) return;
   if (state.socket && state.socket.connected) return;
 
-  // Socket.IO initialisieren (autoConnect kontrolliert)
-  state.socket = io({
+  // ✅ Socket.IO initialisieren – mit deiner Render-URL
+  state.socket = io("https://ribbitroom-vdzo.onrender.com", {
     auth: { token: state.token },
-    autoConnect: false,
+    autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 10,
+    reconnectionAttempts: 5,
     reconnectionDelay: 1000
   });
 
   // === Verbindung hergestellt ===
   state.socket.on("connect", () => {
+    console.log("[SOCKET] Verbunden mit Server");
     state.socketConnected = true;
-    console.info("[SOCKET] Verbunden mit Server");
 
-    // Token senden, um Benutzer zu identifizieren
     if (state.token) {
       state.socket.emit("identify", { token: state.token });
     }
 
-    if (state.sendBtn && state.messageInput) UI.setSendEnabled(!!state.token);
+    if (state.sendBtn && state.messageInput) {
+      UI.setSendEnabled(!!state.token);
+    }
+
+    UI.showInfo("✅ Verbunden mit Chatserver");
   });
 
   // === Verbindungsfehler ===
@@ -34,7 +37,7 @@ export function initSocket(state) {
     UI.showError("Verbindung zum Server fehlgeschlagen – prüfe Login oder Netzwerk.");
   });
 
-  // === Nachricht empfangen ===
+  // === Neue Nachricht ===
   state.socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === state.username;
     UI.appendMessage(
@@ -63,19 +66,20 @@ export function initSocket(state) {
 
   // === Erfolgreich identifiziert ===
   state.socket.on("identified", (data) => {
+    console.log("[SOCKET] Identifiziert als", data.username);
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
     state.filterActive = data.filterActive || false;
     if (state.filterBtn) state.filterBtn.checked = state.filterActive;
     localStorage.setItem("username", state.username || "");
-    console.log(`[SOCKET] Identifiziert als ${state.username} (${state.myRole})`);
   });
 
-  // === Benutzerliste aktualisieren ===
+  // === Benutzerliste ===
   state.socket.on("activeUsers", (users) => {
     if (!state.usersListEl) return;
     state.usersListEl.innerHTML = "";
     if (!state.token) return;
+
     users.forEach((u) => {
       const li = document.createElement("li");
       li.textContent = u.username;
@@ -84,13 +88,15 @@ export function initSocket(state) {
     });
   });
 
-  // === Nachrichten löschen ===
+  // === Nachrichten gelöscht ===
   state.socket.on("deletedMessages", (ids) => {
     if (!state.chatWindow) return;
-    ids.forEach((id) => state.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
+    ids.forEach((id) =>
+      state.chatWindow.querySelector(`[data-id="${id}"]`)?.remove()
+    );
   });
 
-  // === Server Reset / Reload ===
+  // === Server-Reset oder Reload ===
   state.socket.on("forceReload", async (resetAll = true) => {
     if (!state.chatWindow || !state.usersListEl) return;
     if (resetAll) {
@@ -119,16 +125,20 @@ export function initSocket(state) {
     }
   });
 
+  // === Disconnect ===
+  state.socket.on("disconnect", () => {
+    console.warn("[SOCKET] Verbindung verloren.");
+    state.socketConnected = false;
+    if (state.sendBtn && state.messageInput) UI.setSendEnabled(false);
+    UI.showError("❌ Verbindung getrennt");
+  });
+
   // === Neues Admin-Token ===
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
       localStorage.setItem("token", state.token);
       console.log("[INFO] Neues Admin-Token gespeichert");
-      // Optional: gleich re-identifizieren
-      if (state.socket && state.socket.connected) {
-        state.socket.emit("identify", { token: state.token });
-      }
     }
   });
 
@@ -153,7 +163,8 @@ export function initSocket(state) {
   // === Rollenänderung ===
   state.socket.on("roleUpdated", ({ username, role }) => {
     DOM.usersListEl.querySelectorAll("li").forEach((li) => {
-      if (li.textContent === username) li.classList.toggle("admin-user", role === "admin");
+      if (li.textContent === username)
+        li.classList.toggle("admin-user", role === "admin");
     });
 
     DOM.chatWindow.querySelectorAll(".message").forEach((msg) => {
@@ -172,14 +183,4 @@ export function initSocket(state) {
     state.socket.emit("requestActiveUsers");
     await loadMessages(state);
   });
-
-  // === Disconnect ===
-  state.socket.on("disconnect", (reason) => {
-    state.socketConnected = false;
-    console.warn("[SOCKET] Verbindung getrennt:", reason);
-    if (state.sendBtn && state.messageInput) UI.setSendEnabled(false);
-  });
-
-  // Jetzt Verbindung starten
-  state.socket.connect();
 }
