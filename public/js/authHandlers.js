@@ -1,7 +1,7 @@
 import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
 import { initSocket } from "./socketClient.js";
-import { loadMessages, initChatHandlers } from "./chatHandlers.js";
+import { loadMessages } from "./chatHandlers.js";
 
 export function initAuthHandlers(state) {
   if (!state) return;
@@ -13,7 +13,7 @@ export function initAuthHandlers(state) {
 
   refreshLoginButton();
 
-  // --- Login / Logout ---
+  // --- Button click (Login / Logout) ---
   DOM.loginBtn?.addEventListener("click", () => {
     if (state.token) {
       // Logout
@@ -30,24 +30,30 @@ export function initAuthHandlers(state) {
       if (DOM.chatWindow) DOM.chatWindow.innerHTML = "";
       refreshLoginButton();
       UI.showInfo("Abgemeldet");
-      window.location.reload();
       return;
     }
+    // Modal öffnen
     if (DOM.modal) DOM.modal.style.display = "block";
   });
 
-  // --- Close modal ---
-  DOM.closeModal?.addEventListener("click", () => { if (DOM.modal) DOM.modal.style.display = "none"; });
-  window.addEventListener("click", e => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; });
+  // --- Modal schließen ---
+  DOM.closeModal?.addEventListener("click", () => {
+    if (DOM.modal) DOM.modal.style.display = "none";
+  });
+  window.addEventListener("click", (e) => {
+    if (e.target === DOM.modal) DOM.modal.style.display = "none";
+  });
 
-  // --- Registration ---
+  // --- Registrierung ---
   DOM.registerSubmit?.addEventListener("click", async () => {
     const newU = document.getElementById("newUser")?.value?.trim();
     const newP = document.getElementById("newPass")?.value?.trim();
     const email = document.getElementById("email")?.value?.trim();
     const adminPass = document.getElementById("adminPass")?.value?.trim();
 
-    if (!newU || !newP || !email) return UI.showError("Bitte Benutzername, Passwort und E-Mail ausfüllen.");
+    if (!newU || !newP || !email) {
+      return UI.showError("Bitte Benutzername, Passwort und E-Mail ausfüllen.");
+    }
 
     try {
       const res = await fetch("/api/auth/register", {
@@ -56,24 +62,17 @@ export function initAuthHandlers(state) {
         body: JSON.stringify({ username: newU, password: newP, email, adminPass })
       });
       const data = await res.json();
+
       if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-      UI.showInfo(data.message);
+      // Codefeld immer sichtbar
+      if (DOM.codeModal) DOM.codeModal.style.display = "block";
 
-      // Automatisch einloggen nach Registrierung (Token zurück)
-      if (data.token) {
-        state.token = data.token;
-        state.username = newU;
-        state.myRole = data.role || "user";
-        localStorage.setItem("token", state.token);
-        localStorage.setItem("username", state.username);
+      UI.showInfo(data.message || "Registrierung erfolgreich. Bitte Code aus E-Mail eingeben.");
 
-        if (DOM.modal) DOM.modal.style.display = "none";
-        refreshLoginButton();
-        if (!state.socket) initSocket(state);
-        await loadMessages(state);
-        initChatHandlers(state);
-      }
+      // Benutzer für automatische Anmeldung merken
+      state.pendingUsername = newU;
+      if (DOM.modal) DOM.modal.style.display = "none";
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
@@ -103,7 +102,7 @@ export function initAuthHandlers(state) {
 
       if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
 
-      // logged in
+      // Erfolgreich eingeloggt
       state.token = data.token;
       state.username = username;
       state.myRole = data.role || "user";
@@ -114,16 +113,20 @@ export function initAuthHandlers(state) {
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
-      if (!state.socket) initSocket(state);
+      if (state.socket) {
+        state.socket.auth = { token: state.token };
+        state.socket.disconnect();
+        setTimeout(() => initSocket(state), 50);
+      } else initSocket(state);
+
       await loadMessages(state);
-      initChatHandlers(state);
     } catch (err) {
       console.error("Login error:", err);
       UI.showError("Login-Fehler");
     }
   });
 
-  // --- Verify code ---
+  // --- Verifizierungscode ---
   DOM.codeSubmit?.addEventListener("click", async () => {
     const code = DOM.codeInput?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
@@ -141,6 +144,7 @@ export function initAuthHandlers(state) {
       state.username = state.pendingUsername;
       state.myRole = data.role || "user";
       state.pendingUsername = null;
+
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
@@ -149,9 +153,13 @@ export function initAuthHandlers(state) {
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
-      if (!state.socket) initSocket(state);
+      if (state.socket) {
+        state.socket.auth = { token: state.token };
+        state.socket.disconnect();
+        setTimeout(() => initSocket(state), 50);
+      } else initSocket(state);
+
       await loadMessages(state);
-      initChatHandlers(state);
     } catch (err) {
       console.error("Verify error:", err);
       UI.showError("Fehler bei Code-Bestätigung");
