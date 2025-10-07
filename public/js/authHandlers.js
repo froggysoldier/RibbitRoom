@@ -60,8 +60,11 @@ export function initAuthHandlers(state) {
 
       if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-      UI.showInfo(data.message);
-      if (DOM.modal) DOM.modal.style.display = "none";
+      UI.showInfo("📧 Bestätigungscode wurde an deine E-Mail geschickt. Bitte Code eingeben.");
+      state.pendingUsername = newU;
+
+      // Zeige Code-Eingabe nur bei Registrierung
+      if (DOM.codeModal) DOM.codeModal.style.display = "block";
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
@@ -81,13 +84,6 @@ export function initAuthHandlers(state) {
         body: JSON.stringify({ username, password })
       });
       const data = await res.json();
-
-      if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
-        UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte Code eingeben.");
-        state.pendingUsername = username;
-        if (DOM.codeModal) DOM.codeModal.style.display = "block";
-        return;
-      }
 
       if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
 
@@ -115,7 +111,7 @@ export function initAuthHandlers(state) {
     }
   });
 
-  // --- Verify code ---
+  // --- Verify code (nur bei Registrierung) ---
   DOM.codeSubmit?.addEventListener("click", async () => {
     const code = DOM.codeInput?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
@@ -129,6 +125,7 @@ export function initAuthHandlers(state) {
       const data = await res.json();
       if (!res.ok) return UI.showError(data.error || "Code ungültig");
 
+      // Direkt einloggen nach Code-Bestätigung
       state.token = data.token;
       state.username = state.pendingUsername;
       state.myRole = data.role || "user";
@@ -139,7 +136,7 @@ export function initAuthHandlers(state) {
 
       if (DOM.modal) DOM.modal.style.display = "none";
       if (DOM.codeModal) DOM.codeModal.style.display = "none";
-      UI.showInfo(`Eingeloggt als ${state.username}`);
+      UI.showInfo(`✅ Registrierung abgeschlossen – eingeloggt als ${state.username}`);
       refreshLoginButton();
 
       if (state.socket) {
