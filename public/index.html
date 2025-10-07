@@ -80,8 +80,8 @@
     <input type="password" id="adminPass" placeholder="Admin-Passwort (optional)">
     <button id="registerSubmit">Registrieren</button>
 
-    <!-- CODE-FELD (jetzt NUR für Registrierung) -->
-    <div id="codeModal" style="display:none; margin-top:10px;">
+    <!-- CODE EINGABE (nur bei Registrierung anzeigen) -->
+    <div id="codeSection" style="display:none; margin-top:15px;">
       <h3>E-Mail bestätigen</h3>
       <input type="text" id="codeInput" placeholder="Bestätigungscode">
       <button id="codeSubmit">Code bestätigen</button>
@@ -89,12 +89,14 @@
   </div>
 </div>
 
+
 <!-- Socket.IO client via CDN -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
 <script type="module" src="/js/app.js"></script>
 
 </body>
 </html>
+
 
 
 
