@@ -34,7 +34,7 @@ body {
 }
 
 /* Button */
-#showBtn {
+#showfishBtn {
   padding: 12px 25px;
   font-size: 16px;
   background-color: #ff6600;
@@ -46,12 +46,12 @@ body {
   transition: background 0.2s;
 }
 
-#showBtn:hover {
+#showfishBtn:hover {
   background-color: #ff9933;
 }
 
 /* Box */
-#slideBox {
+#slidefishBox {
   position: fixed;
   right: -300px;
   top: 50%;
@@ -67,12 +67,13 @@ body {
   align-items: center;
 }
 
-#slideBox img {
+#slidefishBox img {
   width: 250px;
   border-radius: 8px;
   margin-bottom: 10px;
 }
 
-#slideBox.show {
+#slidefishBox.show {
   right: 20px;
 }
+
