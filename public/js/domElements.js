@@ -34,9 +34,12 @@ export function initDomElements() {
   if (!modal) missing.push("modal");
   if (!loginSubmit) missing.push("loginSubmit");
   if (!registerSubmit) missing.push("registerSubmit");
-  if (!codeInput) missing.push("codeInput");
-  if (!codeSubmit) missing.push("codeSubmit");
   if (!chatWindow) missing.push("chatWindow");
   if (!sendBtn) missing.push("sendBtn");
+  if (!messageInput) missing.push("messageInput");
+  if (!filterBtn) missing.push("filterBtn");
+  if (!codeInput) missing.push("codeInput");
+  if (!codeSubmit) missing.push("codeSubmit");
+
   if (missing.length) console.warn("[initDomElements] fehlende Elemente:", missing.join(", "));
 }
