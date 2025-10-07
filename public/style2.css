@@ -36,44 +36,37 @@ body {
 /* Button */
 #showBtn {
   position: fixed;
-  right: 10px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 10000;
-  background: #ff6600;
+  background: #00bfa6;
   color: white;
   border: none;
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  font-size: 28px;
+  padding: 10px 15px;
+  border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(0,0,0,0.4);
-  transition: background 0.3s ease, transform 0.2s ease;
+  z-index: 1001; /* über allem */
+  transition: background 0.2s ease;
 }
 
 #showBtn:hover {
-  background: #ff9933;
-  transform: scale(1.1);
+  background: #00a08c;  
 }
 
 
-/* DIE BOX SELBST  */
+/* Slide-Box  */
 #slideBox {
-  position: fixed;
-  right: -360px; /* versteckt */
+ position: fixed;
   top: 0;
-  width: 340px;
+  right: -300px; /* versteckt außerhalb des Bildschirms */
+  width: 300px;
   height: 100%;
-  background-color: #2a2a2a;
-  border-right: 3px solid #ff6600;
-  border-radius: 0 12px 12px 0;
-  box-shadow: 5px 0 15px rgba(0,0,0,0.4);
-  transition: left 0.5s ease;
-  z-index: 9999;
-  padding: 20px;
-  overflow-y: auto;
+  background-color: rgba(0, 0, 0, 0.85);
   color: white;
+  padding: 20px;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.4);
+  transition: right 0.4s ease;
+  z-index: 1000; /* über allem anderen */
 }
 
 #slideBox img {
@@ -90,3 +83,4 @@ body {
 
 
 }
+
