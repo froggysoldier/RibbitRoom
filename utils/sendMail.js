@@ -43,12 +43,9 @@ async function sendWithSmtp({ to, subject, text, html }) {
 }
 
 export default async function sendMail({ to, subject, text, html }) {
-  // prefer sendgrid, but fallback to SMTP, otherwise log
   if (SENDGRID_KEY) {
     const res = await sendWithSendgrid({ to, subject, text, html });
-    if (!res.ok) {
-      console.warn("[sendMail] SendGrid failed:", res.error);
-    }
+    if (!res.ok) console.warn("[sendMail] SendGrid failed:", res.error);
     return res;
   }
 
@@ -58,7 +55,6 @@ export default async function sendMail({ to, subject, text, html }) {
     return res;
   }
 
-  // neither provider configured
   const msg = `Mailer nicht konfiguriert. Setze SENDGRID_API_KEY oder SMTP_HOST/SMTP_USER in ENV.`;
   console.warn("[sendMail]", msg);
   console.log("Mail-Preview:", { to, subject, text, html });
