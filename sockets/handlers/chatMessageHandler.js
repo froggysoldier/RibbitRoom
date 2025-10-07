@@ -1,4 +1,3 @@
-// sockets/handlers/chatMessageHandler.js
 import jwt from "jsonwebtoken";
 import Message from "../../models/Message.js";
 import User from "../../models/User.js";
@@ -6,137 +5,82 @@ import filterMessage from "../../utils/filter.js";
 
 export default function chatMessageHandler(socket, ctx) {
   const {
-    io,
     activeUsers,
     userRoles,
     userFilters,
-    lastMessageTime,
-    trimOldMessages,
-    emitToAdmins,
     authenticatedSockets,
+    broadcastActiveUsers,
+    emitToAdmins,
+    trimOldMessages,
+    lastMessageTime,
     JWT_SECRET,
     ADMIN_PASS,
+    io,
   } = ctx;
 
-  const normalize = (u) => String(u || "").trim().toLowerCase();
-  ctx.userTimeouts = ctx.userTimeouts || new Map();
-  ctx.messageHistory = ctx.messageHistory || new Map();
-  ctx.timeoutIntervals = ctx.timeoutIntervals || new Map();
-  const userTimeouts = ctx.userTimeouts;
-  const messageHistory = ctx.messageHistory;
-  const timeoutIntervals = ctx.timeoutIntervals;
-
-  // ✅ Token prüfen und Usernamen extrahieren
   let username = null;
-  try {
-    const token = socket.handshake.auth?.token;
-    if (!token) throw new Error("Kein Token");
-    const decoded = jwt.verify(token, JWT_SECRET);
-    username = decoded.username;
-  } catch (err) {
-    console.warn("[userHandler] Ungültiger oder fehlender Token:", err.message);
-    socket.emit("systemMessage", { text: "❌ Nicht authentifiziert.", type: "error" });
-    socket.disconnect();
-    return;
-  }
 
-  if (!username) return;
+  socket.on("registerUsername", (data) => {
+    username = data.username;
+  });
 
-  const dbUser = await User.findOne({ username });
-  let role = dbUser?.role || "user";
-  userRoles.set(username, role);
-  if (!userFilters.has(username)) userFilters.set(username, false);
+  const normalize = (u) => String(u || "").trim().toLowerCase();
 
-  console.log(`💬 ChatHandler aktiv für ${username} (${role})`);
-
-  // Zeitformatierung
-  const formatDuration = (sec) => {
-    sec = Math.max(0, Math.floor(sec));
-    if (sec < 60) return `${sec}s`;
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    if (m < 60) return `${m}m ${s}s`;
-    const h = Math.floor(m / 60);
-    const min = m % 60;
-    return `${h}h ${min}m`;
+  const formatDuration = (seconds) => {
+    seconds = Math.max(0, Math.floor(seconds));
+    if (seconds < 60) return `${seconds} Sekunde${seconds === 1 ? "" : "n"}`;
+    const days = Math.floor(seconds / 86400);
+    seconds %= 86400;
+    const hours = Math.floor(seconds / 3600);
+    seconds %= 3600;
+    const minutes = Math.floor(seconds / 60);
+    seconds %= 60;
+    const parts = [];
+    if (days) parts.push(`${days} Tag${days === 1 ? "" : "e"}`);
+    if (hours) parts.push(`${hours} Stunde${hours === 1 ? "" : "n"}`);
+    if (minutes) parts.push(`${minutes} Minute${minutes === 1 ? "" : "n"}`);
+    if (seconds) parts.push(`${seconds} Sekunde${seconds === 1 ? "" : "n"}`);
+    return parts.join(" ");
   };
 
-  // Hilfsfunktion: Sockets eines Users finden
-  const findActiveSocketsFor = (targetNorm) => {
-    for (const [uname, socketsSet] of activeUsers.entries()) {
-      if (normalize(uname) === targetNorm) return socketsSet;
-    }
-    return null;
-  };
-
-  // ============================
-  //      CHAT MESSAGE HANDLER
-  // ============================
   socket.on("chatMessage", async (content) => {
     if (!username) return;
+
     const now = Date.now();
     const myNorm = normalize(username);
 
-    // Timeout prüfen
-    const timeoutUntil = userTimeouts.get(myNorm);
-    if (timeoutUntil && now < timeoutUntil) {
-      const remaining = Math.ceil((timeoutUntil - now) / 1000);
-      socket.emit("systemMessage", {
-        text: `⚠️ Du bist noch für ${formatDuration(remaining)} gemutet.`,
+    const MIN_INTERVAL = 350;
+    const lastTime = lastMessageTime.get(username) || 0;
+    if (now - lastTime < MIN_INTERVAL) {
+      return socket.emit("systemMessage", {
+        text: "⚠️ Bitte nicht spammen.",
         type: "error",
       });
-      return;
-    }
-
-    // Anti-Spam
-    const lastTime = lastMessageTime.get(username) || 0;
-    const MIN_INTERVAL = 500;
-    if (now - lastTime < MIN_INTERVAL) {
-      socket.emit("systemMessage", { text: "⚠️ Bitte nicht spammen.", type: "error" });
-      return;
     }
     lastMessageTime.set(username, now);
 
-    // Flood Detection
-    const hist = messageHistory.get(myNorm) || [];
-    const recent = hist.filter((t) => now - t < 10000);
-    recent.push(now);
-    messageHistory.set(myNorm, recent);
-    if (recent.length > 7) {
-      socket.emit("systemMessage", { text: "⚠️ Zu viele Nachrichten auf einmal.", type: "error" });
-      return;
-    }
+    const dbUser = await User.findOne({ username });
+    let role = dbUser?.role || userRoles.get(username) || "user";
+    userRoles.set(username, role);
 
-    let msgText = (content || "").trim();
-    if (!msgText) return;
+    let finalContent = (content || "").trim();
 
-    // Textlimit
-    if (msgText.length > 150) msgText = msgText.slice(0, 150);
-
-    // Filter
-    if (userFilters.get(username)) msgText = filterMessage(msgText);
-
-    // ============================
-    //       BEFEHLE
-    // ============================
-    if (msgText.startsWith("/")) {
-      const parts = msgText.split(" ");
-      const cmd = parts[0].toLowerCase();
-
+    // === BEFEHLE ===
+    if (finalContent.startsWith("/")) {
       // /help
-      if (cmd === "/help") {
+      if (finalContent === "/help") {
         socket.emit("systemMessage", {
           text: `
 ℹ️ Befehle:
-• /role                                  → Zeigt deine Rolle
-• /admin [passwort]                      → Admin werden
-• /ban "username" [passwort]             → User bannen
-• /timeout "username" sekunden           → User temporär muten
-• /clear                                 → Chat leeren (Admins)
-• /listUsers                             → Liste der Online-User (Admins)
-• /deleteAllUsers [passwort]             → Alle normalen User löschen
-• /reset [passwort]                      → Server zurücksetzen
-• /help                                  → Zeigt diese Hilfe
+• /admin [passwort] → Admin werden
+• /ban "username" [passwort] → User bannen
+• /clear → Chat leeren (Admins)
+• /deleteAllUsers [passwort] → Alle normalen User löschen
+• /reset [passwort] → Server zurücksetzen
+• /role → Zeigt deine aktuelle Rolle
+• /timeout "username" Sekunden → User temporär muten (Admins)
+• /listUsers → Liste der Online-User (Admins)
+• /help → Zeigt diese Nachricht
           `.trim(),
           type: "info",
           duration: 15000,
@@ -145,22 +89,29 @@ export default function chatMessageHandler(socket, ctx) {
       }
 
       // /role
-      if (cmd === "/role") {
-        socket.emit("systemMessage", { text: `🧩 Deine Rolle: ${role}`, type: "info" });
+      if (finalContent === "/role") {
+        socket.emit("systemMessage", {
+          text: `ℹ️ Deine Rolle ist: ${role}`,
+          type: "info",
+        });
         return;
       }
 
       // /admin
-      if (cmd === "/admin") {
-        const provided = parts[1];
+      const adminMatch = finalContent.match(/^\/admin\s*(\S+)?$/i);
+      if (adminMatch) {
+        const provided = adminMatch[1] || "";
         if (provided === ADMIN_PASS) {
-          dbUser.role = "admin";
-          await dbUser.save();
           role = "admin";
-          userRoles.set(username, role);
-          const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
+          if (dbUser) {
+            dbUser.role = "admin";
+            await dbUser.save();
+          }
+          userRoles.set(username, "admin");
+          const newToken = jwt.sign({ username, role: "admin" }, JWT_SECRET, { expiresIn: "7d" });
           socket.emit("newToken", { token: newToken });
-          socket.emit("systemMessage", { text: "✅ Du bist jetzt Admin.", type: "ok" });
+          socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
+          emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
         } else {
           socket.emit("systemMessage", { text: "❌ Falsches Admin-Passwort.", type: "error" });
         }
@@ -168,140 +119,134 @@ export default function chatMessageHandler(socket, ctx) {
       }
 
       // /clear
-      if (cmd === "/clear") {
+      if (finalContent === "/clear") {
         if (role !== "admin")
           return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
         await Message.deleteMany({});
         io.emit("deletedMessages", []);
-        io.emit("systemMessage", { text: "🧹 Chat geleert.", type: "info" });
+        io.emit("systemMessage", { text: "⚠️ Chat wurde geleert.", type: "error" });
         return;
       }
 
       // /listUsers
-      if (cmd === "/listusers") {
+      if (finalContent === "/listUsers") {
         if (role !== "admin")
           return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
-        const users = Array.from(activeUsers.keys()).map((u) => {
-          const isMuted = userTimeouts.get(normalize(u)) > Date.now();
-          const r = userRoles.get(u) || "user";
-          return `${u} (${r})${isMuted ? " 🔇" : ""}`;
-        });
-        socket.emit("systemMessage", {
-          text: `👥 Online:\n${users.join("\n")}`,
-          type: "info",
-        });
+        const list = Array.from(activeUsers.keys()).map(
+          (u) => `${u} (${userRoles.get(u) || "user"})`
+        );
+        socket.emit("systemMessage", { text: `Online:\n${list.join("\n")}`, type: "info" });
         return;
       }
 
-      // /ban "username" passwort
-      if (cmd === "/ban") {
+      // /ban
+      const banMatch = finalContent.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
+      if (banMatch) {
         if (role !== "admin")
           return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
-        const match = msgText.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
-        if (!match) return socket.emit("systemMessage", { text: "Syntax: /ban \"username\" passwort", type: "info" });
-        const target = match[1] || match[2];
-        const pw = match[3];
-        if (pw !== ADMIN_PASS) return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
-
-        await User.findOneAndDelete({ username: target });
-        await Message.deleteMany({ sender: target });
-
-        const socketsSet = findActiveSocketsFor(normalize(target));
-        if (socketsSet) {
-          for (const sid of socketsSet) {
-            io.to(sid).emit("banned", { text: "🚫 Du wurdest gebannt." });
-            const s = io.sockets.sockets.get(sid);
-            if (s) s.disconnect(true);
-            authenticatedSockets.delete(sid);
+        const targetRaw = banMatch[1] || banMatch[2];
+        const pass = banMatch[3];
+        if (pass !== ADMIN_PASS)
+          return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
+        await User.findOneAndDelete({ username: targetRaw });
+        await Message.deleteMany({ sender: targetRaw });
+        for (const [u, sockets] of activeUsers.entries()) {
+          if (normalize(u) === normalize(targetRaw)) {
+            sockets.forEach((sid) => {
+              io.to(sid).emit("banned", { text: "Du wurdest gebannt." });
+              const s = io.sockets.sockets.get(sid);
+              if (s) s.disconnect(true);
+              authenticatedSockets.delete(sid);
+            });
+            activeUsers.delete(u);
+            userRoles.delete(u);
           }
         }
-
-        activeUsers.delete(target);
-        userRoles.delete(target);
-        userFilters.delete(target);
-
-        io.emit("systemMessage", { text: `⚠️ ${target} wurde gebannt.`, type: "error" });
+        emitToAdmins("adminNotice", { text: `${username} hat ${targetRaw} gebannt.` });
+        broadcastActiveUsers();
         return;
       }
 
-      // /timeout "username" sekunden
-      if (cmd === "/timeout") {
+      // /timeout
+      const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
+      if (timeoutMatch) {
         if (role !== "admin")
           return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
-        const match = msgText.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
-        if (!match) return socket.emit("systemMessage", { text: "Syntax: /timeout \"username\" sekunden", type: "info" });
+        const target = timeoutMatch[1] || timeoutMatch[2];
+        const seconds = parseInt(timeoutMatch[3]);
+        if (!target || isNaN(seconds))
+          return socket.emit("systemMessage", { text: "Ungültiger Syntax.", type: "error" });
 
-        const target = match[1] || match[2];
-        let duration = parseInt(match[3]);
-        if (isNaN(duration) || duration <= 0) return;
-        const until = Date.now() + duration * 1000;
-        userTimeouts.set(normalize(target), until);
+        const until = Date.now() + seconds * 1000;
+        if (!ctx.userTimeouts) ctx.userTimeouts = new Map();
+        ctx.userTimeouts.set(normalize(target), until);
 
-        const socketsSet = findActiveSocketsFor(normalize(target));
-        if (socketsSet)
-          for (const sid of socketsSet)
-            io.to(sid).emit("systemMessage", { text: `🔇 Du bist für ${formatDuration(duration)} gemutet.`, type: "error" });
-
-        emitToAdmins("adminNotice", { text: `${target} wurde für ${duration}s gemutet.` });
+        socket.emit("systemMessage", {
+          text: `⏳ ${target} wurde für ${formatDuration(seconds)} gemutet.`,
+          type: "info",
+        });
+        emitToAdmins("adminNotice", { text: `${target} gemutet (${seconds}s).` });
         return;
       }
 
-      // /deleteAllUsers passwort
-      if (cmd === "/deleteallusers") {
+      // /deleteAllUsers
+      if (finalContent.startsWith("/deleteAllUsers")) {
         if (role !== "admin")
-          return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
-        const pw = parts[1];
-        if (pw !== ADMIN_PASS) return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
-        await User.deleteMany({ role: "user" });
-        await Message.deleteMany({});
-        io.emit("systemMessage", { text: "🧨 Alle normalen Nutzer gelöscht.", type: "error" });
-        io.emit("forceReload", true);
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        const pass = finalContent.split(" ")[1];
+        if (pass !== ADMIN_PASS)
+          return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
+
+        const normalUsers = await User.find({ role: "user" });
+        for (const u of normalUsers) {
+          await Message.deleteMany({ sender: u.username });
+          await User.deleteOne({ username: u.username });
+        }
+        io.emit("systemMessage", { text: "✅ Alle normalen Nutzer gelöscht.", type: "ok" });
+        broadcastActiveUsers();
         return;
       }
 
-      // /reset passwort
-      if (cmd === "/reset") {
+      // /reset
+      if (finalContent.startsWith("/reset")) {
         if (role !== "admin")
-          return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
-        const pw = parts[1];
-        if (pw !== ADMIN_PASS) return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        const pass = finalContent.split(" ")[1];
+        if (pass !== ADMIN_PASS)
+          return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
         await User.deleteMany({});
         await Message.deleteMany({});
-        activeUsers.clear();
-        userRoles.clear();
-        io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt!", type: "error" });
+        io.emit("systemMessage", { text: "⚠️ Server wurde zurückgesetzt.", type: "error" });
         io.emit("forceReload", true);
         return;
       }
 
-      socket.emit("systemMessage", { text: `❓ Unbekanntes Kommando: ${cmd}`, type: "info" });
+      socket.emit("systemMessage", { text: `Unbekannter Befehl: ${finalContent}`, type: "info" });
       return;
     }
 
-    // ============================
-    //     NORMALE NACHRICHT
-    // ============================
+    // === NORMALE NACHRICHT ===
+    if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
+    if (userFilters.get(username)) finalContent = filterMessage(finalContent);
+
     try {
-      const msg = new Message({ sender: username, content: msgText, senderRole: role });
+      const msg = new Message({ sender: username, content: finalContent, senderRole: role });
       await msg.save();
 
-      const deleted = await trimOldMessages(100);
-      if (deleted.length)
-        for (const sid of authenticatedSockets) io.to(sid).emit("deletedMessages", deleted);
+      const deletedIds = await trimOldMessages(100);
+      if (deletedIds.length) io.emit("deletedMessages", deletedIds);
 
-      for (const sid of authenticatedSockets) {
-        io.to(sid).emit("newMessage", {
-          _id: msg._id.toString(),
-          sender: msg.sender,
-          content: msg.content,
-          createdAt: msg.createdAt,
-          senderRole: role,
-          type: "user",
-        });
-      }
+      io.emit("newMessage", {
+        _id: msg._id,
+        sender: msg.sender,
+        content: msg.content,
+        createdAt: msg.createdAt,
+        senderRole: role,
+        type: "user",
+      });
     } catch (err) {
-      console.error("Message-Fehler:", err);
-      socket.emit("systemMessage", { text: "❌ Nachricht konnte nicht gesendet werden.", type: "error" });
+      console.error("Fehler beim Speichern:", err);
+      socket.emit("systemMessage", { text: "Fehler beim Senden.", type: "error" });
     }
   });
 
