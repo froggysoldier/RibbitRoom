@@ -1,11 +1,11 @@
 // sockets/handlers/userHandler.js
-const jwt = require("jsonwebtoken");
-const User = require("../../models/User");
+import jwt from "jsonwebtoken";
+import User from "../../models/User.js";
 
 /**
- * User-Identifikation und Management für Socket.IO
+ * User-Identifikation und Management für Socket.IO (ESM Version)
  */
-module.exports = function (socket, ctx) {
+export default function userHandler(socket, ctx) {
   const {
     activeUsers,
     userRoles,
@@ -29,7 +29,10 @@ module.exports = function (socket, ctx) {
   // === Benutzer identifizieren ===
   socket.on("identify", async (payload) => {
     try {
-      if (!payload) return socket.emit("identifyError", { error: "Keine Nutzerdaten erhalten" });
+      if (!payload) {
+        socket.emit("identifyError", { error: "Keine Nutzerdaten erhalten" });
+        return;
+      }
 
       if (payload.token) {
         try {
@@ -38,7 +41,10 @@ module.exports = function (socket, ctx) {
         } catch (err) {
           console.warn("[userHandler] Ungültiger Token:", err.message);
           socket.emit("identifyError", {
-            error: err.name === "TokenExpiredError" ? "Token abgelaufen" : "Ungültiger Token"
+            error:
+              err.name === "TokenExpiredError"
+                ? "Token abgelaufen"
+                : "Ungültiger Token"
           });
           return;
         }
@@ -68,7 +74,9 @@ module.exports = function (socket, ctx) {
       console.log(`[Socket] ${username} verbunden (${role})`);
     } catch (err) {
       console.error("[userHandler] Identify-Fehler:", err);
-      socket.emit("identifyError", { error: "Interner Fehler bei Identifizierung" });
+      socket.emit("identifyError", {
+        error: "Interner Fehler bei Identifizierung"
+      });
     }
   });
 
@@ -87,10 +95,12 @@ module.exports = function (socket, ctx) {
         console.log(`[Socket] ${username} vollständig getrennt`);
       } else {
         activeUsers.set(username, sockets);
-        console.log(`[Socket] ${username} entfernte Socket ${socket.id}, verbleiben: ${sockets.size}`);
+        console.log(
+          `[Socket] ${username} entfernte Socket ${socket.id}, verbleiben: ${sockets.size}`
+        );
       }
 
       broadcastActiveUsers();
     }
   });
-};
+}
