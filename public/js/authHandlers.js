@@ -1,7 +1,7 @@
 import * as DOM from "./domElements.js";
 import * as UI from "./uiHelpers.js";
 import { initSocket } from "./socketClient.js";
-import { loadMessages } from "./chatHandlers.js";
+import { loadMessages, initChatHandlers } from "./chatHandlers.js";
 
 export function initAuthHandlers(state) {
   if (!state) return;
@@ -16,7 +16,7 @@ export function initAuthHandlers(state) {
   // --- Login / Logout ---
   DOM.loginBtn?.addEventListener("click", () => {
     if (state.token) {
-      // logout
+      // Logout
       state.token = null;
       state.username = null;
       state.myRole = "user";
@@ -27,19 +27,17 @@ export function initAuthHandlers(state) {
         state.socket = null;
       }
       if (DOM.usersListEl) DOM.usersListEl.innerHTML = "";
+      if (DOM.chatWindow) DOM.chatWindow.innerHTML = "";
       refreshLoginButton();
       UI.showInfo("Abgemeldet");
       window.location.reload();
       return;
     }
-    // open modal
     if (DOM.modal) DOM.modal.style.display = "block";
   });
 
   // --- Close modal ---
-  DOM.closeModal?.addEventListener("click", () => {
-    if (DOM.modal) DOM.modal.style.display = "none";
-  });
+  DOM.closeModal?.addEventListener("click", () => { if (DOM.modal) DOM.modal.style.display = "none"; });
   window.addEventListener("click", e => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; });
 
   // --- Registration ---
@@ -57,18 +55,25 @@ export function initAuthHandlers(state) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: newU, password: newP, email, adminPass })
       });
-
       const data = await res.json();
       if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-      // Code-Feld immer anzeigen
-      if (DOM.codeModal) DOM.codeModal.style.display = "block";
-      state.pendingUsername = newU;
-
       UI.showInfo(data.message);
 
-      // Optional: Modal schließen, Registrierung weg
-      if (DOM.modal) DOM.modal.style.display = "none";
+      // Automatisch einloggen nach Registrierung (Token zurück)
+      if (data.token) {
+        state.token = data.token;
+        state.username = newU;
+        state.myRole = data.role || "user";
+        localStorage.setItem("token", state.token);
+        localStorage.setItem("username", state.username);
+
+        if (DOM.modal) DOM.modal.style.display = "none";
+        refreshLoginButton();
+        if (!state.socket) initSocket(state);
+        await loadMessages(state);
+        initChatHandlers(state);
+      }
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
@@ -109,20 +114,16 @@ export function initAuthHandlers(state) {
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
-      if (state.socket) {
-        state.socket.auth = { token: state.token };
-        state.socket.disconnect();
-        setTimeout(() => initSocket(state), 50);
-      } else initSocket(state);
-
+      if (!state.socket) initSocket(state);
       await loadMessages(state);
+      initChatHandlers(state);
     } catch (err) {
       console.error("Login error:", err);
       UI.showError("Login-Fehler");
     }
   });
 
-  // --- Code bestätigen ---
+  // --- Verify code ---
   DOM.codeSubmit?.addEventListener("click", async () => {
     const code = DOM.codeInput?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
@@ -140,7 +141,6 @@ export function initAuthHandlers(state) {
       state.username = state.pendingUsername;
       state.myRole = data.role || "user";
       state.pendingUsername = null;
-
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
@@ -149,15 +149,9 @@ export function initAuthHandlers(state) {
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
-      // --- Socket initialisieren und Nachrichten laden ---
-      if (state.socket) {
-        state.socket.auth = { token: state.token };
-        state.socket.disconnect();
-        setTimeout(() => initSocket(state), 50);
-      } else initSocket(state);
-
+      if (!state.socket) initSocket(state);
       await loadMessages(state);
-
+      initChatHandlers(state);
     } catch (err) {
       console.error("Verify error:", err);
       UI.showError("Fehler bei Code-Bestätigung");
