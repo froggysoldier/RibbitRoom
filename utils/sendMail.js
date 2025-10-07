@@ -1,72 +1,49 @@
 // utils/sendMail.js
-import dotenv from "dotenv";
-dotenv.config();
+import sgMail from "@sendgrid/mail";
 
-const SENDGRID_KEY = process.env.SENDGRID_API_KEY;
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined;
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+const FROM = process.env.EMAIL_FROM || "no-reply@yourdomain.com";
 
-async function sendWithSendgrid({ to, subject, text, html }) {
+function initSendGrid() {
+  const key = process.env.SENDGRID_API_KEY;
+  if (!key) {
+    console.error("[sendMail] SENDGRID_API_KEY nicht gesetzt!");
+    return false;
+  }
   try {
-    const sgMail = await import("@sendgrid/mail");
-    sgMail.default.setApiKey(SENDGRID_KEY);
-    await sgMail.default.send({
-      to,
-      from: process.env.MAIL_FROM || "no-reply@yourdomain.com",
-      subject,
-      text,
-      html
-    });
-    return { ok: true };
+    sgMail.setApiKey(key);
+    return true;
   } catch (err) {
-    return { ok: false, error: err.message || String(err) };
+    console.error("[sendMail] Fehler beim Setzen des API Keys:", err);
+    return false;
   }
 }
 
-async function sendWithSmtp({ to, subject, text, html }) {
-  try {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT || 587,
-      secure: SMTP_PORT === 465,
-      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-    });
-
-    const info = await transporter.sendMail({
-      from: process.env.MAIL_FROM || `"RibbitRoom" <no-reply@yourdomain.com>`,
-      to,
-      subject,
-      text,
-      html
-    });
-    return { ok: true, info };
-  } catch (err) {
-    return { ok: false, error: err.message || String(err) };
-  }
-}
-
+/**
+ * sendMail({ to, subject, text, html })
+ * returns { ok: true, response } or { ok: false, error }
+ */
 export default async function sendMail({ to, subject, text, html }) {
-  // prefer sendgrid, but fallback to SMTP, otherwise log
-  if (SENDGRID_KEY) {
-    const res = await sendWithSendgrid({ to, subject, text, html });
-    if (!res.ok) {
-      console.warn("[sendMail] SendGrid failed:", res.error);
-    }
-    return res;
+  if (!initSendGrid()) {
+    return { ok: false, error: "SENDGRID_API_KEY fehlt oder ungültig" };
   }
+  if (!to) return { ok: false, error: "Empfänger fehlt" };
 
-  if (SMTP_HOST && SMTP_USER) {
-    const res = await sendWithSmtp({ to, subject, text, html });
-    if (!res.ok) console.warn("[sendMail] SMTP failed:", res.error);
-    return res;
+  const msg = {
+    to,
+    from: FROM,
+    subject: subject || "RibbitRoom Nachricht",
+    text: text || "",
+    html: html || text || "",
+  };
+
+  try {
+    const res = await sgMail.send(msg);
+    // send liefert ein Array mit Response-Objekten
+    console.log(`[sendMail] SendGrid antwort status: ${res[0]?.statusCode}`);
+    return { ok: true, response: res };
+  } catch (err) {
+    const apiErr = err?.response?.body || err;
+    console.error("[sendMail] SendGrid failed:", apiErr);
+    return { ok: false, error: apiErr };
   }
-
-  // neither provider configured
-  const msg = `Mailer nicht konfiguriert. Setze SENDGRID_API_KEY oder SMTP_HOST/SMTP_USER in ENV.`;
-  console.warn("[sendMail]", msg);
-  console.log("Mail-Preview:", { to, subject, text, html });
-  return { ok: false, error: msg };
 }
