@@ -1,7 +1,9 @@
-const jwt = require("jsonwebtoken");
+// middleware/auth.js
+import jwt from "jsonwebtoken";
+
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
-const authMiddleware = (req, res, next) => {
+export default function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "Nicht eingeloggt" });
 
@@ -13,6 +15,4 @@ const authMiddleware = (req, res, next) => {
   } catch (err) {
     res.status(401).json({ error: "Ungültiger Token" });
   }
-};
-
-module.exports = authMiddleware;
+}
