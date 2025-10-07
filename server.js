@@ -10,9 +10,11 @@ import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 
-// 🧩 Handlers
-import userHandler from "./sockets/handlers/userHandler.js";
-import chatMessageHandler from "./sockets/handlers/chatMessageHandler.js";
+// 🧩 Handlers (automatisch kompatibel mit CommonJS + ESM)
+import userHandlerModule from "./sockets/handlers/userHandler.js";
+import chatMessageHandlerModule from "./sockets/handlers/chatMessageHandler.js";
+const userHandler = userHandlerModule.default || userHandlerModule;
+const chatMessageHandler = chatMessageHandlerModule.default || chatMessageHandlerModule;
 
 dotenv.config();
 
