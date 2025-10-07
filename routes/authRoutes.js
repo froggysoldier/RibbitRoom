@@ -40,12 +40,13 @@ router.post("/register", async (req, res) => {
     const user = await User.create({
       username,
       email,
-      password: hashed,
+      password, // <-- rohes Passwort hier; UserSchema.pre('save') hash't es automatisch
       role,
       verificationCode,
       verified: false,
-      codeExpiresAt: Date.now() + 1000 * 60 * 60 // 1 Stunde gültig
+      codeExpiresAt: Date.now() + 1000 * 60 * 60
     });
+
 
     // Mail senden
     const mailRes = await sendMail({
@@ -127,3 +128,4 @@ router.post("/login", async (req, res) => {
 });
 
 export default router;
+
