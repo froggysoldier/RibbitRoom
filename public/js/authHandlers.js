@@ -16,7 +16,7 @@ export function initAuthHandlers(state) {
   // --- Login / Logout ---
   DOM.loginBtn?.addEventListener("click", () => {
     if (state.token) {
-      // logout
+      // Logout
       state.token = null;
       state.username = null;
       state.myRole = "user";
@@ -44,10 +44,10 @@ export function initAuthHandlers(state) {
 
   // --- Registration ---
   DOM.registerSubmit?.addEventListener("click", async () => {
-    const newU = document.getElementById("newUser")?.value?.trim();
-    const newP = document.getElementById("newPass")?.value?.trim();
-    const email = document.getElementById("email")?.value?.trim();
-    const adminPass = document.getElementById("adminPass")?.value?.trim();
+    const newU = DOM.newUser?.value?.trim();
+    const newP = DOM.newPass?.value?.trim();
+    const email = DOM.email?.value?.trim();
+    const adminPass = DOM.adminPass?.value?.trim();
     if (!newU || !newP || !email) return UI.showError("Bitte alle Felder ausfüllen.");
 
     try {
@@ -60,11 +60,13 @@ export function initAuthHandlers(state) {
 
       if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-      UI.showInfo("📧 Bestätigungscode wurde an deine E-Mail geschickt. Bitte Code eingeben.");
-      state.pendingUsername = newU;
+      UI.showInfo(data.message);
 
-      // Zeige Code-Eingabe nur bei Registrierung
+      // Registrierungscode-Feld öffnen
+      state.pendingUsername = newU;
       if (DOM.codeModal) DOM.codeModal.style.display = "block";
+
+      if (DOM.modal) DOM.modal.style.display = "none";
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
@@ -73,8 +75,8 @@ export function initAuthHandlers(state) {
 
   // --- Login ---
   DOM.loginSubmit?.addEventListener("click", async () => {
-    const username = document.getElementById("username")?.value?.trim();
-    const password = document.getElementById("password")?.value?.trim();
+    const username = DOM.username?.value?.trim();
+    const password = DOM.password?.value?.trim();
     if (!username || !password) return UI.showError("Bitte Benutzername und Passwort eingeben.");
 
     try {
@@ -111,7 +113,7 @@ export function initAuthHandlers(state) {
     }
   });
 
-  // --- Verify code (nur bei Registrierung) ---
+  // --- Verify code (für Registrierung) ---
   DOM.codeSubmit?.addEventListener("click", async () => {
     const code = DOM.codeInput?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
@@ -125,7 +127,7 @@ export function initAuthHandlers(state) {
       const data = await res.json();
       if (!res.ok) return UI.showError(data.error || "Code ungültig");
 
-      // Direkt einloggen nach Code-Bestätigung
+      // Automatisch einloggen nach Code-Bestätigung
       state.token = data.token;
       state.username = state.pendingUsername;
       state.myRole = data.role || "user";
@@ -134,9 +136,8 @@ export function initAuthHandlers(state) {
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
-      if (DOM.modal) DOM.modal.style.display = "none";
       if (DOM.codeModal) DOM.codeModal.style.display = "none";
-      UI.showInfo(`✅ Registrierung abgeschlossen – eingeloggt als ${state.username}`);
+      UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
       if (state.socket) {
