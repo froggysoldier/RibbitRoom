@@ -1,13 +1,12 @@
-// sockets/handlers/chatMessageHandler.js
-const jwt = require("jsonwebtoken");
-const Message = require("../../models/Message");
-const User = require("../../models/User");
-const filterMessage = require("../../utils/filter");
+import jwt from "jsonwebtoken";
+import Message from "../../models/Message.js";
+import User from "../../models/User.js";
+import filterMessage from "../../utils/filter.js";
 
 // serverweite Map für Timeouts: normalizedUsername -> timestamp (ms)
 const userTimeouts = new Map();
 
-module.exports = function (socket, ctx) {
+export default function chatMessageHandler(socket, ctx) {
   let {
     username,
     activeUsers,
@@ -88,7 +87,7 @@ module.exports = function (socket, ctx) {
     }
     lastMessageTime.set(username, now);
 
-    // --- Spam-History (nur Warnung, kein Auto-Timeout) ---
+    // --- Spam-History ---
     const HISTORY_LIMIT = 7;
     const TIME_WINDOW = 10000; // ms
     const hist = messageHistory.get(myNorm) || [];
@@ -155,9 +154,7 @@ module.exports = function (socket, ctx) {
           const newToken = jwt.sign({ username, role }, JWT_SECRET, { expiresIn: "7d" });
           socket.emit("newToken", { token: newToken });
           socket.emit("systemMessage", { text: "✔️ Du bist jetzt Admin.", type: "ok" });
-          for (const sid of authenticatedSockets) {
-            io.to(sid).emit("roleUpdated", { username, role });
-          }
+          for (const sid of authenticatedSockets) io.to(sid).emit("roleUpdated", { username, role });
           emitToAdmins("adminNotice", { text: `${username} ist jetzt Admin.` });
         } else {
           socket.emit("systemMessage", { text: "Falsches Admin-Passwort.", type: "error" });
@@ -302,7 +299,6 @@ module.exports = function (socket, ctx) {
         const MAX_TIMEOUT = 604800;
         if (!target || isNaN(durationSec) || durationSec <= 0) return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
         if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT;
-        //if (normalize(target) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
 
         const until = Date.now() + durationSec * 1000;
         userTimeouts.set(normalize(target), until);
@@ -333,7 +329,6 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // unbekanntes Kommando
       socket.emit("systemMessage", { text: `ℹ️ Unbekanntes Kommando: ${finalContent}`, type: "info" });
       return;
     }
@@ -371,4 +366,4 @@ module.exports = function (socket, ctx) {
     if (!username) return;
     userFilters.set(username, !!active);
   });
-};
+}
