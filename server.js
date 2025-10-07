@@ -10,33 +10,31 @@ import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 
-// 🧩 Handlers (automatisch kompatibel mit CommonJS + ESM)
+// === Handlers laden (kompatibel mit ESM)
 import userHandlerModule from "./sockets/handlers/userHandler.js";
 import chatMessageHandlerModule from "./sockets/handlers/chatMessageHandler.js";
 const userHandler = userHandlerModule.default || userHandlerModule;
 const chatMessageHandler = chatMessageHandlerModule.default || chatMessageHandlerModule;
 
+// === .env Variablen laden ===
 dotenv.config();
+const { MONGO_URI, JWT_SECRET, ADMIN_PASS, PORT = 3000 } = process.env;
 
+// === Express & Server Setup ===
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
+  cors: { origin: "*", methods: ["GET", "POST"] },
 });
-
-const PORT = process.env.PORT || 3000;
 
 // === Middleware ===
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// === MongoDB verbinden ===
+// === MongoDB ===
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB verbunden"))
   .catch((err) => console.error("❌ MongoDB Fehler:", err));
 
@@ -49,13 +47,14 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
-// === Socket Kontext ===
-const activeUsers = new Map();
-const userRoles = new Map();
-const userFilters = new Map();
-const authenticatedSockets = new Set();
-const lastMessageTime = new Map();
+// === Socket-Storage ===
+const activeUsers = new Map(); // username -> Set(socketIds)
+const userRoles = new Map(); // username -> role
+const userFilters = new Map(); // username -> bool
+const authenticatedSockets = new Set(); // socket.id
+const lastMessageTime = new Map(); // username -> timestamp
 
+// === Helper-Funktionen ===
 function broadcastActiveUsers() {
   const users = Array.from(activeUsers.keys()).map((username) => ({
     username,
@@ -67,7 +66,7 @@ function broadcastActiveUsers() {
 function emitToAdmins(event, data) {
   for (const [uname, socketsSet] of activeUsers.entries()) {
     const role = userRoles.get(uname);
-    if (role === "admin") {
+    if (role === "admin" && socketsSet) {
       for (const sid of socketsSet) io.to(sid).emit(event, data);
     }
   }
@@ -84,11 +83,13 @@ async function trimOldMessages(maxMessages = 100) {
   return ids;
 }
 
-// === Socket.IO ===
+// === Socket.IO Verbindung ===
 io.on("connection", (socket) => {
   console.log("🔌 Neue Socket-Verbindung:", socket.id);
 
+  // ⚙️ Context für Handler vorbereiten
   const ctx = {
+    io,
     activeUsers,
     userRoles,
     userFilters,
@@ -97,21 +98,30 @@ io.on("connection", (socket) => {
     emitToAdmins,
     trimOldMessages,
     lastMessageTime,
-    JWT_SECRET: process.env.JWT_SECRET,
-    ADMIN_PASS: process.env.ADMIN_PASS,
-    io,
+    JWT_SECRET, // direkt aus .env
+    ADMIN_PASS, // direkt aus .env
   };
 
-  // 🧩 User + Chat Handler initialisieren
+  // === Handler initialisieren ===
   userHandler(socket, ctx);
   chatMessageHandler(socket, ctx);
 
+  // === Disconnect-Handling ===
   socket.on("disconnect", () => {
-    console.log("❌ Socket getrennt:", socket.id);
+    for (const [uname, socketsSet] of activeUsers.entries()) {
+      if (socketsSet.has(socket.id)) {
+        socketsSet.delete(socket.id);
+        if (socketsSet.size === 0) activeUsers.delete(uname);
+        break;
+      }
+    }
+    authenticatedSockets.delete(socket.id);
+    broadcastActiveUsers();
+    console.log(`❌ Socket getrennt: ${socket.id}`);
   });
 });
 
-// === Start ===
+// === Server Start ===
 server.listen(PORT, () => {
   console.log(`🚀 Server läuft auf http://localhost:${PORT}`);
 });
