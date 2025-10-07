@@ -18,6 +18,7 @@ const chatMessageHandler = chatMessageHandlerModule.default || chatMessageHandle
 
 // === .env Variablen laden ===
 dotenv.config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || "RibbitRoomSecret123!";
 const { MONGO_URI, JWT_SECRET, ADMIN_PASS, PORT = 3000 } = process.env;
 
 // === Express & Server Setup ===
@@ -142,3 +143,4 @@ server.listen(PORT, () => {
   if (!JWT_SECRET) console.warn("⚠️ Warnung: JWT_SECRET nicht gesetzt! Verwende Fallback.");
   if (!ADMIN_PASS) console.warn("⚠️ Warnung: ADMIN_PASS nicht gesetzt! Verwende Fallback.");
 });
+
