@@ -42,33 +42,42 @@ export function initAuthHandlers(state) {
   });
   window.addEventListener("click", e => { if (e.target === DOM.modal) DOM.modal.style.display = "none"; });
 
-  // --- Registration ---
-  DOM.registerSubmit?.addEventListener("click", async () => {
-    const newU = DOM.newUser?.value?.trim();
-    const newP = DOM.newPass?.value?.trim();
-    const email = DOM.email?.value?.trim();
-    const adminPass = DOM.adminPass?.value?.trim();
-    if (!newU || !newP || !email) return UI.showError("Bitte alle Felder ausfüllen.");
+// --- Registration ---
+DOM.registerSubmit?.addEventListener("click", async () => {
+  const newU = DOM.newUser?.value?.trim();
+  const newP = DOM.newPass?.value?.trim();
+  const email = DOM.email?.value?.trim();
+  const adminPass = DOM.adminPass?.value?.trim();
 
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: newU, password: newP, email, adminPass })
-      });
-      const data = await res.json();
+  // Nur die wirklich erforderlichen Felder prüfen
+  if (!newU || !newP || !email) {
+    return UI.showError("Bitte Benutzername, Passwort und E-Mail ausfüllen.");
+  }
 
-      if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: newU, password: newP, email, adminPass })
+    });
+    const data = await res.json();
 
-      UI.showInfo(data.message);
+    if (!res.ok && !data.mailFailed) return UI.showError(data.error || "Registrierung fehlgeschlagen");
 
-      // Für Code-Verify merken, wer registriert wurde
-      state.pendingUsername = newU;
-    } catch (err) {
-      console.error("Register error:", err);
-      UI.showError("Registrieren-Fehler");
-    }
-  });
+    UI.showInfo(data.message);
+
+    // Setze pendingUsername für Code-Verify
+    state.pendingUsername = newU;
+
+    // Öffne Codefeld direkt, damit Nutzer den Code eingeben kann
+    if (DOM.codeModal) DOM.codeModal.style.display = "block";
+
+  } catch (err) {
+    console.error("Register error:", err);
+    UI.showError("Registrieren-Fehler");
+  }
+});
+
 
   // --- Login ---
   DOM.loginSubmit?.addEventListener("click", async () => {
