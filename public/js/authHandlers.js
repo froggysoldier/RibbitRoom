@@ -32,7 +32,7 @@ export function initAuthHandlers(state) {
       window.location.reload();
       return;
     }
-    // open modal
+    // Open modal
     if (DOM.modal) DOM.modal.style.display = "block";
   });
 
@@ -62,11 +62,8 @@ export function initAuthHandlers(state) {
 
       UI.showInfo(data.message);
 
-      // Registrierungscode-Feld öffnen
+      // Für Code-Verify merken, wer registriert wurde
       state.pendingUsername = newU;
-      if (DOM.codeModal) DOM.codeModal.style.display = "block";
-
-      if (DOM.modal) DOM.modal.style.display = "none";
     } catch (err) {
       console.error("Register error:", err);
       UI.showError("Registrieren-Fehler");
@@ -87,9 +84,15 @@ export function initAuthHandlers(state) {
       });
       const data = await res.json();
 
+      if (res.status === 403 && data.error?.toLowerCase().includes("nicht verifiziert")) {
+        UI.showInfo("📧 Code wurde an deine E-Mail geschickt. Bitte Code eingeben.");
+        state.pendingUsername = username;
+        return;
+      }
+
       if (!res.ok) return UI.showError(data.error || "Login fehlgeschlagen");
 
-      // logged in
+      // Logged in
       state.token = data.token;
       state.username = username;
       state.myRole = data.role || "user";
@@ -113,9 +116,9 @@ export function initAuthHandlers(state) {
     }
   });
 
-  // --- Verify code (für Registrierung) ---
+  // --- Code-Verify ---
   DOM.codeSubmit?.addEventListener("click", async () => {
-    const code = DOM.codeInput?.value?.trim();
+    const code = DOM.code?.value?.trim();
     if (!state.pendingUsername || !code) return UI.showError("Bitte Code eingeben.");
 
     try {
@@ -127,7 +130,7 @@ export function initAuthHandlers(state) {
       const data = await res.json();
       if (!res.ok) return UI.showError(data.error || "Code ungültig");
 
-      // Automatisch einloggen nach Code-Bestätigung
+      // Direkt einloggen
       state.token = data.token;
       state.username = state.pendingUsername;
       state.myRole = data.role || "user";
@@ -136,7 +139,6 @@ export function initAuthHandlers(state) {
       localStorage.setItem("token", state.token);
       localStorage.setItem("username", state.username);
 
-      if (DOM.codeModal) DOM.codeModal.style.display = "none";
       UI.showInfo(`Eingeloggt als ${state.username}`);
       refreshLoginButton();
 
