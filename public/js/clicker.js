@@ -28,7 +28,7 @@ const buyUpgrade3 = document.getElementById("buyUpgrade3");
 const fpsCounter = document.getElementById("fpsCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
-
+UpdateDisplay(); // initial Anzeige aktualisieren
 
 function UpdateDisplay() {
   counter.textContent = fish;
