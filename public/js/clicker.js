@@ -31,13 +31,13 @@ const buyUpgrade1 = document.getElementById("buyUpgrade1");
 const buyUpgrade2 = document.getElementById("buyUpgrade2");
 const buyUpgrade3 = document.getElementById("buyUpgrade3");
 const fpsCounter = document.getElementById("fpsCounter");
+const fpcCounter = document.getElementById("fpcCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
 UpdateDisplay(); // initial Anzeige aktualisieren
 
 function UpdateDisplay() {
   counter.textContent = fish;
-  fpcCounter.textContent = fpc;
   fpsCounter.textContent = fps;
   DiscountCounter.textContent = 1 - (BoughtUpgrade3 * 0.05);
 
