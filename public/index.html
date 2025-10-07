@@ -64,7 +64,6 @@
   <div class="modal-content">
     <span class="close">&times;</span>
 
-    <!-- LOGIN -->
     <h2>Login</h2>
     <input type="text" id="username" placeholder="Benutzername">
     <input type="password" id="password" placeholder="Passwort">
@@ -72,7 +71,6 @@
 
     <hr>
 
-    <!-- REGISTRIERUNG -->
     <h3>Registrieren</h3>
     <input type="text" id="newUser" placeholder="Benutzername">
     <input type="password" id="newPass" placeholder="Passwort">
@@ -80,12 +78,11 @@
     <input type="password" id="adminPass" placeholder="Admin-Passwort (optional)">
     <button id="registerSubmit">Registrieren</button>
 
-    <!-- CODE EINGABE (nur bei Registrierung anzeigen) -->
-    <div id="codeSection" style="display:none; margin-top:15px;">
-      <h3>E-Mail bestätigen</h3>
-      <input type="text" id="codeInput" placeholder="Bestätigungscode">
-      <button id="codeSubmit">Code bestätigen</button>
-    </div>
+    <hr>
+
+    <h3>Bestätigungscode</h3>
+    <input type="text" id="code" placeholder="Bestätigungscode" />
+    <button id="codeSubmit">Bestätigen</button>
   </div>
 </div>
 
@@ -96,6 +93,7 @@
 
 </body>
 </html>
+
 
 
 
