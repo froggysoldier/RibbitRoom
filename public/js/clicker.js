@@ -25,7 +25,6 @@ const buyUpgrade0 = document.getElementById("buyUpgrade0");
 const buyUpgrade1 = document.getElementById("buyUpgrade1");
 const buyUpgrade2 = document.getElementById("buyUpgrade2");
 const buyUpgrade3 = document.getElementById("buyUpgrade3");
-const fpcCounter = document.getElementById("fpcCounter");
 const fpsCounter = document.getElementById("fpsCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
@@ -114,7 +113,7 @@ setInterval(() => {
   UpdateDisplay();
 }, 1000);
 
-ocument.addEventListener('click', (e) => {
+document.addEventListener('click', (e) => {
   if (!box.contains(e.target) && e.target !== btn) {
     box.classList.remove('show');
   }
