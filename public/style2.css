@@ -68,8 +68,9 @@ button:active {
 }
 
 #slideBox.show {
-  right: 5; /* sichtbar */
+  right: 0; /* sichtbar */
 }
+
 
 
 
