@@ -6,19 +6,35 @@ export function initSocket(state) {
   if (!state) return;
   if (state.socket && state.socket.connected) return;
 
-  // Socket.IO initialisieren
-  state.socket = io({ auth: { token: state.token } });
+  // Socket.IO initialisieren (autoConnect kontrolliert)
+  state.socket = io({
+    auth: { token: state.token },
+    autoConnect: false,
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000
+  });
 
+  // === Verbindung hergestellt ===
   state.socket.on("connect", () => {
     state.socketConnected = true;
-    if (state.token) state.socket.emit("identify", { token: state.token });
+    console.info("[SOCKET] Verbunden mit Server");
+
+    // Token senden, um Benutzer zu identifizieren
+    if (state.token) {
+      state.socket.emit("identify", { token: state.token });
+    }
+
     if (state.sendBtn && state.messageInput) UI.setSendEnabled(!!state.token);
   });
 
-  state.socket.on("connect_error", (err) =>
-    console.warn("[SOCKET] connect_error", err?.message || err)
-  );
+  // === Verbindungsfehler ===
+  state.socket.on("connect_error", (err) => {
+    console.warn("[SOCKET] connect_error", err?.message || err);
+    UI.showError("Verbindung zum Server fehlgeschlagen – prüfe Login oder Netzwerk.");
+  });
 
+  // === Nachricht empfangen ===
   state.socket.on("newMessage", (msg) => {
     const isSelf = msg.sender === state.username;
     UI.appendMessage(
@@ -32,6 +48,7 @@ export function initSocket(state) {
     );
   });
 
+  // === Systemnachricht ===
   state.socket.on("systemMessage", (data) => {
     let text = "";
     let duration = 4000;
@@ -44,14 +61,17 @@ export function initSocket(state) {
     UI.appendMessage("SYSTEM", text, new Date(), id, false, "system", "user", duration);
   });
 
+  // === Erfolgreich identifiziert ===
   state.socket.on("identified", (data) => {
     if (data.username) state.username = data.username;
     state.myRole = data.role || state.myRole;
     state.filterActive = data.filterActive || false;
     if (state.filterBtn) state.filterBtn.checked = state.filterActive;
     localStorage.setItem("username", state.username || "");
+    console.log(`[SOCKET] Identifiziert als ${state.username} (${state.myRole})`);
   });
 
+  // === Benutzerliste aktualisieren ===
   state.socket.on("activeUsers", (users) => {
     if (!state.usersListEl) return;
     state.usersListEl.innerHTML = "";
@@ -64,11 +84,13 @@ export function initSocket(state) {
     });
   });
 
+  // === Nachrichten löschen ===
   state.socket.on("deletedMessages", (ids) => {
     if (!state.chatWindow) return;
     ids.forEach((id) => state.chatWindow.querySelector(`[data-id="${id}"]`)?.remove());
   });
 
+  // === Server Reset / Reload ===
   state.socket.on("forceReload", async (resetAll = true) => {
     if (!state.chatWindow || !state.usersListEl) return;
     if (resetAll) {
@@ -78,7 +100,10 @@ export function initSocket(state) {
       localStorage.removeItem("token");
       localStorage.removeItem("username");
       if (state.socket) {
-        try { state.socket.auth = {}; state.socket.disconnect(); } catch {}
+        try {
+          state.socket.auth = {};
+          state.socket.disconnect();
+        } catch {}
         state.socket = null;
       }
       state.usersListEl.innerHTML = "";
@@ -94,26 +119,20 @@ export function initSocket(state) {
     }
   });
 
-  state.socket.on("disconnect", () => {
-    state.socketConnected = false;
-    if (state.sendBtn && state.messageInput) UI.setSendEnabled(false);
-  });
-   // Neues Admin-Token
+  // === Neues Admin-Token ===
   state.socket.on("newToken", (data) => {
     if (data?.token) {
       state.token = data.token;
       localStorage.setItem("token", state.token);
       console.log("[INFO] Neues Admin-Token gespeichert");
+      // Optional: gleich re-identifizieren
+      if (state.socket && state.socket.connected) {
+        state.socket.emit("identify", { token: state.token });
+      }
     }
   });
 
-  // Disconnect
-  state.socket.on("disconnect", () => {
-    state.socketConnected = false;
-    UI.setSendEnabled(false);
-  });
-
-  // Gebannt
+  // === Gebannt ===
   state.socket.on("banned", (data) => {
     const text = data?.text || "Du wurdest gebannt.";
     UI.showError(text);
@@ -131,7 +150,7 @@ export function initSocket(state) {
     }, 3000);
   });
 
-  // Role Update
+  // === Rollenänderung ===
   state.socket.on("roleUpdated", ({ username, role }) => {
     DOM.usersListEl.querySelectorAll("li").forEach((li) => {
       if (li.textContent === username) li.classList.toggle("admin-user", role === "admin");
@@ -147,11 +166,20 @@ export function initSocket(state) {
     if (username === state.username) state.myRole = role;
   });
 
-  // Update Users & Messages
+  // === Update Users & Messages ===
   state.socket.on("updateUsersAndMessages", async () => {
     if (!state.token) return;
     state.socket.emit("requestActiveUsers");
     await loadMessages(state);
   });
-  // Admin-Token, Banned, roleUpdated etc. unverändert
+
+  // === Disconnect ===
+  state.socket.on("disconnect", (reason) => {
+    state.socketConnected = false;
+    console.warn("[SOCKET] Verbindung getrennt:", reason);
+    if (state.sendBtn && state.messageInput) UI.setSendEnabled(false);
+  });
+
+  // Jetzt Verbindung starten
+  state.socket.connect();
 }
