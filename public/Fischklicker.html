@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Slide-In Box</title>
+  <link rel="stylesheet" href="style2.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <button id="showBtn">Box anzeigen</button>
+
+  <div id="slideBox">
+    <h2>Fische: <span id="counter">0</span></h2>
+    <h2>Fische pro Sekunde: <span id="fpsCounter">0</span></h2>
+    <h2>Kundenrabatt: <span id="DiscountCounter">0</span></h2>
+
+    <div class="klickbares">
+      <img
+        src="images/fischer.png"
+        id="fisher"
+        alt="Fisher"
+        width="300"
+        style="cursor: pointer;"
+      >
+
+      <br><br><br>
+      <button id="buyUpgrade0">Bessere Angel kaufen (kostet 15 ) - Aktuell: 0 Upgrades</button>
+      <br><br>
+      <button id="buyUpgrade1">Fischer anstellen (kostet 100 ) - Aktuell: 0 Upgrades</button>
+      <br><br>
+      <button id="buyUpgrade2">Boot kaufen (kostet 1000 ) - Aktuell: 0 Upgrades</button>
+      <br><br>
+      <button id="buyUpgrade3">Kundenrabatt hochstufen (kostet 5000 ) - Aktuell: 0 Upgrades</button>
+      <br><br><br><br><br><br>
+    </div>
+  </div>
+
+  <script src="clicker.js"></script>
+</body>
+</html>
