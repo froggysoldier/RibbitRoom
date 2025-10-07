@@ -2,13 +2,6 @@
 import jwt from "jsonwebtoken";
 import User from "../../models/User.js";
 
-/**
- * Benutzer-Identifizierung & Verwaltung aktiver Sockets.
- * - prüft JWTs
- * - verwaltet activeUsers + Rollen
- * - synchronisiert aktive Nutzerliste
- * - entfernt User beim Disconnect
- */
 export default function userHandler(socket, ctx) {
   const {
     activeUsers,
@@ -22,7 +15,6 @@ export default function userHandler(socket, ctx) {
 
   let username = null;
 
-  // === Hilfsfunktionen ===
   const addActive = (uname, socketId, role = "user") => {
     const set = activeUsers.get(uname) || new Set();
     set.add(socketId);
@@ -45,7 +37,6 @@ export default function userHandler(socket, ctx) {
     broadcastActiveUsers();
   };
 
-  // === Benutzer identifizieren ===
   socket.on("identify", async (payload) => {
     try {
       const token = payload?.token || socket.handshake?.auth?.token;
@@ -56,7 +47,6 @@ export default function userHandler(socket, ctx) {
         return;
       }
 
-      // --- Prüfe JWT ---
       if (token) {
         if (!JWT_SECRET) {
           console.error("[userHandler] JWT_SECRET nicht gesetzt!");
@@ -64,18 +54,16 @@ export default function userHandler(socket, ctx) {
           return;
         }
 
+        let decoded;
         try {
-          const decoded = jwt.verify(token, JWT_SECRET);
-          username = decoded.username || decoded.user || decoded.id || decoded.name;
+          decoded = jwt.verify(token, JWT_SECRET);
         } catch (err) {
           console.warn("[userHandler] Ungültiger Token:", err.message);
-          socket.emit("identifyError", {
-            error: err.name === "TokenExpiredError" ? "Deine Sitzung ist abgelaufen." : "Ungültiger Login-Token."
-          });
+          socket.emit("identifyError", { error: err.name === "TokenExpiredError" ? "Token abgelaufen" : "Ungültiger Token" });
           return;
         }
+        username = decoded.username || decoded.user || decoded.id;
       } else {
-        // Fallback (nicht empfohlen)
         username = maybeUsername;
       }
 
@@ -84,39 +72,28 @@ export default function userHandler(socket, ctx) {
         return;
       }
 
-      // --- Benutzerrolle laden ---
       const dbUser = await User.findOne({ username });
       const role = dbUser?.role || "user";
 
-      // --- Socket speichern ---
       addActive(username, socket.id, role);
 
+      socket.data = socket.data || {};
       socket.data.username = username;
       socket.data.role = role;
 
-      // --- Authentifizierten Socket merken ---
       authenticatedSockets.add(socket.id);
 
-      // --- Rückmeldung an Client ---
-      socket.emit("identified", {
-        username,
-        role,
-        filterActive: userFilters.get(username) || false
-      });
-
-      console.log(`[userHandler] ${username} identifiziert (Rolle: ${role}) – Socket ${socket.id}`);
+      socket.emit("identified", { username, role, filterActive: userFilters.get(username) || false });
+      console.log(`[userHandler] ${username} identifiziert -> ${socket.id}`);
     } catch (err) {
       console.error("[userHandler] Identify-Fehler:", err);
-      socket.emit("identifyError", { error: "Fehler bei Identifizierung" });
+      socket.emit("identifyError", { error: "Interner Fehler" });
     }
   });
 
-  // === Disconnect ===
   socket.on("disconnect", () => {
-    if (socket.data?.username) {
-      removeActive(socket.data.username, socket.id);
-    }
-    authenticatedSockets.delete(socket.id);
+    if (socket.data?.username) removeActive(socket.data.username, socket.id);
+    try { authenticatedSockets.delete(socket.id); } catch (e) {}
     console.log(`[userHandler] disconnected: ${socket.id} (user: ${socket.data?.username || "unknown"})`);
   });
 }
