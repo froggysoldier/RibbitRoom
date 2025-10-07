@@ -33,10 +33,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // === MongoDB ===
+if (!MONGO_URI) {
+  console.error("❌ Keine MONGO_URI in .env gesetzt!");
+  process.exit(1);
+}
 mongoose
   .connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB verbunden"))
-  .catch((err) => console.error("❌ MongoDB Fehler:", err));
+  .catch((err) => {
+    console.error("❌ MongoDB Fehler:", err);
+    process.exit(1);
+  });
 
 // === Static Files ===
 const __filename = fileURLToPath(import.meta.url);
@@ -98,20 +105,28 @@ io.on("connection", (socket) => {
     emitToAdmins,
     trimOldMessages,
     lastMessageTime,
-    JWT_SECRET, // direkt aus .env
-    ADMIN_PASS, // direkt aus .env
+    JWT_SECRET: JWT_SECRET || "fallback_secret", // <- stellt sicher, dass es immer gesetzt ist
+    ADMIN_PASS: ADMIN_PASS || "admin123",        // <- fallback falls vergessen
   };
 
   // === Handler initialisieren ===
-  userHandler(socket, ctx);
-  chatMessageHandler(socket, ctx);
+  try {
+    userHandler(socket, ctx);
+    chatMessageHandler(socket, ctx);
+  } catch (err) {
+    console.error("❌ Fehler beim Initialisieren der Socket-Handler:", err);
+  }
 
   // === Disconnect-Handling ===
   socket.on("disconnect", () => {
     for (const [uname, socketsSet] of activeUsers.entries()) {
       if (socketsSet.has(socket.id)) {
         socketsSet.delete(socket.id);
-        if (socketsSet.size === 0) activeUsers.delete(uname);
+        if (socketsSet.size === 0) {
+          activeUsers.delete(uname);
+          userRoles.delete(uname);
+          userFilters.delete(uname);
+        }
         break;
       }
     }
@@ -124,4 +139,6 @@ io.on("connection", (socket) => {
 // === Server Start ===
 server.listen(PORT, () => {
   console.log(`🚀 Server läuft auf http://localhost:${PORT}`);
+  if (!JWT_SECRET) console.warn("⚠️ Warnung: JWT_SECRET nicht gesetzt! Verwende Fallback.");
+  if (!ADMIN_PASS) console.warn("⚠️ Warnung: ADMIN_PASS nicht gesetzt! Verwende Fallback.");
 });
