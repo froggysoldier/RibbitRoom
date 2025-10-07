@@ -30,7 +30,6 @@ const fpcCounter = document.getElementById("fpcCounter");
 const fpsCounter = document.getElementById("fpsCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
-// Admin-Button
 
 function UpdateDisplay() {
   counter.textContent = fish;
