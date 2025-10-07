@@ -49,9 +49,9 @@ button:active {
 #slideBox {
  position: fixed;
   top: 0;
-  right: -350px; /* versteckt außerhalb des Bildschirms */
-  width: 350px;
-  height: 90vh;
+  right: -400px; /* versteckt außerhalb des Bildschirms */
+  width: 400px;
+  height: 70vh;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
   padding: 20px;
@@ -62,6 +62,15 @@ button:active {
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
+  font-size: 1.2rem; /* größere Schrift */
+}
+
+#slideBox button {
+  font-size: 1rem;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  width: 90%; /* passt sich der Box an */
+  text-align: center;
 }
 
 #slideBox img {
@@ -73,4 +82,5 @@ button:active {
 #slideBox.show {
   right: 0; /* sichtbar */
 }
+
 
