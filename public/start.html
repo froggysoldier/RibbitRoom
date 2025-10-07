@@ -57,8 +57,13 @@
     <button id="registerSubmit">Registrieren</button>
   </div>
 </div>
-<!-- Clicker -->
-<button id="showBtn">Box anzeigen</button>
+
+ 
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/js/app.js"></script>
+
+<!-- FISCH CLICKER -->
+<button id="showBtn">🐟</button>
 
 <div id="slideBox">
   <h2>Fische: <span id="counter">0</span></h2>
@@ -70,25 +75,18 @@
       src="images/fischer.png"
       id="fisher"
       alt="Fisher"
-      width="300"
+      width="250"
       style="cursor: pointer;"
     >
 
-    <br><br><br>
-    <button id="buyUpgrade0">Bessere Angel kaufen (kostet 15 ) - Aktuell: 0 Upgrades</button>
     <br><br>
-    <button id="buyUpgrade1">Fischer anstellen (kostet 100 ) - Aktuell: 0 Upgrades</button>
-    <br><br>
-    <button id="buyUpgrade2">Boot kaufen (kostet 1000 ) - Aktuell: 0 Upgrades</button>
-    <br><br>
-    <button id="buyUpgrade3">Kundenrabatt hochstufen (kostet 5000 ) - Aktuell: 0 Upgrades</button>
-    <br><br><br><br><br><br>
+    <button id="buyUpgrade0">Bessere Angel kaufen (15) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade1">Fischer anstellen (100) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade2">Boot kaufen (1000) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade3">Kundenrabatt (5000) - Aktuell: 0</button>
   </div>
 </div>
- 
-<script src="/socket.io/socket.io.js"></script>
-<script type="module" src="/js/app.js"></script>
- <script type="module" src="/js/clicker.js"></script>
 
+<script src="clicker.js"></script>
 </body>
 </html>
