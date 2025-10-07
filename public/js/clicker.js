@@ -4,6 +4,11 @@ const box = document.getElementById('slideBox');
 btn.addEventListener('click', () => {
   box.classList.toggle('show');
 });
+document.addEventListener('click', (e) => {
+  if (!box.contains(e.target) && e.target !== btn) {
+    box.classList.remove('show');
+  }
+});
 // Variablen definieren
 let fish = 0;
 let fpc = 1;
@@ -112,9 +117,3 @@ setInterval(() => {
   fish += fps;
   UpdateDisplay();
 }, 1000);
-
-document.addEventListener('click', (e) => {
-  if (!box.contains(e.target) && e.target !== btn) {
-    box.classList.remove('show');
-  }
-});
