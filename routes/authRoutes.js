@@ -36,7 +36,6 @@ router.post("/register", async (req, res) => {
 
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
       username,
       email,
@@ -128,4 +127,5 @@ router.post("/login", async (req, res) => {
 });
 
 export default router;
+
 
