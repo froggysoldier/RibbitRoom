@@ -1,9 +1,6 @@
 const btn = document.getElementById('showBtn');
 const box = document.getElementById('slideBox');
 
-btn.addEventListener('click', () => {
-  box.classList.toggle('show');
-});
 
 // Variablen definieren
 let fish = 0;
@@ -30,6 +27,9 @@ const fpcCounter = document.getElementById("fpcCounter");
 const fpsCounter = document.getElementById("fpsCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
+btn.addEventListener('click', () => {
+  box.classList.toggle('show');
+});
 
 function UpdateDisplay() {
   counter.textContent = fish;
@@ -114,4 +114,8 @@ setInterval(() => {
   UpdateDisplay();
 }, 1000);
 
-
+ocument.addEventListener('click', (e) => {
+  if (!box.contains(e.target) && e.target !== btn) {
+    box.classList.remove('show');
+  }
+});
