@@ -4,6 +4,9 @@ import User from "../../models/User.js";
 
 /**
  * User-Identifikation und Management für Socket.IO (ESM Version)
+ * - fügt erfolgreiche sockets zu authenticatedSockets hinzu
+ * - entfernt beim disconnect
+ * - broadcastActiveUsers() wird aufgerufen
  */
 export default function userHandler(socket, ctx) {
   const {
@@ -11,22 +14,22 @@ export default function userHandler(socket, ctx) {
     userRoles,
     userFilters,
     broadcastActiveUsers,
+    authenticatedSockets, // Set()
     JWT_SECRET,
     io
   } = ctx;
 
   let username = null;
 
-  // === Benutzer hinzufügen ===
   const addActive = (uname, socketId, role = "user") => {
     const set = activeUsers.get(uname) || new Set();
     set.add(socketId);
     activeUsers.set(uname, set);
     userRoles.set(uname, role);
+    // broadcast the list
     broadcastActiveUsers();
   };
 
-  // === Benutzer identifizieren ===
   socket.on("identify", async (payload) => {
     try {
       if (!payload) {
@@ -41,10 +44,7 @@ export default function userHandler(socket, ctx) {
         } catch (err) {
           console.warn("[userHandler] Ungültiger Token:", err.message);
           socket.emit("identifyError", {
-            error:
-              err.name === "TokenExpiredError"
-                ? "Token abgelaufen"
-                : "Ungültiger Token"
+            error: err.name === "TokenExpiredError" ? "Token abgelaufen" : "Ungültiger Token"
           });
           return;
         }
@@ -57,50 +57,63 @@ export default function userHandler(socket, ctx) {
         return;
       }
 
-      // Benutzer aus DB laden (Rolle bestimmen)
+      // DB lookup für Rolle (falls vorhanden)
       const dbUser = await User.findOne({ username });
       const role = dbUser?.role || "user";
 
-      // Aktiv registrieren
+      // markiere Socket als aktiv (activeUsers)
       addActive(username, socket.id, role);
 
-      // Client bestätigen
+      // markiere Socket als authenticated (wichtig für chatMessageHandler)
+      try {
+        if (authenticatedSockets && typeof authenticatedSockets.add === "function") {
+          authenticatedSockets.add(socket.id);
+        }
+      } catch (err) {
+        console.warn("[userHandler] authenticatedSockets not available:", err);
+      }
+
+      // sende Bestätigung an Client
       socket.emit("identified", {
         username,
         filterActive: userFilters.get(username) || false,
         role
       });
 
-      console.log(`[Socket] ${username} verbunden (${role})`);
+      console.log(`[Socket] ${username} identifiziert (${role}) -> socket ${socket.id}`);
     } catch (err) {
       console.error("[userHandler] Identify-Fehler:", err);
-      socket.emit("identifyError", {
-        error: "Interner Fehler bei Identifizierung"
-      });
+      socket.emit("identifyError", { error: "Interner Fehler bei Identifizierung" });
     }
   });
 
-  // === Disconnect ===
   socket.on("disconnect", () => {
-    if (!username) return;
-
-    const sockets = activeUsers.get(username);
-    if (sockets) {
-      sockets.delete(socket.id);
-
-      if (sockets.size === 0) {
-        activeUsers.delete(username);
-        userRoles.delete(username);
-        userFilters.delete(username);
-        console.log(`[Socket] ${username} vollständig getrennt`);
-      } else {
-        activeUsers.set(username, sockets);
-        console.log(
-          `[Socket] ${username} entfernte Socket ${socket.id}, verbleiben: ${sockets.size}`
-        );
+    // entferne socket aus activeUsers
+    if (username) {
+      const sockets = activeUsers.get(username);
+      if (sockets) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          activeUsers.delete(username);
+          userRoles.delete(username);
+          userFilters.delete(username);
+        } else {
+          activeUsers.set(username, sockets);
+        }
+        // broadcast new user list
+        broadcastActiveUsers();
       }
-
-      broadcastActiveUsers();
     }
+
+    // entferne socket aus authenticatedSockets (wichtig!)
+    try {
+      if (authenticatedSockets && typeof authenticatedSockets.delete === "function") {
+        authenticatedSockets.delete(socket.id);
+      }
+    } catch (err) {
+      console.warn("[userHandler] Error removing from authenticatedSockets:", err);
+    }
+
+    console.log(`[Socket] disconnected: ${socket.id} (user: ${username || "unknown"})`);
   });
 }
