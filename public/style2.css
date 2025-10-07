@@ -51,8 +51,7 @@ button:active {
   top: 0;
   right: -350px; /* versteckt außerhalb des Bildschirms */
   width: 350px;
-  height: 70vh;
-   transform: translateY(+50%);
+  height: 90vh;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
   padding: 20px;
@@ -74,6 +73,7 @@ button:active {
 #slideBox.show {
   right: 0; /* sichtbar */
 }
+
 
 
 
