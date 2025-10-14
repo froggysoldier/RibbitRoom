@@ -5,7 +5,7 @@ import { initSocket } from "./socketClient.js";
 import { initAuthHandlers } from "./authHandlers.js";
 import { initChatHandlers, loadMessages } from "./chatHandlers.js";
 
-// State
+// State initialisieren
 const state = {
   token: localStorage.getItem("token") || null,
   username: localStorage.getItem("username") || null,
@@ -13,27 +13,16 @@ const state = {
   filterActive: false,
   socket: null,
   socketConnected: false,
-  chatWindow: null,
-  sendBtn: null,
-  messageInput: null,
-  filterBtn: null
+  chatWindow: DOM.chatWindow,
+  sendBtn: DOM.sendBtn,
+  messageInput: DOM.messageInput,
+  filterBtn: DOM.filterBtn
 };
 
-document.addEventListener("DOMContentLoaded", () => {
-  // Init DOM bindings
-  DOM.initDomElements();
+// Socket, Auth & Chat initialisieren
+initSocket(state);
+initAuthHandlers(state);
+initChatHandlers(state);
 
-  // Link DOM elements into state
-  state.chatWindow = DOM.chatWindow;
-  state.sendBtn = DOM.sendBtn;
-  state.messageInput = DOM.messageInput;
-  state.filterBtn = DOM.filterBtn;
-
-  // Initialize features
-  initSocket(state);
-  initAuthHandlers(state);
-  initChatHandlers(state);
-
-  // Load previous messages if logged in
-  if (state.token) loadMessages(state);
-});
+// Alte Nachrichten laden, falls Token vorhanden
+if (state.token) loadMessages(state);
