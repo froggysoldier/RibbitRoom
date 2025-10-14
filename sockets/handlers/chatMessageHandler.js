@@ -4,9 +4,6 @@ const Message = require("../../models/Message");
 const User = require("../../models/User");
 const filterMessage = require("../../utils/filter");
 
-// serverweite Map für Timeouts: normalizedUsername -> timestamp (ms)
-const userTimeouts = new Map();
-
 module.exports = function (socket, ctx) {
   let {
     username,
@@ -25,12 +22,14 @@ module.exports = function (socket, ctx) {
   // Hilfsfunktionen
   const normalize = (u) => String(u || "").trim().toLowerCase();
 
-  // Globale Maps auf ctx
+  // --- Globale Maps ---
   ctx.userTimeouts = ctx.userTimeouts || new Map();
   ctx.messageHistory = ctx.messageHistory || new Map();
+  ctx.timeoutIntervals = ctx.timeoutIntervals || new Map();
+
+  const userTimeouts = ctx.userTimeouts;
   const messageHistory = ctx.messageHistory;
-  const timeoutIntervals = ctx.timeoutIntervals || new Map();
-  ctx.timeoutIntervals = timeoutIntervals;
+  const timeoutIntervals = ctx.timeoutIntervals;
 
   // Hilfsfunktion: finde aktive Sockets für Username
   const findActiveSocketsFor = (targetNorm) => {
@@ -66,7 +65,7 @@ module.exports = function (socket, ctx) {
     const myNorm = normalize(username);
 
     // --- Prüfen, ob gemutet ---
-    const timeoutUntil = ctx.userTimeouts.get(myNorm);
+    const timeoutUntil = userTimeouts.get(myNorm);
     if (timeoutUntil && now < timeoutUntil) {
       const remainingSec = Math.ceil((timeoutUntil - now) / 1000);
       socket.emit("systemMessage", {
@@ -88,7 +87,7 @@ module.exports = function (socket, ctx) {
     }
     lastMessageTime.set(username, now);
 
-    // --- Spam-History (nur Warnung, kein Auto-Timeout) ---
+    // --- Spam-History ---
     const HISTORY_LIMIT = 7;
     const TIME_WINDOW = 10000; // ms
     const hist = messageHistory.get(myNorm) || [];
@@ -183,7 +182,7 @@ module.exports = function (socket, ctx) {
         const users = Array.from(activeUsers.keys()).map((u) => {
           const uNorm = normalize(u);
           const userRole = userRoles.get(u) || "user";
-          const timeoutUntil = ctx.userTimeouts.get(uNorm);
+          const timeoutUntil = userTimeouts.get(uNorm);
           const isMuted = timeoutUntil && timeoutUntil > Date.now();
           return `${u} ${userRole}${isMuted ? " (gemutet)" : ""}`;
         });
@@ -299,10 +298,10 @@ module.exports = function (socket, ctx) {
         if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
         const target = (timeoutMatch[1] || timeoutMatch[2] || "").trim();
         let durationSec = parseInt(timeoutMatch[3], 10);
-        const MAX_TIMEOUT = 604800;
-        if (!target || isNaN(durationSec) || durationSec <= 0) return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
+        const MAX_TIMEOUT = 604800; // 7 Tage
+        if (!target || isNaN(durationSec) || durationSec <= 0)
+          return socket.emit("systemMessage", { text: "Ungültiger Benutzername oder Dauer.", type: "error" });
         if (durationSec > MAX_TIMEOUT) durationSec = MAX_TIMEOUT;
-        //if (normalize(target) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst timeouten.", type: "error" });
 
         const until = Date.now() + durationSec * 1000;
         userTimeouts.set(normalize(target), until);
@@ -367,8 +366,17 @@ module.exports = function (socket, ctx) {
     }
   });
 
+  // Filter umschalten
   socket.on("toggleFilter", (active) => {
     if (!username) return;
     userFilters.set(username, !!active);
+  });
+
+  // Cleanup bei Disconnect
+  socket.on("disconnect", () => {
+    const norm = normalize(username);
+    const intId = timeoutIntervals.get(norm);
+    if (intId) clearInterval(intId);
+    timeoutIntervals.delete(norm);
   });
 };
