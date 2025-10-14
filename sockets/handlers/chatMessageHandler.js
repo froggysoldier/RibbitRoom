@@ -185,7 +185,7 @@ module.exports = function (socket, ctx) {
           const userRole = userRoles.get(u) || "user";
           const timeoutUntil = ctx.userTimeouts.get(uNorm);
           const isMuted = timeoutUntil && timeoutUntil > Date.now();
-          return `${u} - Rolle: ${userRole}${isMuted ? " (gemutet)" : ""}`;
+          return `${u} ${userRole}${isMuted ? " (gemutet)" : ""}`;
         });
         socket.emit("systemMessage", { text: `ℹ️ Online-User:\n${users.join("\n")}`, type: "info" });
         return;
