@@ -22,6 +22,7 @@ module.exports = function (socket, ctx) {
   // --- Hilfsfunktionen ---
   const normalize = (u) => String(u || "").trim().toLowerCase();
 
+  // Serverweite Maps
   ctx.userTimeouts = ctx.userTimeouts || new Map();
   ctx.messageHistory = ctx.messageHistory || new Map();
   ctx.timeoutIntervals = ctx.timeoutIntervals || new Map();
@@ -57,19 +58,27 @@ module.exports = function (socket, ctx) {
   // --- Chat Message Handler ---
   socket.on("chatMessage", async (content) => {
     if (!username) return;
+
     const now = Date.now();
     const myNorm = normalize(username);
 
-    // 🔒 --- Prüfen ob Timeout aktiv ---
+    // 🔒 --- STRIKTER TIMEOUT-CHECK ---
     const timeoutUntil = userTimeouts.get(myNorm);
     if (timeoutUntil && now < timeoutUntil) {
       const remainingSec = Math.ceil((timeoutUntil - now) / 1000);
       socket.emit("systemMessage", {
-        text: `⚠️ Du bist noch für ${formatDuration(remainingSec)} gemutet.`,
+        text: `⚠️ Du bist noch für ${formatDuration(remainingSec)} gemutet und darfst nichts schreiben.`,
         type: "error",
       });
-      return; // <- blockiert wirklich das Schreiben
+
+      // interne Schutzmarkierung
+      socket._isMuted = true;
+      return; // blockiert 100 %
+    } else {
+      socket._isMuted = false;
     }
+
+    if (socket._isMuted) return;
 
     // --- Anti-Spam ---
     const MIN_INTERVAL = 350;
@@ -159,7 +168,8 @@ module.exports = function (socket, ctx) {
 
       // 🔹 /clear
       if (finalContent === "/clear") {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
+        if (role !== "admin")
+          return socket.emit("systemMessage", { text: "Nur Admins dürfen das.", type: "error" });
         await Message.deleteMany({});
         io.emit("deletedMessages", []);
         io.emit("systemMessage", { text: "⚠️ Alle Nachrichten gelöscht!", type: "error" });
@@ -168,10 +178,12 @@ module.exports = function (socket, ctx) {
 
       // 🔹 /listUsers
       if (finalContent === "/listUsers") {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        if (role !== "admin")
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
         const list = Array.from(activeUsers.keys())
           .map((u) => {
-            const isMuted = userTimeouts.has(normalize(u)) && userTimeouts.get(normalize(u)) > Date.now();
+            const isMuted =
+              userTimeouts.has(normalize(u)) && userTimeouts.get(normalize(u)) > Date.now();
             const r = userRoles.get(u) || "user";
             return `${u} (${r}${isMuted ? ", gemutet" : ""})`;
           })
@@ -183,11 +195,17 @@ module.exports = function (socket, ctx) {
       // 🔹 /ban
       const banMatch = finalContent.match(/^\/ban\s+(?:"([^"]+)"|(\S+))\s+(\S+)/i);
       if (banMatch) {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        if (role !== "admin")
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
         const target = (banMatch[1] || banMatch[2]).trim();
         const pass = banMatch[3];
-        if (pass !== ADMIN_PASS) return socket.emit("systemMessage", { text: "Falsches Passwort.", type: "error" });
-        if (normalize(target) === myNorm) return socket.emit("systemMessage", { text: "Du kannst dich nicht selbst bannen.", type: "error" });
+        if (pass !== ADMIN_PASS)
+          return socket.emit("systemMessage", { text: "Falsches Passwort.", type: "error" });
+        if (normalize(target) === myNorm)
+          return socket.emit("systemMessage", {
+            text: "Du kannst dich nicht selbst bannen.",
+            type: "error",
+          });
 
         await User.findOneAndDelete({ username: target });
         await Message.deleteMany({ sender: target });
@@ -207,10 +225,12 @@ module.exports = function (socket, ctx) {
       // 🔹 /timeout
       const timeoutMatch = finalContent.match(/^\/timeout\s+(?:"([^"]+)"|(\S+))\s+(\d+)/i);
       if (timeoutMatch) {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        if (role !== "admin")
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
         const target = (timeoutMatch[1] || timeoutMatch[2]).trim();
         let durationSec = parseInt(timeoutMatch[3], 10);
-        if (!durationSec || durationSec <= 0) return socket.emit("systemMessage", { text: "Ungültige Zeit.", type: "error" });
+        if (!durationSec || durationSec <= 0)
+          return socket.emit("systemMessage", { text: "Ungültige Zeit.", type: "error" });
 
         const until = Date.now() + durationSec * 1000;
         userTimeouts.set(normalize(target), until);
@@ -220,12 +240,16 @@ module.exports = function (socket, ctx) {
           for (const sid of sockets) {
             const s = io.sockets.sockets.get(sid);
             if (s) {
-              s.emit("timeoutUpdate", { text: `⚠️ Du bist gemutet für ${formatDuration(durationSec)}.` });
+              s._isMuted = true;
+              s.emit("timeoutUpdate", {
+                text: `⚠️ Du bist gemutet für ${formatDuration(durationSec)}.`,
+              });
               const interval = setInterval(() => {
                 const remaining = Math.ceil((until - Date.now()) / 1000);
                 if (remaining <= 0) {
                   clearInterval(interval);
                   userTimeouts.delete(normalize(target));
+                  s._isMuted = false;
                   s.emit("timeoutUpdate", { text: "✔️ Du kannst wieder schreiben." });
                 }
               }, 1000);
@@ -234,27 +258,37 @@ module.exports = function (socket, ctx) {
           }
         }
 
-        io.emit("systemMessage", { text: `⏳ ${target} wurde für ${formatDuration(durationSec)} gemutet.`, type: "error" });
+        io.emit("systemMessage", {
+          text: `⏳ ${target} wurde für ${formatDuration(durationSec)} gemutet.`,
+          type: "error",
+        });
         return;
       }
 
       // 🔹 /deleteAllUsers
       if (finalContent.startsWith("/deleteAllUsers")) {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        if (role !== "admin")
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
         const provided = finalContent.split(" ")[1];
-        if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
+        if (provided !== ADMIN_PASS)
+          return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
         await User.deleteMany({ role: "user" });
         await Message.deleteMany({});
-        io.emit("systemMessage", { text: "⚠️ Alle normalen Nutzer wurden gelöscht.", type: "error" });
+        io.emit("systemMessage", {
+          text: "⚠️ Alle normalen Nutzer wurden gelöscht.",
+          type: "error",
+        });
         io.emit("forceReload");
         return;
       }
 
       // 🔹 /reset
       if (finalContent.startsWith("/reset")) {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
+        if (role !== "admin")
+          return socket.emit("systemMessage", { text: "Nur Admins.", type: "error" });
         const provided = finalContent.split(" ")[1];
-        if (provided !== ADMIN_PASS) return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
+        if (provided !== ADMIN_PASS)
+          return socket.emit("systemMessage", { text: "❌ Falsches Passwort.", type: "error" });
         await User.deleteMany({});
         await Message.deleteMany({});
         userRoles.clear();
@@ -264,7 +298,7 @@ module.exports = function (socket, ctx) {
         return;
       }
 
-      // 🔹 Unbekannter Befehl
+      // 🔹 Unbekannt
       socket.emit("systemMessage", { text: `❓ Unbekanntes Kommando: ${finalContent}`, type: "info" });
       return;
     }
@@ -278,7 +312,8 @@ module.exports = function (socket, ctx) {
       await msg.save();
 
       const deletedIds = await trimOldMessages(100);
-      if (deletedIds.length) for (const sid of authenticatedSockets) io.to(sid).emit("deletedMessages", deletedIds);
+      if (deletedIds.length)
+        for (const sid of authenticatedSockets) io.to(sid).emit("deletedMessages", deletedIds);
 
       for (const sid of authenticatedSockets) {
         io.to(sid).emit("newMessage", {
