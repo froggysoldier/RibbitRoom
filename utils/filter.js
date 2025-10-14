@@ -1,4 +1,4 @@
-// public/js/filter.js
+// filter.js
 const wordReplacements = {
   "hallo": "ribbit",
   "Keno": "KePa",
@@ -13,7 +13,7 @@ const wordReplacements = {
   // hier weitere Wörter hinzufügen
 };
 
-export default function filterMessage(text) {
+function filterMessage(text) {
   if (!text) return text;
 
   Object.keys(wordReplacements).forEach(word => {
@@ -24,3 +24,5 @@ export default function filterMessage(text) {
 
   return text;
 }
+
+module.exports = filterMessage;
