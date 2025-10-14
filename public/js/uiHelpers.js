@@ -1,4 +1,3 @@
-// public/js/uiHelpers.js
 import * as DOM from "./domElements.js";
 
 export function escapeHtml(str = "") {
@@ -19,8 +18,8 @@ export function showInfo(text) {
   p.classList.add("info");
   p.textContent = text;
   DOM.chatWindow.appendChild(p);
-  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
   setTimeout(() => p.remove(), 4000);
+  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 }
 
 export function showError(text) {
@@ -28,8 +27,8 @@ export function showError(text) {
   p.classList.add("error");
   p.textContent = text;
   DOM.chatWindow.appendChild(p);
-  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
   setTimeout(() => p.remove(), 5000);
+  DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 }
 
 export function setSendEnabled(enabled) {
@@ -64,7 +63,9 @@ export function appendMessage(sender, content, createdAt, id, self = false, type
   DOM.chatWindow.scrollTop = DOM.chatWindow.scrollHeight;
 
   if (type === "system") {
-    const removeAfter = duration ?? 4000;
-    setTimeout(() => p.remove(), removeAfter);
+    const removeAfter = duration ?? 4000; // default 4s, sonst vom Server
+    setTimeout(() => {
+      if (p.parentNode) p.parentNode.removeChild(p);
+    }, removeAfter);
   }
 }
