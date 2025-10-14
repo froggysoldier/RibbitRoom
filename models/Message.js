@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const messageSchema = new mongoose.Schema({
   sender: String,
@@ -7,5 +7,4 @@ const messageSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-const Message = mongoose.model("Message", messageSchema);
-export default Message;
+module.exports = mongoose.model("Message", messageSchema);
