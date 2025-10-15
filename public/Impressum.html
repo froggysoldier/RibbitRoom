@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <title>Ribbit Room</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/css/clicker.css">
+  <script type="module" src="/js/clicker.js"></script>
+
         <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
         <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
         <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
@@ -112,6 +115,25 @@
 
 </main>
 
+<div id="slideBox">
+  <h2>Fische: <span id="counter">0</span></h2>
+  <h2>Fische pro Sekunde: <span id="fpsCounter">0</span></h2>
+  <h2>Kundenrabatt: <span id="DiscountCounter">0</span></h2>
+
+  <div class="klickbares">
+    <img src="images/fischer.png" id="fisher" alt="Fisher" width="250" style="cursor: pointer;">
+    <br><br>
+    <button id="buyUpgrade0">Bessere Angel kaufen (15) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade1">Fischer anstellen (100) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade2">Boot kaufen (1000) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade3">Kundenrabatt (5000) - Aktuell: 0</button><br><br>
+    <button onclick="resetGame()">Reset Spiel</button>
+  </div>
+
+  <button id="showBtn">🐟</button>
+</div>
+
+ 
 <!-- Modal für Login/Register -->
 <div id="loginModal" class="modal">
   <div class="modal-content">
@@ -134,3 +156,4 @@
 
 </body>
 </html>
+
