@@ -32,12 +32,11 @@ button:active {
 
 #showBtn {
   position: absolute;
-  left: -160px;
+  left: -45px; /* leicht außen */
   top: 50%;
-  width: 40px; 
-  height: 40px;
-  padding: 0; 
   transform: translateY(-50%);
+  width: 40px;
+  height: 60px;
   background: #00bfa6;
   color: white;
   border: none;
@@ -46,6 +45,8 @@ button:active {
   transition: background 0.2s ease;
   box-shadow: -2px 0 6px rgba(0, 0, 0, 0.3);
   z-index: 1001;
+  font-size: 1.2rem;
+  padding: 0; /* kein Innenabstand */
 }
 
 #showBtn:hover {
@@ -140,5 +141,6 @@ button:active {
     width: 180px;
   }
 }
+
 
 
