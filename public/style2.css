@@ -32,7 +32,7 @@ button:active {
 
 #showBtn {
   position: fixed;
-  right: 0;
+  left: 0;
   top: 50%;
   transform: translateY(-50%);
   background: #00bfa6;
@@ -138,5 +138,6 @@ button:active {
     width: 180px;
   }
 }
+
 
 
