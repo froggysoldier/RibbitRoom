@@ -31,24 +31,26 @@ button:active {
    =============================== */
 
 #showBtn {
-  position: absolute;
-  left: -200px; /* leicht außen */
-  top: calc(50% + 40px);
+  position: fixed; 
+  top: 70%;
+  right: 320px; 
   transform: translateY(-50%);
-  line-height: 1;  /* kein zusätzlicher Abstand */
-  width: 30px;
-  height: 30px;
-  box-sizing: border-box;
+  
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  line-height: 40px;
+  font-size: 22px;
+  text-align: center;
+  
   background: #00bfa6;
   color: white;
   border: none;
   border-radius: 6px 0 0 6px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.2s ease, right 0.4s ease;
   box-shadow: -2px 0 6px rgba(0, 0, 0, 0.3);
   z-index: 1001;
-  font-size: 14px;
-  padding: 0; 
 }
 
 #showBtn:hover {
@@ -62,9 +64,9 @@ button:active {
 #slideBox {
   position: fixed;
   top: 70%;
-  right: -700px; /* vollständig außerhalb */
+  right: -350px; /* vollständig außerhalb */
   transform: translateY(-50%);
-  width: 350px;
+  width: 320px;
   height: 100vh;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
@@ -82,7 +84,7 @@ button:active {
 }
 
 #slideBox.show {
-  right: 10px; /* fährt bündig rein */
+  right: 320px; 
   box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
   transition: right 0.4s ease, box-shadow 0.3s ease;
 }
@@ -143,6 +145,7 @@ button:active {
     width: 180px;
   }
 }
+
 
 
 
