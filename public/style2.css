@@ -38,7 +38,7 @@ button:active {
   background: #00bfa6;
   color: white;
   border: none;
-  padding: 8px 12px;
+  padding: 8px 8px;
   border-radius: 6px 0 0 6px;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -77,7 +77,7 @@ button:active {
 }
 
 #slideBox.show {
-  right: 310; /* fährt bündig rein */
+  right: 40px; /* fährt bündig rein */
   box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
   transition: right 0.4s ease, box-shadow 0.3s ease;
 }
@@ -138,20 +138,3 @@ button:active {
     width: 180px;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
