@@ -34,11 +34,13 @@ button:active {
   position: absolute;
   left: -160px;
   top: 50%;
+  width: 40px; 
+  height: 40px;
+  padding: 0; 
   transform: translateY(-50%);
   background: #00bfa6;
   color: white;
   border: none;
-  padding: 8px 8px;
   border-radius: 6px 0 0 6px;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -138,4 +140,5 @@ button:active {
     width: 180px;
   }
 }
+
 
