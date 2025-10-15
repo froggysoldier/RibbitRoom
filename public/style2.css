@@ -24,10 +24,10 @@ button:active {
 
 
 
-/* Button */
+/* Popout Button */
 #showBtn {
-  position: fixed;
-  right: 0;
+  position: absolute;
+  left: -70px;
   top: 50%;
   transform: translateY(-50%);
   background: #00bfa6;
@@ -36,22 +36,24 @@ button:active {
   padding: 20px 25px;
   border-radius: 6px 0 0 6px; /* abgerundete linke Ecke */
   cursor: pointer;
-  z-index: 1001; /* über allem */
   transition: background 0.2s ease;
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.3);
 }
 
 #showBtn:hover {
-  background: #00a08c;  
+  background: #00a08c; 
+  transform: scale(1.05);
 }
 
 
 /* Slide-Box  */
 #slideBox {
  position: fixed;
-  top: 0;
+  top: 50%;
   right: -400px; /* versteckt außerhalb des Bildschirms */
+  transform: translateY(-50%);
   width: 400px;
-  height: 70vh;
+  height: auto;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
   padding: 20px;
@@ -62,7 +64,9 @@ button:active {
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  font-size: 1.2rem; /* größere Schrift */
+  font-size: 1.2rem; 
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
 }
 
 #slideBox button {
@@ -71,6 +75,13 @@ button:active {
   margin-bottom: 10px;
   width: 90%; /* passt sich der Box an */
   text-align: center;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #00bfa6, #009d87);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
 }
 
 #slideBox img {
@@ -83,4 +94,31 @@ button:active {
   right: 0; /* sichtbar */
 }
 
+#slideBox.show {
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
+  transition: right 0.4s ease, box-shadow 0.3s ease;
+}
 
+/* ============================================================
+   RESPONSIVE DESIGN
+   ============================================================ */
+@media (max-width: 600px) {
+  #slideBox {
+    width: 90%;
+    right: -90%;
+    font-size: 1rem;
+  }
+
+  #slideBox.show {
+    right: 0;
+  }
+
+  #showBtn {
+    left: -60px;
+    padding: 14px 18px;
+  }
+
+  #slideBox img {
+    width: 180px;
+  }
+}
