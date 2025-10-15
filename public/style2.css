@@ -31,14 +31,14 @@ button:active {
    =============================== */
 
 #showBtn {
-  position: fixed;
-  left: -160;
+  position: absolute;
+  left: -60;
   top: 50%;
   transform: translateY(-50%);
   background: #00bfa6;
   color: white;
   border: none;
-  padding: 5px 25px;
+  padding: 10px 25px;
   border-radius: 6px 0 0 6px;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -138,6 +138,7 @@ button:active {
     width: 180px;
   }
 }
+
 
 
 
