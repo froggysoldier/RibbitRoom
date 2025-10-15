@@ -33,7 +33,7 @@ button:active {
 #showBtn {
   position: absolute; 
   top: 70%;
-  right: 0px; 
+  right: 10px; 
   transform: translateY(-50%);
   
   width: 50px;
@@ -145,6 +145,7 @@ button:active {
     width: 180px;
   }
 }
+
 
 
 
