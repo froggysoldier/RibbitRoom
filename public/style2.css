@@ -32,11 +32,11 @@ button:active {
 
 #showBtn {
   position: absolute;
-  left: -45px; /* leicht außen */
+  left: -200px; /* leicht außen */
   top: 50%;
   transform: translateY(-50%);
   width: 10px;
-  height: 30px;
+  height: 10px;
   background: #00bfa6;
   color: white;
   border: none;
@@ -59,7 +59,7 @@ button:active {
 
 #slideBox {
   position: fixed;
-  top: 60%;
+  top: 80%;
   right: -700px; /* vollständig außerhalb */
   transform: translateY(-50%);
   width: 350px;
@@ -141,6 +141,7 @@ button:active {
     width: 180px;
   }
 }
+
 
 
 
