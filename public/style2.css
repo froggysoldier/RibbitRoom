@@ -1,11 +1,15 @@
+/* ===============================
+   CLICKER STYLES
+   =============================== */
+
 .klickbares {
   text-align: center;
-   font-family: 'Poppins', Arial, sans-serif;
+  font-family: 'Poppins', Arial, sans-serif;
 }
 
 h2 {
   text-align: center;
-   font-family: 'Poppins', Arial, sans-serif;
+  font-family: 'Poppins', Arial, sans-serif;
 }
 
 #fisher {
@@ -22,57 +26,71 @@ button:active {
   transform: scale(0.95);
 }
 
+/* ===============================
+   POPOUT BUTTON
+   =============================== */
 
-
-/* Popout Button */
 #showBtn {
-  position: absolute;
-  left: -60px;
+  position: fixed;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   background: #00bfa6;
   color: white;
   border: none;
   padding: 10px 25px;
-  border-radius: 6px 0 0 6px; /* abgerundete linke Ecke */
+  border-radius: 6px 0 0 6px;
   cursor: pointer;
   transition: background 0.2s ease;
   box-shadow: -2px 0 6px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
 }
 
 #showBtn:hover {
-  background: #00a08c; 
+  background: #00a08c;
 }
 
+/* ===============================
+   SLIDE BOX
+   =============================== */
 
-/* Slide-Box  */
 #slideBox {
- position: fixed;
+  position: fixed;
   top: 50%;
-  right: -360px; /* 400px Box, 60px sichtbarer Button */
+  right: -350px; /* vollständig außerhalb */
   transform: translateY(-50%);
-  width: 400px;
-  height: 70vh;
+  width: 350px;
+  height: 80vh;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
   padding: 20px;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.4);
   transition: right 0.4s ease;
-  z-index: 1000; /* über allem anderen */
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  font-size: 1.2rem; 
+  font-size: 1.2rem;
   border-top-left-radius: 10px;
   border-bottom-left-radius: 10px;
 }
+
+#slideBox.show {
+  right: 0; /* fährt bündig rein */
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
+  transition: right 0.4s ease, box-shadow 0.3s ease;
+}
+
+/* ===============================
+   BUTTONS IM POPOUT
+   =============================== */
 
 #slideBox button {
   font-size: 1rem;
   padding: 12px 16px;
   margin-bottom: 10px;
-  width: 90%; /* passt sich der Box an */
+  width: 90%;
   text-align: center;
   border: none;
   border-radius: 6px;
@@ -83,24 +101,28 @@ button:active {
   transition: background 0.2s ease, transform 0.1s ease;
 }
 
+#slideBox button:hover {
+  background: #00a08c;
+  transform: scale(1.03);
+}
+
+/* ===============================
+   IMAGES / ELEMENTE
+   =============================== */
+
 #slideBox img {
   width: 250px;
   border-radius: 8px;
   margin-bottom: 10px;
 }
 
-#slideBox.show {
-   right: 0; /* sichtbar */
-  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
-  transition: right 0.4s ease, box-shadow 0.3s ease;
-}
-
-/* ============================================================
+/* ===============================
    RESPONSIVE DESIGN
-   ============================================================ */
+   =============================== */
+
 @media (max-width: 600px) {
   #slideBox {
-    width: 90%;
+    width: 85%;
     right: -85%;
     font-size: 1rem;
   }
@@ -110,7 +132,6 @@ button:active {
   }
 
   #showBtn {
-    left: -50px;
     padding: 14px 18px;
   }
 
@@ -118,7 +139,3 @@ button:active {
     width: 180px;
   }
 }
-
-
-
-
