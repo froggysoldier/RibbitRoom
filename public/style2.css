@@ -33,7 +33,7 @@ button:active {
   background: #00bfa6;
   color: white;
   border: none;
-  padding: 20px 25px;
+  padding: 20px 15px;
   border-radius: 6px 0 0 6px; /* abgerundete linke Ecke */
   cursor: pointer;
   transition: background 0.2s ease;
@@ -49,7 +49,7 @@ button:active {
 #slideBox {
  position: fixed;
   top: 50%;
-  right: calc(-400px + 60px); /* 400px Box, 60px sichtbarer Button */
+  right: -400px; /* 400px Box, 60px sichtbarer Button */
   transform: translateY(-50%);
   width: 400px;
   height: 70vh;
@@ -90,10 +90,7 @@ button:active {
 }
 
 #slideBox.show {
-  right: 0; /* sichtbar */
-}
-
-#slideBox.show {
+   right: 0; /* sichtbar */
   box-shadow: -4px 0 15px rgba(0, 0, 0, 0.6);
   transition: right 0.4s ease, box-shadow 0.3s ease;
 }
@@ -121,5 +118,6 @@ button:active {
     width: 180px;
   }
 }
+
 
 
