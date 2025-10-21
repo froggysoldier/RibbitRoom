@@ -10,6 +10,8 @@ require("dotenv").config();
 const authRoutes = require("./routes/authRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const initSockets = require("./sockets/initSockets");
+const fishRoutes = require("./routes/fishRoutes");
+app.use("/api/fish", fishRoutes);
 
 const app = express();
 const server = http.createServer(app);
@@ -54,6 +56,7 @@ initSockets(io);
 // === Server starten ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
 
 
