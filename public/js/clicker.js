@@ -185,10 +185,32 @@ setInterval(() => {
 loadProgress();
 UpdateDisplay();
 
-// === OPTIONAL: SPIEL RESET ===================================
-window.resetGame = function() {
-  if (confirm("Willst du deinen Fortschritt wirklich löschen?")) {
-    localStorage.removeItem("fishGameSave");
-    location.reload();
+const clicker = document.getElementById("clicker");
+
+// ====Beim Bewegen / Position ändern==========
+function saveClickerPosition(x, y) {
+  localStorage.setItem("clickerX", x);
+  localStorage.setItem("clickerY", y);
+}
+
+// =====Beispiel: Clicker bewegen==================
+clicker.addEventListener("mousedown", (e) => {
+  // Beispiel-Bewegung (vereinfachtes Drag)
+  clicker.style.left = e.pageX + "px";
+  clicker.style.top = e.pageY + "px";
+
+  // ======Position speichern============
+  saveClickerPosition(e.pageX, e.pageY);
+});
+
+// ===Beim Laden der Seite die Position wiederherstellen===========
+window.addEventListener("load", () => {
+  const x = localStorage.getItem("clickerX");
+  const y = localStorage.getItem("clickerY");
+
+  if (x && y) {
+    clicker.style.left = x + "px";
+    clicker.style.top = y + "px";
+    clicker.style.visibility = "visible";
   }
-};
+});
