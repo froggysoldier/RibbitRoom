@@ -35,7 +35,7 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 // === Seiten Routen ===
-onst renderPage = (page) => (req, res) => {
+const renderPage = (page) => (req, res) => {
   res.render(page, { version: Date.now() }); // Neu-Version für CSS-Link
 };
 app.get("/", renderPage("start"));
@@ -55,6 +55,7 @@ initSockets(io);
 // === Server starten ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
 
 
