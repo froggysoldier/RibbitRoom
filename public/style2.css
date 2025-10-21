@@ -63,7 +63,7 @@ button:active {
 
 #slideBox {
   position: fixed;
-  top: 65%;
+  top: 62%;
   right: -850px; /* vollständig außerhalb */
   transform: translateY(-50%);
   width: 320px;
@@ -145,6 +145,7 @@ button:active {
     width: 180px;
   }
 }
+
 
 
 
