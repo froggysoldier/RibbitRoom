@@ -2,6 +2,10 @@
    CLICKER STYLES
    =============================== */
 
+html {
+  transform-origin: top left;
+}
+
 .klickbares {
   text-align: center;
   font-family: 'Poppins', Arial, sans-serif;
@@ -126,20 +130,37 @@ button:active {
    RESPONSIVE DESIGN
    =============================== */
 
+/* Standardansicht – dein 1440p Design */
+@media (min-width: 2560px) {
+  html {
+    transform: scale(1.2); /* leicht größer auf 4K */
+  }
+}
+
+/* Für Full HD (1920x1080) leicht verkleinern */
 @media (max-width: 1920px) {
-  body {
-    transform: scale(0.75); /* skaliert alles proportional */ // ➡ angepasst
+  html {
+    transform: scale(0.8);
   }
 }
 
+/* Für 1600px Screens */
 @media (max-width: 1600px) {
-  body {
-    transform: scale(0.7); // ➡ kleiner Bildschirm
+  html {
+    transform: scale(0.7);
   }
 }
 
-@media (max-width: 1080px) {
-  body {
-    transform: scale(0.5); // ➡ Handys / kleine Laptops
+/* Für Tablets / kleinere Laptops */
+@media (max-width: 1200px) {
+  html {
+    transform: scale(0.6);
+  }
+}
+
+/* Für Handys */
+@media (max-width: 768px) {
+  html {
+    transform: scale(0.45);
   }
 }
