@@ -11,7 +11,6 @@ const authRoutes = require("./routes/authRoutes");
 const messageRoutes = require("./routes/messageRoutes");
 const initSockets = require("./sockets/initSockets");
 const fishRoutes = require("./routes/fishRoutes");
-app.use("/api/fish", fishRoutes);
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +20,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+app.use("/api/fish", fishRoutes);
 // === Middleware ===
 app.use(cors());
 app.use(express.json());
@@ -28,6 +28,7 @@ app.use(express.json());
 // === API Routen ===
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+
 
 // === Statische Dateien ===
 app.use(express.static(path.join(__dirname, "public")));
@@ -56,6 +57,7 @@ initSockets(io);
 // === Server starten ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, "0.0.0.0", () => console.log(`✅ Server läuft auf Port ${PORT}`));
+
 
 
 
