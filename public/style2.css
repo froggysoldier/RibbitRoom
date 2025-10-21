@@ -1,11 +1,9 @@
 /* ===============================
    CLICKER STYLES
    =============================== */
-
 html {
   transform-origin: top left;
 }
-
 .klickbares {
   text-align: center;
   font-family: 'Poppins', Arial, sans-serif;
@@ -164,3 +162,4 @@ button:active {
     transform: scale(0.45);
   }
 }
+
