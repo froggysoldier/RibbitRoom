@@ -1,16 +1,6 @@
 // ===============================================================
-// FISH CLICKER – GLOBAL VERSION mit persistentem Fortschritt + Socket.IO
+// FISH CLICKER – GLOBAL VERSION mit persistentem Fortschritt
 // ===============================================================
-
-// === SOCKET.IO ===
-const socket = io();
-
-// Event: Fische vom Server hinzufügen
-socket.on("addFish", ({ amount }) => {
-  fish += amount;
-  UpdateDisplay(); // UI aktualisieren & speichern
-  console.log(`Fische hinzugefügt: ${amount}, neuer Wert: ${fish}`);
-});
 
 // === UI ELEMENTE (Slide-Box + Button) ==========================
 const btn = document.getElementById('showBtn');
@@ -27,7 +17,7 @@ if (btn && box) {
   document.addEventListener('click', (e) => {
     if (!box.contains(e.target) && e.target !== btn) {
       box.classList.remove('show');
-      localStorage.setItem("slideBoxVisible", false);
+        localStorage.setItem("slideBoxVisible", false);
       localStorage.setItem("slideBoxRight", box.style.right);
     }
   });
@@ -73,7 +63,7 @@ function saveProgress() {
     Upgrade3Preis,
     clickerX: clicker?.style.left,
     clickerY: clicker?.style.top,
-    slideRight: box?.style.right
+    lideRight: box?.style.right
   };
   localStorage.setItem("fishGameSave", JSON.stringify(data));
 }
@@ -96,23 +86,25 @@ function loadProgress() {
       Upgrade2Preis = data.Upgrade2Preis ?? 1000;
       Upgrade3Preis = data.Upgrade3Preis ?? 5000;
 
-      // Clicker-Position wiederherstellen
+      // ===Clicker-Position wiederherstellen==================
       if (clicker) {
         if (data.clickerX) clicker.style.left = data.clickerX;
         if (data.clickerY) clicker.style.top = data.clickerY;
       }
+  
 
-      // SlideBox-Position wiederherstellen
-      if (box && data.slideRight) box.style.right = data.slideRight;
 
-    } catch (err) {
+// ===SlideBox-Position wiederherstellen================== 
+if (box && data.slideRight) box.style.right = data.slideRight; 
+
+  } catch (err) {
       console.error("Fehler beim Laden des Spielstands:", err);
     }
   }
-  // Popout-Zustand wiederherstellen
+// ===Popout-Zustand wiederherstellen========================
   const slideVisible = localStorage.getItem("slideBoxVisible");
   if (slideVisible === "true" && box) box.classList.add("show");
-}
+} 
 
 // === ANZEIGE AKTUALISIEREN ===================================
 function UpdateDisplay() {
@@ -132,7 +124,7 @@ function UpdateDisplay() {
     buyUpgrade3.textContent = `Kundenrabatt hochstufen (kostet ${Upgrade3Preis}) - Aktuell: ${BoughtUpgrade3}`;
   }
 
-  saveProgress();
+  saveProgress(); // nach jeder Änderung speichern
 }
 
 // === PREISBERECHNUNG ==========================================
@@ -215,3 +207,7 @@ setInterval(() => {
 // === SPIELSTAND LADEN ========================================
 loadProgress();
 UpdateDisplay();
+
+
+
+
