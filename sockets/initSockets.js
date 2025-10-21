@@ -1,4 +1,3 @@
-// sockets/initSockets.js
 const jwt = require("jsonwebtoken");
 const Message = require("../models/Message");
 const User = require("../models/User");
@@ -13,13 +12,19 @@ module.exports = function(io) {
   const userRoles = new Map();
   const lastMessageTime = new Map();
 
-  // Set mit allen authentifizierten Socket-IDs (werden die activeUsers sehen dürfen)
+  // Authentifizierte Socket-IDs (dürfen die activeUsers-Liste sehen)
   const authenticatedSockets = new Set();
 
+  // --------------------------------------------
+  // Aktive Nutzerliste an eingeloggte Nutzer senden
+  // --------------------------------------------
   const broadcastActiveUsers = () => {
     const users = Array.from(activeUsers.keys())
       .sort()
-      .map(username => ({ username, role: userRoles.get(username) || "user" }));
+      .map(username => ({
+        username,
+        role: userRoles.get(username) || "user"
+      }));
 
     // nur an authentifizierte sockets senden
     for (const sid of authenticatedSockets) {
@@ -27,6 +32,9 @@ module.exports = function(io) {
     }
   };
 
+  // --------------------------------------------
+  // Nutzer hinzufügen
+  // --------------------------------------------
   const addActiveUser = (username, socketId, role = "user") => {
     if (!username) return;
     const set = activeUsers.get(username) || new Set();
@@ -36,6 +44,9 @@ module.exports = function(io) {
     broadcastActiveUsers();
   };
 
+  // --------------------------------------------
+  // Nutzer entfernen (z. B. beim Disconnect)
+  // --------------------------------------------
   const removeActiveUserBySocket = (socketId) => {
     authenticatedSockets.delete(socketId);
     for (const [username, set] of activeUsers.entries()) {
@@ -45,24 +56,35 @@ module.exports = function(io) {
           activeUsers.delete(username);
           userFilters.delete(username);
           userRoles.delete(username);
-        } else activeUsers.set(username, set);
-        broadcastActiveUsers();
-        return username;
+        } else {
+          activeUsers.set(username, set);
+        }
+        break;
       }
     }
-    return null;
+    broadcastActiveUsers();
   };
 
+  // --------------------------------------------
+  // Alte Nachrichten kürzen
+  // --------------------------------------------
   const trimOldMessages = async (maxMessages = 100) => {
     const count = await Message.countDocuments();
     if (count <= maxMessages) return [];
     const excess = count - maxMessages;
-    const oldest = await Message.find().sort({ createdAt: 1 }).limit(excess).select("_id");
+    const oldest = await Message.find()
+      .sort({ createdAt: 1 })
+      .limit(excess)
+      .select("_id");
     const idsToDelete = oldest.map(d => d._id.toString());
-    if (idsToDelete.length) await Message.deleteMany({ _id: { $in: idsToDelete } });
+    if (idsToDelete.length)
+      await Message.deleteMany({ _id: { $in: idsToDelete } });
     return idsToDelete;
   };
 
+  // --------------------------------------------
+  // Nur an Admins senden
+  // --------------------------------------------
   const emitToAdmins = (event, payload) => {
     for (const [username, sockets] of activeUsers.entries()) {
       const role = userRoles.get(username) || "user";
@@ -72,38 +94,58 @@ module.exports = function(io) {
     }
   };
 
+  // --------------------------------------------
+  // Haupt-Connection
+  // --------------------------------------------
   io.on("connection", async (socket) => {
     let username = null;
     const token = socket.handshake?.auth?.token;
 
+    // -------------------------------
     // Token-Login (Handshake)
+    // -------------------------------
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
         username = decoded.username;
         const dbUser = await User.findOne({ username });
         const role = dbUser?.role || "user";
-        // markiere socket als authentifiziert
+
+        // Socket authentifizieren
         authenticatedSockets.add(socket.id);
         addActiveUser(username, socket.id, role);
+
+        // Info an den Client senden
         socket.emit("identified", {
           username,
           filterActive: userFilters.get(username) || false,
           role
         });
-      } catch {}
+
+        // Sofort die aktuelle Nutzerliste schicken
+        broadcastActiveUsers();
+
+      } catch (err) {
+        console.warn("JWT ungültig oder abgelaufen:", err.message);
+      }
     }
 
-    // wenn ein Client explizit nach aktiven usern fragt -> nur an ihn senden
+    // -------------------------------
+    // Anfrage nach aktiven Nutzern
+    // -------------------------------
     socket.on("requestActiveUsers", () => {
       const users = Array.from(activeUsers.keys())
         .sort()
-        .map(username => ({ username, role: userRoles.get(username) || "user" }));
-      // send only to this socket
+        .map(username => ({
+          username,
+          role: userRoles.get(username) || "user"
+        }));
       socket.emit("activeUsers", users);
     });
 
-    // Alle Socket-Event-Handler injizieren (inkl. io und authenticatedSockets)
+    // -------------------------------
+    // Chat & User Handler laden
+    // -------------------------------
     require("./handlers/chatMessageHandler")(socket, {
       username,
       activeUsers,
@@ -117,6 +159,7 @@ module.exports = function(io) {
       ADMIN_PASS,
       io
     });
+
     require("./handlers/userHandler")(socket, {
       username,
       activeUsers,
@@ -125,6 +168,13 @@ module.exports = function(io) {
       broadcastActiveUsers,
       authenticatedSockets,
       JWT_SECRET
+    });
+
+    // -------------------------------
+    // Disconnect-Handler
+    // -------------------------------
+    socket.on("disconnect", () => {
+      removeActiveUserBySocket(socket.id);
     });
   });
 };
