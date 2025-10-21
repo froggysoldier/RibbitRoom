@@ -1,33 +1,40 @@
-// routes/fishRoutes.js
 const express = require("express");
 const router = express.Router();
-const FishSave = require("../models/FishSave");
-const authenticateToken = require("../middleware/authenticateToken"); // <- deine JWT Middleware
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
-// --- Spielstand laden ---
-router.get("/", authenticateToken, async (req, res) => {
+const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
+
+// --- Fortschritt laden ---
+router.get("/load", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Kein Token" });
+
   try {
-    const save = await FishSave.findOne({ userId: req.user.id });
-    res.json({ data: save ? save.data : null });
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findOne({ username: decoded.username });
+    if (!user) return res.status(404).json({ error: "Nutzer nicht gefunden" });
+    res.json(user.fishProgress || {});
   } catch (err) {
-    console.error("Fehler beim Laden:", err);
-    res.status(500).json({ error: "Fehler beim Laden" });
+    res.status(400).json({ error: err.message });
   }
 });
 
-// --- Spielstand speichern ---
-router.post("/", authenticateToken, async (req, res) => {
+// --- Fortschritt speichern ---
+router.post("/save", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Kein Token" });
+
   try {
-    const { data } = req.body;
-    const save = await FishSave.findOneAndUpdate(
-      { userId: req.user.id },
-      { data, updatedAt: new Date() },
-      { upsert: true, new: true }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    await User.updateOne(
+      { username: decoded.username },
+      { $set: { fishProgress: req.body } },
+      { upsert: false }
     );
     res.json({ success: true });
   } catch (err) {
-    console.error("Fehler beim Speichern:", err);
-    res.status(500).json({ error: "Fehler beim Speichern" });
+    res.status(400).json({ error: err.message });
   }
 });
 
