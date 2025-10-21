@@ -1,10 +1,43 @@
-import axios from "./axiosHelper.js"; // Optional: Wrapper für API-Requests
-import * as DOM from "./domElements.js"; // falls du DOM-Elemente zentral hast
+// ===============================================================
+// FISH CLICKER – GLOBAL VERSION mit persistentem Fortschritt
+// ===============================================================
 
-// === UI ELEMENTE ===============================================
+// === UI ELEMENTE (Slide-Box + Button) ==========================
 const btn = document.getElementById('showBtn');
 const box = document.getElementById('slideBox');
 const clicker = document.getElementById("clicker");
+
+if (btn && box) {
+  btn.addEventListener('click', () => {
+    box.classList.toggle('show');
+    localStorage.setItem("slideBoxVisible", box.classList.contains("show"));
+    localStorage.setItem("slideBoxRight", box.style.right);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!box.contains(e.target) && e.target !== btn) {
+      box.classList.remove('show');
+        localStorage.setItem("slideBoxVisible", false);
+      localStorage.setItem("slideBoxRight", box.style.right);
+    }
+  });
+}
+
+// === VARIABLEN =================================================
+let fish = 0;
+let fpc = 1;  // Fisch pro Klick
+let fps = 0;  // Fische pro Sekunde
+let BoughtUpgrade0 = 0;
+let BoughtUpgrade1 = 0;
+let BoughtUpgrade2 = 0;
+let BoughtUpgrade3 = 0;
+
+let Upgrade0Preis = 15;
+let Upgrade1Preis = 100;
+let Upgrade2Preis = 1000;
+let Upgrade3Preis = 5000;
+
+// === DOM ELEMENTE ==============================================
 const counter = document.getElementById("counter");
 const fisher = document.getElementById("fisher");
 const buyUpgrade0 = document.getElementById("buyUpgrade0");
@@ -14,177 +47,167 @@ const buyUpgrade3 = document.getElementById("buyUpgrade3");
 const fpsCounter = document.getElementById("fpsCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
-// === STATE =====================================================
-let state = {
-  fish: 0,
-  fpc: 1,
-  fps: 0,
-  BoughtUpgrade0: 0,
-  BoughtUpgrade1: 0,
-  BoughtUpgrade2: 0,
-  BoughtUpgrade3: 0,
-  Upgrade0Preis: 15,
-  Upgrade1Preis: 100,
-  Upgrade2Preis: 1000,
-  Upgrade3Preis: 5000,
-  clickerX: null,
-  clickerY: null,
-  slideBoxVisible: false,
-  slideBoxRight: null
-};
+// === DATEN SPEICHERN ==========================================
+function saveProgress() {
+  const data = {
+    fish,
+    fpc,
+    fps,
+    BoughtUpgrade0,
+    BoughtUpgrade1,
+    BoughtUpgrade2,
+    BoughtUpgrade3,
+    Upgrade0Preis,
+    Upgrade1Preis,
+    Upgrade2Preis,
+    Upgrade3Preis,
+    clickerX: clicker?.style.left,
+    clickerY: clicker?.style.top,
+    lideRight: box?.style.right
+  };
+  localStorage.setItem("fishGameSave", JSON.stringify(data));
+}
 
-let username = localStorage.getItem("username") || null;
-let token = localStorage.getItem("token") || null;
+// === DATEN LADEN ==============================================
+function loadProgress() {
+  const saved = localStorage.getItem("fishGameSave");
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      fish = data.fish ?? 0;
+      fpc = data.fpc ?? 1;
+      fps = data.fps ?? 0;
+      BoughtUpgrade0 = data.BoughtUpgrade0 ?? 0;
+      BoughtUpgrade1 = data.BoughtUpgrade1 ?? 0;
+      BoughtUpgrade2 = data.BoughtUpgrade2 ?? 0;
+      BoughtUpgrade3 = data.BoughtUpgrade3 ?? 0;
+      Upgrade0Preis = data.Upgrade0Preis ?? 15;
+      Upgrade1Preis = data.Upgrade1Preis ?? 100;
+      Upgrade2Preis = data.Upgrade2Preis ?? 1000;
+      Upgrade3Preis = data.Upgrade3Preis ?? 5000;
 
-// === Helfer: State vom Server laden ===========================
-async function loadProgress() {
-  if (!username || !token) return;
+      // ===Clicker-Position wiederherstellen==================
+      if (clicker) {
+        if (data.clickerX) clicker.style.left = data.clickerX;
+        if (data.clickerY) clicker.style.top = data.clickerY;
+      }
+  
 
-  try {
-    const res = await fetch(`/api/fish/${username}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) return;
-    const data = await res.json();
-    if (!data.fishProgress) return;
 
-    state = { ...state, ...data.fishProgress };
+// ===SlideBox-Position wiederherstellen================== 
+if (box && data.slideRight) box.style.right = data.slideRight; 
 
-    // UI wiederherstellen
-    if (clicker) {
-      if (state.clickerX) clicker.style.left = state.clickerX;
-      if (state.clickerY) clicker.style.top = state.clickerY;
+  } catch (err) {
+      console.error("Fehler beim Laden des Spielstands:", err);
     }
-    if (box && state.slideBoxRight) box.style.right = state.slideBoxRight;
-    if (box && state.slideBoxVisible) box.classList.add("show");
-
-    updateDisplay();
-  } catch (err) {
-    console.error("Fehler beim Laden des Fish-Progress:", err);
   }
-}
+// ===Popout-Zustand wiederherstellen========================
+  const slideVisible = localStorage.getItem("slideBoxVisible");
+  if (slideVisible === "true" && box) box.classList.add("show");
+} 
 
-// === Helfer: State zum Server speichern =======================
-async function saveProgress() {
-  if (!username || !token) return;
-
-  try {
-    const res = await fetch(`/api/fish/${username}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({ fishProgress: state })
-    });
-    if (!res.ok) console.error("Fehler beim Speichern des Fortschritts");
-  } catch (err) {
-    console.error("Save Error:", err);
-  }
-}
-
-// === Anzeige aktualisieren =====================================
-function updateDisplay() {
+// === ANZEIGE AKTUALISIEREN ===================================
+function UpdateDisplay() {
   if (!counter) return;
-  counter.textContent = state.fish.toFixed(1);
-  fpsCounter.textContent = state.fps;
-  DiscountCounter.textContent = (1 - (state.BoughtUpgrade3 * 0.05)).toFixed(2);
 
-  buyUpgrade0.textContent = `Bessere Angel kaufen (kostet ${state.Upgrade0Preis}) - Aktuell: ${state.BoughtUpgrade0}`;
-  buyUpgrade1.textContent = `Fischer anstellen (kostet ${state.Upgrade1Preis}) - Aktuell: ${state.BoughtUpgrade1}`;
-  buyUpgrade2.textContent = `Boot kaufen (kostet ${state.Upgrade2Preis}) - Aktuell: ${state.BoughtUpgrade2}`;
-  buyUpgrade3.textContent = state.BoughtUpgrade3 >= 10 ? 
-    "Maximaler Kundenrabatt erreicht." : 
-    `Kundenrabatt hochstufen (kostet ${state.Upgrade3Preis}) - Aktuell: ${state.BoughtUpgrade3}`;
+  counter.textContent = fish.toFixed(1);
+  fpsCounter.textContent = fps;
+  DiscountCounter.textContent = (1 - (BoughtUpgrade3 * 0.05)).toFixed(2);
 
-  saveProgress();
+  buyUpgrade0.textContent = `Bessere Angel kaufen (kostet ${Upgrade0Preis}) - Aktuell: ${BoughtUpgrade0}`;
+  buyUpgrade1.textContent = `Fischer anstellen (kostet ${Upgrade1Preis}) - Aktuell: ${BoughtUpgrade1}`;
+  buyUpgrade2.textContent = `Boot kaufen (kostet ${Upgrade2Preis}) - Aktuell: ${BoughtUpgrade2}`;
+
+  if (BoughtUpgrade3 >= 10) {
+    buyUpgrade3.textContent = "Maximaler Kundenrabatt erreicht.";
+  } else {
+    buyUpgrade3.textContent = `Kundenrabatt hochstufen (kostet ${Upgrade3Preis}) - Aktuell: ${BoughtUpgrade3}`;
+  }
+
+  saveProgress(); // nach jeder Änderung speichern
 }
 
-// === Preisberechnung ===========================================
-function priceIncrease(preis, rabattUpgrade, preisAenderung) {
-  if (preisAenderung === 0) preis *= 1.2;
-  rabattUpgrade = 1 - (rabattUpgrade * 0.05);
-  preis *= rabattUpgrade;
-  return Math.round(preis);
+// === PREISBERECHNUNG ==========================================
+function UpdateDiscount() {
+  Upgrade0Preis = PriceIncrease(Upgrade0Preis, BoughtUpgrade3, 1);
+  Upgrade1Preis = PriceIncrease(Upgrade1Preis, BoughtUpgrade3, 1);
+  Upgrade2Preis = PriceIncrease(Upgrade2Preis, BoughtUpgrade3, 1);
 }
 
-// === UI EVENTS ================================================
-if (btn && box) {
-  btn.addEventListener('click', () => {
-    box.classList.toggle('show');
-    state.slideBoxVisible = box.classList.contains("show");
-    saveProgress();
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!box.contains(e.target) && e.target !== btn) {
-      box.classList.remove('show');
-      state.slideBoxVisible = false;
-      saveProgress();
-    }
-  });
+function PriceIncrease(Preis, RabattUpgrade, PreisAenderung) {
+  if (PreisAenderung === 0) Preis *= 1.2;
+  RabattUpgrade = 1 - (RabattUpgrade * 0.05);
+  Preis *= RabattUpgrade;
+  return Math.round(Preis);
 }
 
+// === EVENTS ===================================================
 if (fisher) {
   fisher.addEventListener("click", () => {
-    state.fish += state.fpc;
-    state.fish = Number(state.fish.toFixed(1));
-    updateDisplay();
+    fish += fpc;
+    fish = Number(fish.toFixed(1));
+    UpdateDisplay();
   });
 }
 
 if (buyUpgrade0) {
   buyUpgrade0.addEventListener("click", () => {
-    if (state.fish >= state.Upgrade0Preis) {
-      state.fish -= state.Upgrade0Preis;
-      state.fpc += 0.2;
-      state.Upgrade0Preis = priceIncrease(state.Upgrade0Preis, state.BoughtUpgrade3, 0);
-      state.BoughtUpgrade0++;
-      updateDisplay();
+    if (fish >= Upgrade0Preis) {
+      fish -= Upgrade0Preis;
+      fpc += 0.2;
+      Upgrade0Preis = PriceIncrease(Upgrade0Preis, BoughtUpgrade3, 0);
+      BoughtUpgrade0++;
+      UpdateDisplay();
     }
   });
 }
 
 if (buyUpgrade1) {
   buyUpgrade1.addEventListener("click", () => {
-    if (state.fish >= state.Upgrade1Preis) {
-      state.fish -= state.Upgrade1Preis;
-      state.fps++;
-      state.Upgrade1Preis = priceIncrease(state.Upgrade1Preis, state.BoughtUpgrade3, 0);
-      state.BoughtUpgrade1++;
-      updateDisplay();
+    if (fish >= Upgrade1Preis) {
+      fish -= Upgrade1Preis;
+      fps++;
+      Upgrade1Preis = PriceIncrease(Upgrade1Preis, BoughtUpgrade3, 0);
+      BoughtUpgrade1++;
+      UpdateDisplay();
     }
   });
 }
 
 if (buyUpgrade2) {
   buyUpgrade2.addEventListener("click", () => {
-    if (state.fish >= state.Upgrade2Preis) {
-      state.fish -= state.Upgrade2Preis;
-      state.fps += 5;
-      state.Upgrade2Preis = priceIncrease(state.Upgrade2Preis, state.BoughtUpgrade3, 0);
-      state.BoughtUpgrade2++;
-      updateDisplay();
+    if (fish >= Upgrade2Preis) {
+      fish -= Upgrade2Preis;
+      fps += 5;
+      Upgrade2Preis = PriceIncrease(Upgrade2Preis, BoughtUpgrade3, 0);
+      BoughtUpgrade2++;
+      UpdateDisplay();
     }
   });
 }
 
 if (buyUpgrade3) {
   buyUpgrade3.addEventListener("click", () => {
-    if (state.fish >= state.Upgrade3Preis && state.BoughtUpgrade3 < 10) {
-      state.fish -= state.Upgrade3Preis;
-      state.BoughtUpgrade3++;
-      state.Upgrade3Preis = priceIncrease(state.Upgrade3Preis, state.BoughtUpgrade3, 0);
-      updateDisplay();
+    if (fish >= Upgrade3Preis && BoughtUpgrade3 < 10) {
+      fish -= Upgrade3Preis;
+      BoughtUpgrade3++;
+      Upgrade3Preis = PriceIncrease(Upgrade3Preis, BoughtUpgrade3, 0);
+      UpdateDiscount();
+      UpdateDisplay();
     }
   });
 }
 
-// === Automatisch Fische pro Sekunde ============================
+// === AUTOMATISCHE FISCHE PRO SEKUNDE ==========================
 setInterval(() => {
-  state.fish += state.fps;
-  updateDisplay();
+  fish += fps;
+  UpdateDisplay();
 }, 1000);
 
-// === Initial Load ===============================================
+// === SPIELSTAND LADEN ========================================
 loadProgress();
+UpdateDisplay();
+
+
+
+
