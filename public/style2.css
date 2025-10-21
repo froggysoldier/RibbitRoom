@@ -31,7 +31,7 @@ button:active {
    =============================== */
 
 #showBtn {
-  position: absolute; 
+  position: fixed; 
   top: 20%;
   right: 900px; 
   transform: translateY(-50%);
@@ -126,58 +126,20 @@ button:active {
    RESPONSIVE DESIGN
    =============================== */
 
+@media (max-width: 1920px) {
+  body {
+    transform: scale(0.75); /* skaliert alles proportional */ // ➡ angepasst
+  }
+}
+
 @media (max-width: 1600px) {
-  #slideBox {
-    width: 350px;
-    right: -350px;
-  }
-  #slideBox.show {
-    right: 30px;
+  body {
+    transform: scale(0.7); // ➡ kleiner Bildschirm
   }
 }
 
-@media (max-width: 1200px) {
-  #slideBox {
-    width: 300px;
-    right: -300px;
-  }
-  #slideBox.show {
-    right: 20px;
+@media (max-width: 1080px) {
+  body {
+    transform: scale(0.5); // ➡ Handys / kleine Laptops
   }
 }
-
-@media (max-width: 768px) {
-  #slideBox {
-    width: 80%;
-    right: -80%;
-  }
-  #slideBox.show {
-    right: 10%;
-  }
-  #showBtn {
-    right: 10px;
-    top: 45%;
-  }
-}
-
-@media (max-width: 600px) {
-  #slideBox {
-    width: 85%;
-    right: -85%;
-    font-size: 1rem;
-  }
-
-  #slideBox.show {
-    right: 0;
-  }
-
-  #showBtn {
-    padding: 14px 18px;
-  }
-
-  #slideBox img {
-    width: 180px;
-  }
-}
-
-
