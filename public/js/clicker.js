@@ -1,28 +1,10 @@
-// public/js/fishClicker.js
-// ===============================================================
-// FISH CLICKER – SERVER-PERSISTENT (per MongoDB, usergebunden via JWT)
-// ===============================================================
+import axios from "./axiosHelper.js"; // Optional: Wrapper für API-Requests
+import * as DOM from "./domElements.js"; // falls du DOM-Elemente zentral hast
 
-// === DOM / UI Elemente wie in deinem Originalcode =================
+// === UI ELEMENTE ===============================================
 const btn = document.getElementById('showBtn');
 const box = document.getElementById('slideBox');
 const clicker = document.getElementById("clicker");
-
-// === Spiel-Variablen ==============================================
-let fish = 0;
-let fpc = 1;
-let fps = 0;
-let BoughtUpgrade0 = 0;
-let BoughtUpgrade1 = 0;
-let BoughtUpgrade2 = 0;
-let BoughtUpgrade3 = 0;
-
-let Upgrade0Preis = 15;
-let Upgrade1Preis = 100;
-let Upgrade2Preis = 1000;
-let Upgrade3Preis = 5000;
-
-// === DOM Elemente (Clicker UI) ===================================
 const counter = document.getElementById("counter");
 const fisher = document.getElementById("fisher");
 const buyUpgrade0 = document.getElementById("buyUpgrade0");
@@ -32,268 +14,177 @@ const buyUpgrade3 = document.getElementById("buyUpgrade3");
 const fpsCounter = document.getElementById("fpsCounter");
 const DiscountCounter = document.getElementById("DiscountCounter");
 
-// === Hilfs: Token / Username (aus localStorage wie in deinem Projekt) ==
-const token = localStorage.getItem("token");
-const username = localStorage.getItem("username");
+// === STATE =====================================================
+let state = {
+  fish: 0,
+  fpc: 1,
+  fps: 0,
+  BoughtUpgrade0: 0,
+  BoughtUpgrade1: 0,
+  BoughtUpgrade2: 0,
+  BoughtUpgrade3: 0,
+  Upgrade0Preis: 15,
+  Upgrade1Preis: 100,
+  Upgrade2Preis: 1000,
+  Upgrade3Preis: 5000,
+  clickerX: null,
+  clickerY: null,
+  slideBoxVisible: false,
+  slideBoxRight: null
+};
 
-// === Lokale Fallback-Funktionen (falls kein Token vorhanden) =======
-function saveProgressLocal(data) {
-  try {
-    localStorage.setItem("fishGameSave", JSON.stringify(data));
-  } catch (e) { console.warn("local save error", e); }
-}
-function loadProgressLocal() {
-  try {
-    const saved = localStorage.getItem("fishGameSave");
-    if (!saved) return null;
-    return JSON.parse(saved);
-  } catch (e) {
-    console.warn("local load error", e);
-    return null;
-  }
-}
+let username = localStorage.getItem("username") || null;
+let token = localStorage.getItem("token") || null;
 
-// ===============================================================
-// === Server-API: laden / speichern ==============================
-// ===============================================================
-async function loadProgressFromServerOrLocal() {
-  if (!token) {
-    // kein Token → lokale Daten laden
-    const local = loadProgressLocal();
-    if (local) applyLoadedData(local);
-    return;
-  }
+// === Helfer: State vom Server laden ===========================
+async function loadProgress() {
+  if (!username || !token) return;
 
   try {
-    const res = await fetch("/api/fish", {
-      method: "GET",
+    const res = await fetch(`/api/fish/${username}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.fishProgress) return;
 
-    if (!res.ok) {
-      // Fallback auf lokal, wenn Server-Antwort nicht ok
-      const local = loadProgressLocal();
-      if (local) applyLoadedData(local);
-      return;
+    state = { ...state, ...data.fishProgress };
+
+    // UI wiederherstellen
+    if (clicker) {
+      if (state.clickerX) clicker.style.left = state.clickerX;
+      if (state.clickerY) clicker.style.top = state.clickerY;
     }
+    if (box && state.slideBoxRight) box.style.right = state.slideBoxRight;
+    if (box && state.slideBoxVisible) box.classList.add("show");
 
-    const json = await res.json();
-    const data = json.data || null;
-    if (data) applyLoadedData(data);
+    updateDisplay();
   } catch (err) {
-    console.warn("Laden vom Server fehlgeschlagen, fallback auf lokal:", err);
-    const local = loadProgressLocal();
-    if (local) applyLoadedData(local);
+    console.error("Fehler beim Laden des Fish-Progress:", err);
   }
 }
 
-async function saveProgressToServerOrLocal() {
-  const payload = {
-    fish, fpc, fps,
-    BoughtUpgrade0, BoughtUpgrade1, BoughtUpgrade2, BoughtUpgrade3,
-    Upgrade0Preis, Upgrade1Preis, Upgrade2Preis, Upgrade3Preis,
-    // UI-Zustand
-    clickerX: clicker?.style.left || null,
-    clickerY: clicker?.style.top || null,
-    slideBoxVisible: box?.classList?.contains("show") || false,
-    slideBoxRight: box?.style?.right || null
-  };
-
-  if (!token) {
-    // Gästermodus: lokal speichern
-    saveProgressLocal(payload);
-    return;
-  }
+// === Helfer: State zum Server speichern =======================
+async function saveProgress() {
+  if (!username || !token) return;
 
   try {
-    await fetch("/api/fish", {
-      method: "POST",
+    const res = await fetch(`/api/fish/${username}`, {
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ data: payload })
+      body: JSON.stringify({ fishProgress: state })
     });
+    if (!res.ok) console.error("Fehler beim Speichern des Fortschritts");
   } catch (err) {
-    console.warn("Speichern auf Server fehlgeschlagen, speichere lokal:", err);
-    saveProgressLocal(payload);
+    console.error("Save Error:", err);
   }
 }
 
-// ===============================================================
-// === Hilfs: Daten in Spiel übernehmen ===========================
-// ===============================================================
-function applyLoadedData(data) {
-  fish = data.fish ?? fish;
-  fpc = data.fpc ?? fpc;
-  fps = data.fps ?? fps;
-  BoughtUpgrade0 = data.BoughtUpgrade0 ?? BoughtUpgrade0;
-  BoughtUpgrade1 = data.BoughtUpgrade1 ?? BoughtUpgrade1;
-  BoughtUpgrade2 = data.BoughtUpgrade2 ?? BoughtUpgrade2;
-  BoughtUpgrade3 = data.BoughtUpgrade3 ?? BoughtUpgrade3;
-  Upgrade0Preis = data.Upgrade0Preis ?? Upgrade0Preis;
-  Upgrade1Preis = data.Upgrade1Preis ?? Upgrade1Preis;
-  Upgrade2Preis = data.Upgrade2Preis ?? Upgrade2Preis;
-  Upgrade3Preis = data.Upgrade3Preis ?? Upgrade3Preis;
-
-  // Clicker-Position wiederherstellen
-  if (clicker) {
-    if (data.clickerX) clicker.style.left = data.clickerX;
-    if (data.clickerY) clicker.style.top = data.clickerY;
-  }
-
-  // SlideBox-Zustand wiederherstellen (wie in deinem ursprünglichen Verhalten)
-  if (box) {
-    if (data.slideBoxVisible === true) box.classList.add("show");
-    else box.classList.remove("show");
-    if (data.slideBoxRight) box.style.right = data.slideBoxRight;
-  }
-
-  UpdateDisplay(false); // UpdateDisplay ohne direktes erneutes Speichern
-}
-
-// ===============================================================
-// === Anzeige aktualisieren (UpdateDisplay) =====================
-// === parameter saveDefault true -> speichert am Ende ===========
-function UpdateDisplay(saveDefault = true) {
+// === Anzeige aktualisieren =====================================
+function updateDisplay() {
   if (!counter) return;
+  counter.textContent = state.fish.toFixed(1);
+  fpsCounter.textContent = state.fps;
+  DiscountCounter.textContent = (1 - (state.BoughtUpgrade3 * 0.05)).toFixed(2);
 
-  counter.textContent = fish.toFixed(1);
-  fpsCounter.textContent = fps;
-  DiscountCounter.textContent = (1 - (BoughtUpgrade3 * 0.05)).toFixed(2);
+  buyUpgrade0.textContent = `Bessere Angel kaufen (kostet ${state.Upgrade0Preis}) - Aktuell: ${state.BoughtUpgrade0}`;
+  buyUpgrade1.textContent = `Fischer anstellen (kostet ${state.Upgrade1Preis}) - Aktuell: ${state.BoughtUpgrade1}`;
+  buyUpgrade2.textContent = `Boot kaufen (kostet ${state.Upgrade2Preis}) - Aktuell: ${state.BoughtUpgrade2}`;
+  buyUpgrade3.textContent = state.BoughtUpgrade3 >= 10 ? 
+    "Maximaler Kundenrabatt erreicht." : 
+    `Kundenrabatt hochstufen (kostet ${state.Upgrade3Preis}) - Aktuell: ${state.BoughtUpgrade3}`;
 
-  if (buyUpgrade0) buyUpgrade0.textContent = `Bessere Angel kaufen (kostet ${Upgrade0Preis}) - Aktuell: ${BoughtUpgrade0}`;
-  if (buyUpgrade1) buyUpgrade1.textContent = `Fischer anstellen (kostet ${Upgrade1Preis}) - Aktuell: ${BoughtUpgrade1}`;
-  if (buyUpgrade2) buyUpgrade2.textContent = `Boot kaufen (kostet ${Upgrade2Preis}) - Aktuell: ${BoughtUpgrade2}`;
-  if (buyUpgrade3) buyUpgrade3.textContent = BoughtUpgrade3 >= 10
-    ? "Maximaler Kundenrabatt erreicht."
-    : `Kundenrabatt hochstufen (kostet ${Upgrade3Preis}) - Aktuell: ${BoughtUpgrade3}`;
-
-  if (saveDefault) saveProgressToServerOrLocal();
+  saveProgress();
 }
 
-// ===============================================================
 // === Preisberechnung ===========================================
-function UpdateDiscount() {
-  Upgrade0Preis = PriceIncrease(Upgrade0Preis, BoughtUpgrade3, 1);
-  Upgrade1Preis = PriceIncrease(Upgrade1Preis, BoughtUpgrade3, 1);
-  Upgrade2Preis = PriceIncrease(Upgrade2Preis, BoughtUpgrade3, 1);
+function priceIncrease(preis, rabattUpgrade, preisAenderung) {
+  if (preisAenderung === 0) preis *= 1.2;
+  rabattUpgrade = 1 - (rabattUpgrade * 0.05);
+  preis *= rabattUpgrade;
+  return Math.round(preis);
 }
 
-function PriceIncrease(Preis, RabattUpgrade, PreisAenderung) {
-  if (PreisAenderung === 0) Preis *= 1.2;
-  const rabatt = 1 - (RabattUpgrade * 0.05);
-  Preis *= rabatt;
-  return Math.round(Preis);
-}
-
-// ===============================================================
-// === Events (Clicker + Upgrades) ===============================
+// === UI EVENTS ================================================
 if (btn && box) {
-  // Button / Modal Verhalten genau wie dein Original (ein/aus)
-  btn.addEventListener('click', async () => {
+  btn.addEventListener('click', () => {
     box.classList.toggle('show');
-    // Speichere den Zustand (Server oder lokal)
-    await saveProgressToServerOrLocal();
+    state.slideBoxVisible = box.classList.contains("show");
+    saveProgress();
   });
 
-  document.addEventListener('click', async (e) => {
+  document.addEventListener('click', (e) => {
     if (!box.contains(e.target) && e.target !== btn) {
       box.classList.remove('show');
-      await saveProgressToServerOrLocal();
+      state.slideBoxVisible = false;
+      saveProgress();
     }
   });
 }
 
-// Clicker Klick
 if (fisher) {
   fisher.addEventListener("click", () => {
-    fish += fpc;
-    fish = Number(fish.toFixed(1));
-    UpdateDisplay();
+    state.fish += state.fpc;
+    state.fish = Number(state.fish.toFixed(1));
+    updateDisplay();
   });
 }
 
-// Upgrades
 if (buyUpgrade0) {
   buyUpgrade0.addEventListener("click", () => {
-    if (fish >= Upgrade0Preis) {
-      fish -= Upgrade0Preis;
-      fpc += 0.2;
-      Upgrade0Preis = PriceIncrease(Upgrade0Preis, BoughtUpgrade3, 0);
-      BoughtUpgrade0++;
-      UpdateDisplay();
+    if (state.fish >= state.Upgrade0Preis) {
+      state.fish -= state.Upgrade0Preis;
+      state.fpc += 0.2;
+      state.Upgrade0Preis = priceIncrease(state.Upgrade0Preis, state.BoughtUpgrade3, 0);
+      state.BoughtUpgrade0++;
+      updateDisplay();
     }
   });
 }
 
 if (buyUpgrade1) {
   buyUpgrade1.addEventListener("click", () => {
-    if (fish >= Upgrade1Preis) {
-      fish -= Upgrade1Preis;
-      fps++;
-      Upgrade1Preis = PriceIncrease(Upgrade1Preis, BoughtUpgrade3, 0);
-      BoughtUpgrade1++;
-      UpdateDisplay();
+    if (state.fish >= state.Upgrade1Preis) {
+      state.fish -= state.Upgrade1Preis;
+      state.fps++;
+      state.Upgrade1Preis = priceIncrease(state.Upgrade1Preis, state.BoughtUpgrade3, 0);
+      state.BoughtUpgrade1++;
+      updateDisplay();
     }
   });
 }
 
 if (buyUpgrade2) {
   buyUpgrade2.addEventListener("click", () => {
-    if (fish >= Upgrade2Preis) {
-      fish -= Upgrade2Preis;
-      fps += 5;
-      Upgrade2Preis = PriceIncrease(Upgrade2Preis, BoughtUpgrade3, 0);
-      BoughtUpgrade2++;
-      UpdateDisplay();
+    if (state.fish >= state.Upgrade2Preis) {
+      state.fish -= state.Upgrade2Preis;
+      state.fps += 5;
+      state.Upgrade2Preis = priceIncrease(state.Upgrade2Preis, state.BoughtUpgrade3, 0);
+      state.BoughtUpgrade2++;
+      updateDisplay();
     }
   });
 }
 
 if (buyUpgrade3) {
   buyUpgrade3.addEventListener("click", () => {
-    if (fish >= Upgrade3Preis && BoughtUpgrade3 < 10) {
-      fish -= Upgrade3Preis;
-      BoughtUpgrade3++;
-      Upgrade3Preis = PriceIncrease(Upgrade3Preis, BoughtUpgrade3, 0);
-      UpdateDiscount();
-      UpdateDisplay();
+    if (state.fish >= state.Upgrade3Preis && state.BoughtUpgrade3 < 10) {
+      state.fish -= state.Upgrade3Preis;
+      state.BoughtUpgrade3++;
+      state.Upgrade3Preis = priceIncrease(state.Upgrade3Preis, state.BoughtUpgrade3, 0);
+      updateDisplay();
     }
   });
 }
 
-// Clicker Drag/Position (optional): speichere clicker pos on mouseup
-if (clicker) {
-  let dragging = false, offsetX=0, offsetY=0;
-  clicker.addEventListener("mousedown", (e) => {
-    dragging = true;
-    offsetX = e.clientX - (clicker.getBoundingClientRect().left || 0);
-    offsetY = e.clientY - (clicker.getBoundingClientRect().top || 0);
-    clicker.style.position = "absolute";
-  });
-  document.addEventListener("mousemove", (e) => {
-    if (!dragging) return;
-    clicker.style.left = `${e.clientX - offsetX}px`;
-    clicker.style.top = `${e.clientY - offsetY}px`;
-  });
-  document.addEventListener("mouseup", async () => {
-    if (dragging) {
-      dragging = false;
-      await saveProgressToServerOrLocal();
-    }
-  });
-}
-
-// ===============================================================
-// === Automatische Fische pro Sekunde ===========================
+// === Automatisch Fische pro Sekunde ============================
 setInterval(() => {
-  fish += fps;
-  UpdateDisplay();
+  state.fish += state.fps;
+  updateDisplay();
 }, 1000);
 
-// ===============================================================
-// === Start: lade Spielstand (Server oder lokal) ================
-loadProgressFromServerOrLocal().then(() => {
-  UpdateDisplay(false); // initiales Update ohne sofort speichern (wurde geladen)
-});
+// === Initial Load ===============================================
+loadProgress();
