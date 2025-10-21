@@ -271,11 +271,32 @@ module.exports = function (socket, ctx) {
         }
         return;
       }
+            // --- /addFish Befehl ---
+      if (finalContent.startsWith("/addFish")) {
+        // Admin-Prüfung (optional: nur Admins dürfen)
+        if (role !== "admin") {
+          return socket.emit("systemMessage", { text: "Nur Admins können Fische hinzufügen.", type: "error" });
+        }
+      
+        const args = finalContent.split(" ");
+        const amount = parseFloat(args[1]);
+        if (isNaN(amount) || amount <= 0) {
+          return socket.emit("systemMessage", { text: "Bitte gib einen gültigen Betrag an, z.B. /addFish 50", type: "error" });
+        }
+      
+        // Event an den Client schicken, damit er Fische addiert
+        socket.emit("addFish", { amount });
+      
+        socket.emit("systemMessage", { text: `✔️ Du hast ${amount} Fische hinzugefügt.`, type: "ok" });
+        return;
+      }
 
       // unbekanntes Kommando
       socket.emit("systemMessage", { text: `ℹ️ Unbekanntes Kommando: ${finalContent}`, type: "info" });
       return;
     }
+
+    
 
     // --- Normale Nachricht ---
     if (finalContent.length > 150) finalContent = finalContent.slice(0, 150);
