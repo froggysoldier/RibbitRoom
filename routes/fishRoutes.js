@@ -1,4 +1,3 @@
-// routes/fishRoutes.js
 const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
@@ -6,44 +5,41 @@ const User = require("../models/User");
 
 const JWT_SECRET = process.env.JWT_SECRET || "geheimesPasswort";
 
-// GET /api/fish    -> lädt Spielstand des eingeloggten Nutzers
+// GET /api/fish -> Fortschritt laden
 router.get("/", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Kein Token" });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const username = decoded.username;
-    const user = await User.findOne({ username }).select("fishProgress");
-    if (!user) return res.status(404).json({ error: "Nutzer nicht gefunden" });
-    res.json({ data: user.fishProgress || {} });
+    const user = await User.findOne({ username: decoded.username }).select("fishProgress");
+    if (!user) return res.status(404).json({ error: "User nicht gefunden" });
+    res.json({ fishProgress: user.fishProgress || {} });
   } catch (err) {
     console.error("GET /api/fish Fehler:", err);
     res.status(400).json({ error: err.message });
   }
 });
 
-// POST /api/fish   -> speichert Spielstand für eingeloggten Nutzer
-router.post("/", async (req, res) => {
+// PUT /api/fish -> Fortschritt speichern
+router.put("/", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Kein Token" });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const username = decoded.username;
-    const data = req.body.data || req.body; // akzeptiere { data: {...} } oder direkt {...}
+    const user = await User.findOne({ username: decoded.username });
+    if (!user) return res.status(404).json({ error: "User nicht gefunden" });
 
-    const update = { fishProgress: data, updatedAt: new Date() };
-    const result = await User.findOneAndUpdate(
-      { username },
-      { $set: update },
-      { new: true }
-    );
+    const data = req.body.fishProgress;
+    if (!data) return res.status(400).json({ error: "Keine Daten übergeben" });
 
-    if (!result) return res.status(404).json({ error: "Nutzer nicht gefunden" });
+    user.fishProgress = data;
+    await user.save();
+
     res.json({ success: true });
   } catch (err) {
-    console.error("POST /api/fish Fehler:", err);
+    console.error("PUT /api/fish Fehler:", err);
     res.status(400).json({ error: err.message });
   }
 });
