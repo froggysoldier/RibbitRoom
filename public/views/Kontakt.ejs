@@ -1,0 +1,88 @@
+ <!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Ribbit Room</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style2.css">
+  <script type="module" src="/js/clicker.js"></script>
+
+        <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+        <link rel="manifest" href="images/site.webmanifest">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header>
+  <button id="loginBtn">Login / Registrieren</button>
+  <img src="images/logo.png" alt="Mein Logo" class="logo">
+  <nav>
+    <ul>
+    <li> <a href="start.html">Startseite</a></li>
+    <li> <a href="index.html">Chatroom</a></li>
+    <li> <a href="Kontakt.html">Kontakt</a></li>
+    <li> <a href="Impressum.html">Impressum</a></li>
+     </ul>
+  </nav>
+</header>
+
+<main>
+    <div class="center-block">
+         <dl class="regeln">
+                  <h3><span class="highlight">Kontakt</span></h3>
+           <dt>RibbitRoom AG</dt>
+           <dt><p>Sie m&ouml;chten uns einen Hinweis geben oder haben weitergehende Fragen rund um den RibbitRoom und w&uuml;nschen das pers&ouml;nliche Gespr&auml;ch oder eine Antwort per E-Mail?</p></dt>
+           <dd><p>E-Mail: <a href="mailto:kontakt@ribbitroom.de">kontakt@ribbitroom.de</a><br>
+                 Website: <a href="https://ribbitroom-vdzo.onrender.com" target="_blank">www.ribbitroom.de</a></dd>
+           <dt>Sie erreichen das ServiceCenter des RibbitRooms von Montags bis Freitags von 7 Uhr bis 18 Uhr unter der Telefonnummer: 0163 1737743.</dt>
+
+         </dl>
+         </div>
+
+</main>
+
+<div id="slideBox">
+  <h2>Fische: <span id="counter">0</span></h2>
+  <h2>Fische pro Sekunde: <span id="fpsCounter">0</span></h2>
+  <h2>Kundenrabatt: <span id="DiscountCounter">0</span></h2>
+
+  <div class="klickbares">
+    <img src="images/fischer.png" id="fisher" alt="Fisher" width="250" style="cursor: pointer;">
+    <br><br>
+    <button id="buyUpgrade0">Bessere Angel kaufen (15) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade1">Fischer anstellen (100) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade2">Boot kaufen (1000) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade3">Kundenrabatt (5000) - Aktuell: 0</button><br><br>
+  </div>
+</div>
+
+  <button id="showBtn">🐟</button>
+ 
+<!-- Modal für Login/Register -->
+<div id="loginModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Benutzername">
+    <input type="password" id="password" placeholder="Passwort">
+    <button id="loginSubmit">Einloggen</button>
+    <hr>
+    <h3>Oder registrieren</h3>
+    <input type="text" id="newUser" placeholder="Benutzername">
+    <input type="password" id="newPass" placeholder="Passwort">
+    <input type="email" id="email" placeholder="E-Mail">
+    <button id="registerSubmit">Registrieren</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/js/app.js"></script>
+
+</body>
+</html>
+
+
+
+

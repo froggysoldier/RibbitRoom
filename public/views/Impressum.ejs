@@ -1,0 +1,161 @@
+ <!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Ribbit Room</title>
+  <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style2.css">
+  <script type="module" src="/js/clicker.js"></script>
+
+        <link rel="apple-touch-icon" sizes="180x180" href="images/apple-touch-icon.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+        <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png">
+        <link rel="manifest" href="images/site.webmanifest">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header>
+  <button id="loginBtn">Login / Registrieren</button>
+  <img src="images/logo.png" alt="Mein Logo" class="logo">
+  <nav>
+    <ul>
+    <li> <a href="start.html">Startseite</a></li>
+    <li> <a href="index.html">Chatroom</a></li>
+    <li> <a href="Kontakt.html">Kontakt</a></li>
+    <li> <a href="Impressum.html">Impressum</a></li>
+     </ul>
+  </nav>
+</header>
+
+<main>
+    <div class="center-block">
+                  <section class="impressum">
+         <h3><span class="highlight">Impressum</span></h3>
+     <br>
+    <div class="info-row">
+         <span class="label">Anschrift:</span>
+    <div class="value">
+         Am Stadtwald 7<br>
+         41464 Neuss<br>
+         Deutschland<br>
+          </div>
+    </div>
+        <br>
+      <div class="info-row">
+         <span class="label">Vertreten durch:</span>
+          <div class="value">
+         Herbert Hops<br>
+                  </div>
+    </div>
+       <br>
+
+       <div class="info-row">
+         <span class="label">Kontakt:</span>
+          <div class="value">
+         Telefon: 0163 1737743<br>
+         E-Mail: <a href="mailto:kontakt@ribbitroom.de">kontakt@ribbitroom.de</a><br>
+         Website: <a href="https://ribbitroom-vdzo.onrender.com" target="_blank">www.ribbitroom.de</a><br>
+                  </div>
+    </div>
+        <br>
+        <div class="info-row">
+         <span class="label">Handelsregister:</span>
+    <div class="value">
+
+         Eingetragen im Handelsregister <br> des Amtsgerichts Neuss<br>
+         Handelsregisternummer: HRB 987654<br>
+                   </div>
+    </div>
+
+    <div class="info-row">
+    <span class="label">Umsatzsteuer-Identifikationsnummer
+    gem&auml;&szlig; &sect;27a Umsatzsteuergesetz:</span>
+    <div class="value">
+    <br>
+    <br>
+    <br>
+
+         DE123456789<br>
+
+               </div>
+    </div>
+
+    <div class="info-row">
+         <span class="label">Inhaltlich Verantwortlicher gem&auml;&szlig; &sect; 18 Abs. 2 MStV:</span>
+    <div class="value">
+    <br>
+    <br>
+    <br>
+    <br>
+         Jannik P. , Daniel K., Keno P. , Sajid K.<br>
+         Am Stadtwald 7<br>
+         41464 Neuss<br>
+               </div>
+    </div>
+
+    <div class="info-row">
+         <span class="label">Haftungshinweis:</span>
+    <div class="value">
+    <br>
+    <br>
+         Trotz sorgf&auml;ltiger inhaltlicher Kontrolle <br>&uuml;bernehmen  wir keine Haftung f&uuml;r die Inhalte<br> externer Links.
+         F&uuml;r den Inhalt der verlinkten Seiten<br>  sind ausschlie&szlig;lich deren Betreiber verantwortlich.<br>
+                </div>
+    </div>
+
+</section>
+
+           <div class="Standort">
+            <a href="https://shorturl.at/YJx9G">&#128205;Standort</a>
+
+        </div>
+         </dl>
+         </div>
+
+</main>
+
+<div id="slideBox">
+  <h2>Fische: <span id="counter">0</span></h2>
+  <h2>Fische pro Sekunde: <span id="fpsCounter">0</span></h2>
+  <h2>Kundenrabatt: <span id="DiscountCounter">0</span></h2>
+
+  <div class="klickbares">
+    <img src="images/fischer.png" id="fisher" alt="Fisher" width="250" style="cursor: pointer;">
+    <br><br>
+    <button id="buyUpgrade0">Bessere Angel kaufen (15) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade1">Fischer anstellen (100) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade2">Boot kaufen (1000) - Aktuell: 0</button><br><br>
+    <button id="buyUpgrade3">Kundenrabatt (5000) - Aktuell: 0</button><br><br>
+  </div>
+</div>
+
+  <button id="showBtn">🐟</button>
+ 
+<!-- Modal für Login/Register -->
+<div id="loginModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Login</h2>
+    <input type="text" id="username" placeholder="Benutzername">
+    <input type="password" id="password" placeholder="Passwort">
+    <button id="loginSubmit">Einloggen</button>
+    <hr>
+    <h3>Oder registrieren</h3>
+    <input type="text" id="newUser" placeholder="Benutzername">
+    <input type="password" id="newPass" placeholder="Passwort">
+    <input type="email" id="email" placeholder="E-Mail">
+    <button id="registerSubmit">Registrieren</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script type="module" src="/js/app.js"></script>
+
+</body>
+</html>
+
+
+
+
+
