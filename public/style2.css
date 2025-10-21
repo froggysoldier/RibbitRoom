@@ -126,6 +126,40 @@ button:active {
    RESPONSIVE DESIGN
    =============================== */
 
+@media (max-width: 1600px) {
+  #slideBox {
+    width: 350px;
+    right: -350px;
+  }
+  #slideBox.show {
+    right: 30px;
+  }
+}
+
+@media (max-width: 1200px) {
+  #slideBox {
+    width: 300px;
+    right: -300px;
+  }
+  #slideBox.show {
+    right: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  #slideBox {
+    width: 80%;
+    right: -80%;
+  }
+  #slideBox.show {
+    right: 10%;
+  }
+  #showBtn {
+    right: 10px;
+    top: 45%;
+  }
+}
+
 @media (max-width: 600px) {
   #slideBox {
     width: 85%;
@@ -145,3 +179,4 @@ button:active {
     width: 180px;
   }
 }
+
