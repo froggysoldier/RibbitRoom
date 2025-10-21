@@ -67,7 +67,7 @@ button:active {
   right: -850px; /* vollständig außerhalb */
   transform: translateY(-50%);
   width: 320px;
-  height: 100vh;
+  height: 70vh;
   background-color: rgba(0, 0, 0, 0.85);
   color: white;
   padding: 20px;
@@ -145,6 +145,7 @@ button:active {
     width: 180px;
   }
 }
+
 
 
 
