@@ -1,19 +1,22 @@
 // ===============================================================
-// 🐟 FISH CLICKER – GLOBAL VERSION mit persistentem Fortschritt
+// FISH CLICKER – GLOBAL VERSION mit persistentem Fortschritt
 // ===============================================================
 
 // === UI ELEMENTE (Slide-Box + Button) ==========================
 const btn = document.getElementById('showBtn');
 const box = document.getElementById('slideBox');
+const clicker = document.getElementById("clicker");
 
 if (btn && box) {
   btn.addEventListener('click', () => {
     box.classList.toggle('show');
+    localStorage.setItem("slideBoxVisible", box.classList.contains("show"));
   });
 
   document.addEventListener('click', (e) => {
     if (!box.contains(e.target) && e.target !== btn) {
       box.classList.remove('show');
+        localStorage.setItem("slideBoxVisible", false);
     }
   });
 }
@@ -55,7 +58,9 @@ function saveProgress() {
     Upgrade0Preis,
     Upgrade1Preis,
     Upgrade2Preis,
-    Upgrade3Preis
+    Upgrade3Preis,
+    clickerX: clicker?.style.left,
+    clickerY: clicker?.style.top
   };
   localStorage.setItem("fishGameSave", JSON.stringify(data));
 }
@@ -77,12 +82,20 @@ function loadProgress() {
       Upgrade1Preis = data.Upgrade1Preis ?? 100;
       Upgrade2Preis = data.Upgrade2Preis ?? 1000;
       Upgrade3Preis = data.Upgrade3Preis ?? 5000;
+
+      // ===Clicker-Position wiederherstellen==================
+      if (clicker) {
+        if (data.clickerX) clicker.style.left = data.clickerX;
+        if (data.clickerY) clicker.style.top = data.clickerY;
+      }
     } catch (err) {
       console.error("Fehler beim Laden des Spielstands:", err);
     }
   }
+ // ===Popout-Zustand wiederherstellen========================
+  const slideVisible = localStorage.getItem("slideBoxVisible");
+  if (slideVisible === "true" && box) box.classList.add("show");
 }
-
 // === ANZEIGE AKTUALISIEREN ===================================
 function UpdateDisplay() {
   if (!counter) return;
@@ -185,32 +198,6 @@ setInterval(() => {
 loadProgress();
 UpdateDisplay();
 
-const clicker = document.getElementById("clicker");
 
-// ====Beim Bewegen / Position ändern==========
-function saveClickerPosition(x, y) {
-  localStorage.setItem("clickerX", x);
-  localStorage.setItem("clickerY", y);
-}
 
-// =====Beispiel: Clicker bewegen==================
-clicker.addEventListener("mousedown", (e) => {
-  // Beispiel-Bewegung (vereinfachtes Drag)
-  clicker.style.left = e.pageX + "px";
-  clicker.style.top = e.pageY + "px";
 
-  // ======Position speichern============
-  saveClickerPosition(e.pageX, e.pageY);
-});
-
-// ===Beim Laden der Seite die Position wiederherstellen===========
-window.addEventListener("load", () => {
-  const x = localStorage.getItem("clickerX");
-  const y = localStorage.getItem("clickerY");
-
-  if (x && y) {
-    clicker.style.left = x + "px";
-    clicker.style.top = y + "px";
-    clicker.style.visibility = "visible";
-  }
-});
