@@ -1,4 +1,56 @@
 /* ===============================
+   SKALIERUNG AUF ANDERE AUFLÖSUNGEN
+   =============================== */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+  background: #111;
+}
+
+/* Wrapper für alles – bleibt 1:1 auf 1440p, skaliert auf anderen Screens */
+.page-wrapper {
+  transform-origin: top left;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* 1440p bleibt 1:1 */
+@media (min-width: 1440px) {
+  .page-wrapper {
+    transform: scale(1);
+  }
+}
+
+/* 1080p -> etwa 75% Zoom */
+@media (max-width: 1400px) and (min-width: 1000px) {
+  .page-wrapper {
+    transform: scale(0.75);
+  }
+}
+
+/* Laptops / kleine Bildschirme */
+@media (max-width: 999px) {
+  .page-wrapper {
+    transform: scale(0.6);
+  }
+}
+
+/* Smartphones */
+@media (max-width: 600px) {
+  .page-wrapper {
+    transform: scale(0.45);
+  }
+}
+
+
+
+
+
+/* ===============================
    CLICKER STYLES
    =============================== */
 html {
@@ -162,4 +214,5 @@ button:active {
     transform: scale(0.45);
   }
 }
+
 
