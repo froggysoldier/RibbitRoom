@@ -528,35 +528,13 @@ a:hover {
   text-decoration: underline;
 }
 
-* ====== Media Queries ====== */
 
+/* ====== Media Queries ====== */
 /* Tablet */
 @media (max-width: 900px) {
   #container {
     flex-direction: column;
     align-items: center;
-  }
-
-  #userList {
-    width: 90%;
-    max-height: 400px;
-    margin-bottom: 1rem;
-  }
-
-  .regeln {
-    max-width: 90%;
-    font-size: 1.3rem;
-    line-height: 2.2;
-    padding: 1.5rem 2rem;
-  }
-
-  nav ul {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  nav li {
-    margin-right: 0;
   }
 }
 
@@ -564,27 +542,54 @@ a:hover {
 @media (max-width: 600px) {
   #userList {
     width: 95%;
-    max-height: 300px;
   }
+}
 
-  .regeln {
-    max-width: 95%;
-    font-size: 1.1rem;
-    line-height: 2;
-    padding: 1rem 1.2rem;
+/* ====== AUFLÖSUNGS-SKALIERUNG ====== */
+@media (min-width: 2560px) { /* 4K */  
+  body {
+    transform: scale(0.9);
+    width: 111%;
+    height: 111%;
   }
+}
 
-  nav a {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
+@media (max-width: 1920px) { /* 1080p */  
+  body {
+    transform: scale(0.55);
+    width: 182%;
+    height: 182%;
   }
+}
 
-  #loginBtn {
-    padding: 12px 18px;
-    font-size: 0.9rem;
+@media (max-width: 1600px) { /* 1600p */
+  body {
+    transform: scale(0.6);
+    width: 166%;
+    height: 166%;
   }
+}
 
-  #chatWindow {
-    min-height: 300px;
+@media (max-width: 1200px) { /* Laptop */
+  body {
+    transform: scale(0.5);
+    width: 200%;
+    height: 200%;
+  }
+}
+
+@media (max-width: 900px) { /* Tablet */
+  body {
+    transform: scale(0.45);
+    width: 222%;
+    height: 222%;
+  }
+}
+
+@media (max-width: 600px) { /* Handy */
+  body {
+    transform: scale(0.35);
+    width: 285%;
+    height: 285%;
   }
 }
