@@ -11,12 +11,14 @@ if (btn && box) {
   btn.addEventListener('click', () => {
     box.classList.toggle('show');
     localStorage.setItem("slideBoxVisible", box.classList.contains("show"));
+    localStorage.setItem("slideBoxRight", box.style.right);
   });
 
   document.addEventListener('click', (e) => {
     if (!box.contains(e.target) && e.target !== btn) {
       box.classList.remove('show');
         localStorage.setItem("slideBoxVisible", false);
+      localStorage.setItem("slideBoxRight", box.style.right);
     }
   });
 }
@@ -60,7 +62,8 @@ function saveProgress() {
     Upgrade2Preis,
     Upgrade3Preis,
     clickerX: clicker?.style.left,
-    clickerY: clicker?.style.top
+    clickerY: clicker?.style.top,
+    lideRight: box?.style.right
   };
   localStorage.setItem("fishGameSave", JSON.stringify(data));
 }
@@ -88,14 +91,21 @@ function loadProgress() {
         if (data.clickerX) clicker.style.left = data.clickerX;
         if (data.clickerY) clicker.style.top = data.clickerY;
       }
-    } catch (err) {
+  
+
+
+// ===SlideBox-Position wiederherstellen================== 
+if (box && data.slideRight) box.style.right = data.slideRight; 
+
+  } catch (err) {
       console.error("Fehler beim Laden des Spielstands:", err);
     }
   }
- // ===Popout-Zustand wiederherstellen========================
+// ===Popout-Zustand wiederherstellen========================
   const slideVisible = localStorage.getItem("slideBoxVisible");
   if (slideVisible === "true" && box) box.classList.add("show");
-}
+} 
+
 // === ANZEIGE AKTUALISIEREN ===================================
 function UpdateDisplay() {
   if (!counter) return;
