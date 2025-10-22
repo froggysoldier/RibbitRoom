@@ -15,10 +15,10 @@
 
   --color-panel: #272E37; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
   --color-panel-light: #2a2a2a; /*InfoMsg*/
-  --color-input-bg: #e0e0e0;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
+  --color-input-bg: #262121;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
 
   --color-nav-bg: #719254; /*NavLeiste*/
-  --color-link: #ffffff; /*Links*/
+  --color-link: #262121; /*Links*/
   --color-link-hover-bg: #58423F;/*LinksHover*/
 
   --color-modal-bg: rgba(0,0,0,0.7); /*ModalBg*/
