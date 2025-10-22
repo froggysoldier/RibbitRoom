@@ -120,8 +120,7 @@ button:active {
   transform: translateY(-50%);
   width: 320px;
   height: 70vh;
-  background-color: #272E37;
-  color: white;
+  color: var (#272E37);
   padding: 20px;
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.4);
   transition: right 0.4s ease;
@@ -212,6 +211,7 @@ button:active {
     transform: scale(0.45);
   }
 }
+
 
 
 
