@@ -46,17 +46,15 @@ body {
   overflow-x: hidden; 
 }
 
-/* ====== Page Wrapper (skaliert alles) ============================ */
 .page-wrapper {
   transform: scale(0.7);
   transform-origin: top left;
   width: 125%;
   height: 125%;
-background-image: url("images/background.jpeg");
-  background-size: cover;
+  background-image: url("images/background.jpeg");
+  background-size: 100% 100%; /* Bild immer an Wrapper-Größe anpassen */
   background-repeat: no-repeat;
   background-position: center;
-   background-attachment: fixed;
 }
 
 /* ====== Responsive Skalierung ===================================== */
