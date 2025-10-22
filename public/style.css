@@ -41,6 +41,15 @@ body {
   margin: 0 auto;
 }
 
+.page-content {
+  background: var(--color-panel);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px var(--shadow-medium);
+  max-width: 1200px;
+  margin: 40px auto;
+  color: var(--color-text);
+}
 /* ====== Header ====================================================== */
 header {
   background: var(--color-header-bg);
