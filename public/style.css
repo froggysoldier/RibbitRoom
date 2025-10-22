@@ -15,7 +15,7 @@
 
   --color-panel: #272E37; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
   --color-panel-light: #2a2a2a; /*InfoMsg*/
-  --color-input-bg: #545C53;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
+  --color-input-bg: #a9d6a3;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
 
   --color-nav-bg: #719254; /*NavLeiste*/
   --color-link: #ffffff; /*Links*/
@@ -51,7 +51,7 @@ body {
   width: 125%;
   height: 125%;
   background-image: url("images/background.jpeg");
-  background-size: cover; /* Bild immer an Wrapper-Größe anpassen */
+  background-size: 100% 100%; /* Bild immer an Wrapper-Größe anpassen */
   background-repeat: no-repeat;
   background-position: center;
 }
