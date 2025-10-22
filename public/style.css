@@ -1,36 +1,26 @@
 /* ====== Farb-Definitionen ====== */
 :root {
-  --color-bg: #58423F; /*Body*/
-  --color-text: #e0e0e0; /*Text allg.*/
-
-  --color-header-bg: transparent; /*Header*/
+  --color-bg: #58423F;
+  --color-text: #e0e0e0;
+  --color-header-bg: transparent;
   --color-header-text: #ffffff;
-
-  --color-primary: #719254; /*loginBtn*/ /*sendBtn*/
-  --color-primary-alt: #00C9A7; /*sendBtnGradient*/
-  --color-accent: #7DDAA2; /*LoginBtnHoverBorder*/ /*SendBtnHover*/
-
-  --color-error: #ff4c4c; /*ErrorMsg*/ /*AdminMsg*/ /*Admincolor*/
-  --color-system: #888; /*UserMsgBg*/
-
-  --color-panel: #272E37; /*UserlistBg*/  /*ChatBg*/ /*ModalContentBg*/
-  --color-panel-light: #2a2a2a; /*InfoMsg*/
-  --color-input-bg: #a9d6a3;  /*UserMsgcolor*/  /*MsgInputBg*/ /*ModalInputBg*/
-
-  --color-nav-bg: #719254; /*NavLeiste*/
-  --color-link: #ffffff; /*Links*/
-  --color-link-hover-bg: #58423F;/*LinksHover*/
-
-  --color-modal-bg: rgba(0,0,0,0.7); /*ModalBg*/
-  --color-close: #ff6b6b;          /*ModalBgCloseButton*/
+  --color-primary: #719254;
+  --color-primary-alt: #00C9A7;
+  --color-accent: #7DDAA2;
+  --color-error: #ff4c4c;
+  --color-system: #888;
+  --color-panel: #272E37;
+  --color-panel-light: #2a2a2a;
+  --color-input-bg: #a9d6a3;
+  --color-nav-bg: #719254;
+  --color-link: #ffffff;
+  --color-link-hover-bg: #58423F;
+  --color-modal-bg: rgba(0,0,0,0.7);
+  --color-close: #ff6b6b;
   --color-close-hover: #ff4c4c;
 
-  --color-link: #ffffff;     /*Links Farbe*/
-  --color-accent: #7DDAA2;   /*Links Hover Farbe*/
-
-  --font-size: 1.5rem;   /* größere Schrift */
-
-  --shadow-light: rgba(0,0,0,0.5); /*BoxShadow*/
+  --font-size: 1.5rem;
+  --shadow-light: rgba(0,0,0,0.5);
   --shadow-medium: rgba(0,0,0,0.6);
   --shadow-strong: rgba(0,0,0,0.8);
 }
@@ -40,151 +30,72 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Poppins', Arial, sans-serif;
-  background: transparent;
+  background: var(--color-bg);
   color: var(--color-text);
-  overflow-x: hidden; 
+  overflow-x: hidden;
 }
 
+/* ====== Page Wrapper mit Hintergrund ================================= */
 .page-wrapper {
-  transform: scale(0.7);
-  transform-origin: top left;
-  width: 125%;
-  height: 125%;
+  width: 100%;
+  min-height: 100vh;
   background-image: url("images/background.jpeg");
-  background-size: 100% 100%; /* Bild immer an Wrapper-Größe anpassen */
+  background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
-}
-
-/* ====== Responsive Skalierung ===================================== */
-@media screen and (max-width: 1920px) {
-  .page-wrapper {
-    transform: scale(0.85);
-    width: 118%;
-    height: 118%;
-  }
-}
-
-@media screen and (max-width: 1600px) {
-  .page-wrapper {
-    transform: scale(0.8);
-    width: 120%;
-    height: 120%;
-  }
-}
-
-@media screen and (max-width: 1366px) {
-  .page-wrapper {
-    transform: scale(0.75);
-    width: 130%;
-    height: 130%;
-  }
-}
-
-@media screen and (max-width: 1024px) {
-  .page-wrapper {
-    transform: scale(0.65);
-    width: 150%;
-    height: 150%;
-  }
-}
-
-@media screen and (max-width: 768px) {
-  .page-wrapper {
-    transform: scale(0.55);
-    width: 180%;
-    height: 180%;
-  }
-}
-
-@media screen and (max-width: 480px) {
-  .page-wrapper {
-    transform: scale(0.45);
-    width: 200%;
-    height: 200%;
-  }
+  color: var(--color-text);
 }
 
 /* ====== Header ====================================================== */
 header {
   background: var(--color-header-bg);
   color: var(--color-header-text);
-  width: 115%;
-  margin: 0 auto;
-  padding: 0;
+  width: 100%;
+  padding: 10px 20px;
   display: flex;
-  justify-content: center;  /* Logo mittig */
+  justify-content: space-between;
   align-items: center;
-  position: relative;
   box-sizing: border-box;
 }
 
-/* ====== Logo ======================================================== */
 .logo {
-  max-width: 400px;
+  max-width: 200px;
   height: auto;
-
 }
 
-/* ====== LoginButton (bleibt wie vorher) ============================ */
 #loginBtn {
-  position: absolute;
-  left: 20px;
-  top: 50%;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt));
   border: 2px solid transparent;
   border-radius: 8px;
   color: white;
-  padding: 28px 32px;
+  padding: 12px 18px;
   font-weight: bold;
-  font-family: 'Poppins', Arial, sans-serif;
-  font-size: 18px;
   cursor: pointer;
-  transition: box-shadow 0.3s ease, color 0.3s ease;
+  transition: all 0.3s ease;
 }
-
 #loginBtn:hover {
   border: 2px solid var(--color-accent);
   background: transparent;
   color: var(--color-accent);
 }
 
-/* ====== Navigationsleiste ========================================== */
-/* Bleibt wie vorher */
-nav {
-  position: absolute;
-  top: 65%;
-  right: 0px;
-  transform: translateY(-50%);
-  border: 2px solid transparent;
-  border-radius: 8px;
-  color: white;
-  padding: 28px 32px;
-  font-weight: bold;
-  font-size: 18px;
-  cursor: pointer;
+/* ====== Navigation ================================================== */
+nav ul {
+  list-style: none;
   display: flex;
   gap: 10px;
-  transition: box-shadow 0.3s ease, color 0.3s ease;
-}
-
-nav ul {
-  list-style-type: none;
-  display: flex;
   margin: 0;
   padding: 0;
 }
-nav li {
-  margin-right: 20px;
-}
+
 nav a {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt));
   color: white;
   text-decoration: none;
-  font-weight: bold;
-  padding: 30px 42px;
+  padding: 12px 16px;
   border-radius: 8px;
-  transition: background 0.3s ease, border 0.3s ease, color 0.3s ease;
+  font-weight: bold;
+  transition: all 0.3s ease;
 }
 nav a:hover {
   background: transparent;
@@ -197,35 +108,35 @@ main {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  margin-top: 30px;
-  min-height: calc(100vh - 100px);
+  padding: 20px;
+  box-sizing: border-box;
 }
 
-/* ====== Container =================================================== */
+/* ====== Container flexibles Layout ================================= */
 #container {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
-  width: 85%;
+  width: 90%;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 /* ====== Sidebar ===================================================== */
 #userList {
-  width: 220px;
+  flex: 0 0 220px;
   background: var(--color-panel);
   border-radius: 12px;
   padding: 15px;
-  height: 605px;
-  margin-left: 40px;  /* verschiebt den Block nach rechts */
+  height: auto;
+  max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 4px 10px var(--shadow-medium);
 }
 
 #userList h3 {
-  margin-top: 0;
   text-align: center;
-  font-size: 30px;
+  font-size: 1.8rem;
   color: var(--color-accent);
   font-weight: 600;
 }
@@ -239,18 +150,12 @@ main {
 #userList li {
   padding: 8px 0;
   border-bottom: 1px solid var(--color-panel-light);
-  font-size: 18px;
-  transition: background 0.2s, transform 0.2s;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: background 0.2s, transform 0.2s;
 }
-
-.admin-user, .admin-msg, .message .msg-header strong.admin-name {
-  color: var(--color-error);
-  font-weight: bold;
-}
-
 #userList li:hover {
   background: var(--color-panel-light);
   transform: translateX(3px);
@@ -262,102 +167,47 @@ main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 10px;
 }
 
 /* Chatfenster */
 #chatWindow {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   background: var(--color-panel);
   border-radius: 12px;
   padding: 20px;
-  height: 600px;
+  height: 60vh;
   width: 100%;
   overflow-y: auto;
   box-shadow: 0 4px 12px var(--shadow-medium);
-  font-size: 18px;
+  font-size: 1rem;
   line-height: 1.6;
   color: var(--color-text);
 }
 
-/* Systemnachrichten */
-.message.system {
-  background: var(--color-system);
-  color: var(--color-panel);
-  font-style: italic;
-}
-
-/* Nachrichten */
-.message {
-  background: var(--color-panel-light);
-  border-radius: 14px;
-  padding: 14px 18px;
-  margin-bottom: 10px;
-  max-width: 80%;
-  opacity: 0;
-  transform: translateX(-60px);
-  box-shadow: 0 3px 8px var(--shadow-light);
-  color: var(--color-text);
-  font-size: 18px;
-  line-height: 1.5;
-  transition: transform 0.4s ease, opacity 0.4s ease;
-}
-
-.message.self {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt));
-  color: var(--color-input-bg);
-  align-self: flex-end;
-}
-
-.message.show {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.message:hover {
-  box-shadow: 0 5px 14px var(--shadow-medium);
-  transform: translateX(2px);
-  transition: all 0.2s ease;
-}
-
-/* ====== Eingabe-Bereich ============================================ */
+/* ====== Eingabe Bereich ============================================ */
 #inputArea {
   display: flex;
   gap: 12px;
-  margin-top: 15px;
+  margin-top: 10px;
 }
-
 #messageInput {
   flex: 1;
-  padding: 14px;
+  padding: 10px;
   border: 1px solid #333;
   border-radius: 8px;
-  outline: none;
   background: var(--color-panel);
   color: var(--color-text);
-  font-family: 'Poppins', sans-serif;
-  font-size: 16px;
+  font-size: 1rem;
 }
-
-#messageInput:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 6px rgba(125, 218, 162, 0.5);
-}
-
-/* Senden-Button */
 #sendBtn {
-  padding: 14px 24px;
-  font-size: 18px;
-  border: none;
+  padding: 10px 18px;
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt));
   border-radius: 8px;
+  border: none;
   color: white;
   font-weight: bold;
   cursor: pointer;
 }
-
 #sendBtn:hover {
   border: 2px solid var(--color-accent);
   background: transparent;
@@ -370,214 +220,47 @@ main {
   position: fixed;
   z-index: 1000;
   left: 0; top: 0;
-  width: 100%; height: 100%;
+  width: 100%;
+  height: 100%;
   background: var(--color-modal-bg);
 }
-
 .modal-content {
   background: var(--color-panel);
   margin: 5% auto;
   padding: 2rem;
   border-radius: 12px;
-  min-height: 300px;
-  max-height: 80vh;
-  overflow-y: auto;
   max-width: 500px;
   width: 90%;
   box-sizing: border-box;
-  box-shadow: 0 6px 16px var(--shadow-strong);
-  color: var(--color-text);
 }
 
-.modal-content input {
-  width: 100%;
-  margin: 8px 0;
-  padding: 10px;
-  border: 1px solid #333;
-  border-radius: 8px;
-  background: var(--color-panel);
-  color: var(--color-text);
-  font-family: 'Poppins', sans-serif;
-  font-size: 18px;
+/* ====== Responsives Verhalten ===================================== */
+@media screen and (max-width: 1024px) {
+  #container {
+    flex-direction: column;
+    align-items: center;
+  }
+  #userList {
+    width: 80%;
+    max-width: 300px;
+  }
+  #chatArea {
+    width: 90%;
+  }
+  #chatWindow {
+    height: 50vh;
+  }
 }
 
-.modal-content input:focus {
-  border-color: var(--color-accent);
-  outline: none;
-  box-shadow: 0 0 6px rgba(125, 218, 162, 0.5);
+@media screen and (max-width: 480px) {
+  #userList, #chatArea {
+    width: 95%;
+  }
+  #chatWindow {
+    height: 40vh;
+  }
+  #loginBtn, nav a {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
 }
-
-.modal-content button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 12px;
-  background: var(--color-accent);
-  color: var(--color-input-bg);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-family: 'Poppins', sans-serif;
-  transition: all 0.3s ease;
-}
-
-.modal-content button:hover {
-  background: #90e4b3;
-  transform: scale(1.03);
-}
-
-.close {
-  float: right;
-  cursor: pointer;
-  color: var(--color-close);
-  font-weight: bold;
-  font-size: 18px;
-  transition: color 0.2s;
-}
-
-.close:hover {
-  color: var(--color-close-hover);
-}
-
-/* ====== Switches, Filter, etc. ====================================== */
-#filterContainer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.filterLabel {
-  font-size: 16px;
-  color: var(--color-accent);
-  font-weight: bold;
-}
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 26px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--color-panel-light);
-  transition: .4s;
-  border-radius: 26px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: var(--color-primary);
-}
-
-input:checked + .slider:before {
-  transform: translateX(24px);
-}
-
-/* ====== Startseite ====================================== */
-
- .center-block {
-  min-height: 0vh;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 1rem;
-  box-sizing: border-box;
-}
-
-.regeln {
-  list-style-type: disc;     /* Punkte */
-  margin: 0;
-  padding: 2rem 2.5rem;
-  background: var(--color-panel);
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-  max-width: 900px;
-  width: 100%;
-  height: 800px;
-  text-align: left;
-  font-size: var(--font-size);      /* größere Schrift */
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  line-height: 3;
-  margin-left: 340px;  /* verschiebt den Block nach rechts */
-}
-
-.regeln h3{
-  margin-top: 0;
-  text-align: center;
-  font-size: 30px;
-  color: var(--color-accent);
-  font-weight: 600;
-}
-/*======Impressum==================================================================*/
-.impressum {
-  list-style-type: disc;     /* Punkte */
-  margin: 0;
-  padding: 2rem 2.5rem;
-  background: var(--color-panel);
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-  max-width: 900px;
-  width: 100%;
-  height: 1000px;
-  text-align: left;
-  font-size: var(--font-size);      /* größere Schrift */
-  font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  line-height: 1;
-  margin-left: 340px;  /* verschiebt den Block nach rechts */
-}
-
-.impressum h3{
-  margin-top: 0;
-  text-align: center;
-  font-size: 30px;
-  color: var(--color-accent);
-  font-weight: 600;
-}
-
-.info-row {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.label {
-  width: 280px; /* feste Breite der linken Spalte */
-  font-weight: bold;
-  color: var(--color-accent);
-}
-
-a {
-  color: var(--color-link);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-a:hover {
-  color: var(--color-linkaccent);
-  text-decoration: underline;
-}
-
