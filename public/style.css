@@ -42,7 +42,6 @@ body {
   font-family: 'Poppins', Arial, sans-serif;
   background: transparent;
   color: var(--color-text);
-
   overflow-x: hidden; 
 }
 
@@ -52,7 +51,7 @@ body {
   width: 125%;
   height: 125%;
   background-image: url("images/background.jpeg");
-  background-size: 100% 100%; /* Bild immer an Wrapper-Größe anpassen */
+  background-size: cover; /* Bild immer an Wrapper-Größe anpassen */
   background-repeat: no-repeat;
   background-position: center;
 }
