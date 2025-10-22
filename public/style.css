@@ -528,5 +528,60 @@ a:hover {
   text-decoration: underline;
 }
 
+/* ====== Responsive Anpassungen ===================================== */
 
+/*Skalierung für 1080p (etwas größer, um dein 1440p-Layout zu erhalten) */
+@media screen and (max-width: 1920px) {
+  body {
+    transform: scale(0.85); /* ← dynamisch angepasst */
+    transform-origin: top left;
+    width: 118%;
+    height: 118%;
+  }
+}
+
+/*Skalierung für 1600px Monitore */
+@media screen and (max-width: 1600px) {
+  body {
+    transform: scale(0.8);
+    width: 120%;
+    height: 120%;
+  }
+}
+
+/*Skalierung für Laptop (1366px oder kleiner) */
+@media screen and (max-width: 1366px) {
+  body {
+    transform: scale(0.75);
+    width: 130%;
+    height: 130%;
+  }
+}
+
+/*Skalierung für Tablets */
+@media screen and (max-width: 1024px) {
+  body {
+    transform: scale(0.65);
+    width: 150%;
+    height: 150%;
+  }
+}
+
+/*Skalierung für Smartphones */
+@media screen and (max-width: 768px) {
+  body {
+    transform: scale(0.55);
+    width: 180%;
+    height: 180%;
+  }
+}
+
+/*Extrem kleine Bildschirme */
+@media screen and (max-width: 480px) {
+  body {
+    transform: scale(0.45);
+    width: 200%;
+    height: 200%;
+  }
+}
 
