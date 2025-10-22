@@ -8,7 +8,7 @@ html, body {
   height: 100%;
   width: 100%;
   overflow-x: hidden;
-  background: #111;
+  background: #272E37;
 }
 
 /* Wrapper für alles – bleibt 1:1 auf 1440p, skaliert auf anderen Screens */
@@ -211,6 +211,7 @@ button:active {
     transform: scale(0.45);
   }
 }
+
 
 
 
