@@ -40,12 +40,9 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Poppins', Arial, sans-serif;
-  background-image: url("images/background.jpeg");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
+  background: transparent;
   color: var(--color-text);
-  background-attachment: fixed;
+ 
   overflow-x: hidden; 
 }
 
@@ -55,6 +52,11 @@ body {
   transform-origin: top left;
   width: 125%;
   height: 125%;
+background-image: url("images/background.jpeg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+   background-attachment: fixed;
 }
 
 /* ====== Responsive Skalierung ===================================== */
