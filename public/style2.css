@@ -209,7 +209,11 @@ h2 {
     right: 8px;
     left: 8px;
   }
-
+   
+body.impressum-page #slideBox,
+body.impressum-page #showBtn {
+  display: none !important;
+}
   /* Buttons etwas größer für Touch */
   #slideBox button {
     font-size: 1.05rem;
@@ -218,3 +222,4 @@ h2 {
 }
 
  
+
