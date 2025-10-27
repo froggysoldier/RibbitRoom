@@ -314,9 +314,7 @@ main {
  color: var(--color-error);
 }
 .admin-user {
- background: linear-gradient(135deg, var(--color-primary), var(--color-primary-alt));
   color: var(--color-error);
-  align-self: flex-end;
 }
 .message.show {
   opacity: 1;
