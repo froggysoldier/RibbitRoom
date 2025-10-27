@@ -310,8 +310,9 @@ main {
   align-self: flex-end;
 }
 
-.admin-msg
+.admin-msg {
  color: var(--color-error);
+}
 
 .message.show {
   opacity: 1;
