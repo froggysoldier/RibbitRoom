@@ -111,7 +111,6 @@ module.exports = function (socket, ctx) {
 • /deleteAllUsers [passwort]             → Alle normalen User löschen
 • /reset [passwort]                      → Server zurücksetzen
 • /role                                  → Zeigt deine aktuelle Rolle
-• /listUsers                             → Liste der Online-User (Admins)
 • /help                                  → Zeigt diese Nachricht
           `.trim(),
           type: "info",
