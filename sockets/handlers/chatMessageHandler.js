@@ -158,15 +158,27 @@ module.exports = function (socket, ctx) {
 
       // /listUsers
       if (finalContent === "/listUsers") {
-        if (role !== "admin") return socket.emit("systemMessage", { text: "Nur Admins können diesen Befehl ausführen.", type: "error" });
+        if (role !== "admin") {
+          return socket.emit("systemMessage", {
+            text: "Nur Admins können diesen Befehl ausführen.",
+            type: "error"
+          });
+        }
+      
         const users = Array.from(activeUsers.keys()).map((u) => {
-          const uNorm = normalize(u);
           const userRole = userRoles.get(u) || "user";
-          const timeoutUntil = ctx.userTimeouts.get(uNorm);
-          const isMuted = timeoutUntil && timeoutUntil > Date.now();
-          return `${u} ${userRole}${isMuted ? " (gemutet)" : ""}`;
+          return `${u} (${userRole})`;
         });
-        socket.emit("systemMessage", { text: `ℹ️ Online-User:\n${users.join("\n")}`, type: "info" });
+      
+        if (users.length === 0) {
+          socket.emit("systemMessage", { text: "ℹ️ Keine aktiven Benutzer gefunden.", type: "info" });
+        } else {
+          socket.emit("systemMessage", {
+            text: `ℹ️ Online-User:\n${users.join("\n")}`,
+            type: "info"
+          });
+        }
+      
         return;
       }
 
