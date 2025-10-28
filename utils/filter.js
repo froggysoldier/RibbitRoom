@@ -118,7 +118,7 @@ const wordReplacements = {
 
   "Okay": "Rib-ok",
   "okay": "rib-ok"
-}
+
 
   // hier weitere Wörter hinzufügen
 };
