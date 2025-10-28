@@ -23,6 +23,99 @@ const wordReplacements = {
   "sieben": "croaoaoaoaoaoaoak"
   "acht": "croaoaoaoaoaoaoaoak"
   "neun": "croaoaoaoaoaoaoaoaoak"
+
+  {
+  "Hallo": "Ribbit",
+  "hallo": "ribbit",
+
+  "Tschüss": "Plopp",
+  "tschüss": "plopp",
+
+  "Ja": "Quak",
+  "ja": "quak",
+
+  "Nein": "Krrrk",
+  "nein": "krrrk",
+
+  "Wie geht’s?": "Ribbit vibes?",
+  "wie geht’s?": "ribbit vibes?",
+
+  "Gut": "Teichklar",
+  "gut": "teichklar",
+
+  "Schlecht": "Algenalarm",
+  "schlecht": "algenalarm",
+
+  "Essen": "Mückenfang",
+  "essen": "mückenfang",
+
+  "Trinken": "Schlürfsaft",
+  "trinken": "schlürfsaft",
+
+  "Freund": "Mitquaker",
+  "freund": "mitquaker",
+
+  "Chat": "RibbitRoom",
+  "chat": "ribbitroom",
+
+  "Spiel": "Teichkampf",
+  "spiel": "teichkampf",
+
+  "Computer": "Ribbit-Box",
+  "computer": "ribbit-box",
+
+  "Handy": "Mini-Teich",
+  "handy": "mini-teich",
+
+  "Lehrer": "Großfrosch",
+  "lehrer": "großfrosch",
+
+  "Schule": "Teichschule",
+  "schule": "teichschule",
+
+  "Cool": "Froschfrisch",
+  "cool": "froschfrisch",
+
+  "Lustig": "Quaklustig",
+  "lustig": "quaklustig",
+
+  "Dumm": "Kaulquapenkram",
+  "dumm": "kaulquapenkram",
+
+  "Geheim": "Unter dem Seerosenblatt",
+  "geheim": "unter dem seerosenblatt",
+
+  "Treffen": "Teichtreff",
+  "treffen": "teichtreff",
+
+  "Schnell": "Fliegfangtempo",
+  "schnell": "fliegfangtempo",
+
+  "Langsam": "Schlammschritt",
+  "langsam": "schlammschritt",
+
+  "Warten": "Sitzen auf Seerose",
+  "warten": "sitzen auf seerose",
+
+  "Danke": "Quak dir",
+  "danke": "quak dir",
+
+  "Bitte": "Ribbit gern",
+  "bitte": "ribbit gern",
+
+  "Gut gemacht": "Meisterquak",
+  "gut gemacht": "meisterquak",
+
+  "Fehler": "Schlammspur",
+  "fehler": "schlammspur",
+
+  "Los!": "Spring!",
+  "los!": "spring!",
+
+  "Okay": "Rib-ok",
+  "okay": "rib-ok"
+}
+
   // hier weitere Wörter hinzufügen
 };
 
