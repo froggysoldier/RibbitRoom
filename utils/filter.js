@@ -8,8 +8,21 @@ const wordReplacements = {
   "du": "ribbi",
   "sie": "rib",
   "er": "rib",
+  "es": "rib",
   "ist": "ru",
   "hi": "ribi",
+  "ich": "ribbii",
+  "bin": "rir",
+  "bist": "riir"
+  "ein": "croak"
+  "zwei": "croaoak"
+  "drei": "croaoaoak"
+  "vier": "croaoaoaoak"
+  "fünf": "croaoaoaoaoak"
+  "sechs": "croaoaoaoaoaoak"
+  "sieben": "croaoaoaoaoaoaoak"
+  "acht": "croaoaoaoaoaoaoaoak"
+  "neun": "croaoaoaoaoaoaoaoaoak"
   // hier weitere Wörter hinzufügen
 };
 
