@@ -12,7 +12,7 @@ module.exports = function(io) {
   const userRoles = new Map();
   const lastMessageTime = new Map();
 
-  // Authentifizierte Socket-IDs (dürfen die activeUsers-Liste sehen)
+
   const authenticatedSockets = new Set();
 
   // --------------------------------------------
@@ -26,7 +26,7 @@ module.exports = function(io) {
         role: userRoles.get(username) || "user"
       }));
 
-    // nur an authentifizierte sockets senden
+
     for (const sid of authenticatedSockets) {
       io.to(sid).emit("activeUsers", users);
     }
@@ -100,10 +100,6 @@ module.exports = function(io) {
   io.on("connection", async (socket) => {
     let username = null;
     const token = socket.handshake?.auth?.token;
-
-    // -------------------------------
-    // Token-Login (Handshake)
-    // -------------------------------
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
@@ -111,18 +107,15 @@ module.exports = function(io) {
         const dbUser = await User.findOne({ username });
         const role = dbUser?.role || "user";
 
-        // Socket authentifizieren
         authenticatedSockets.add(socket.id);
         addActiveUser(username, socket.id, role);
 
-        // Info an den Client senden
         socket.emit("identified", {
           username,
           filterActive: userFilters.get(username) || false,
           role
         });
 
-        // Sofort die aktuelle Nutzerliste schicken
         broadcastActiveUsers();
 
       } catch (err) {
