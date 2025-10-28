@@ -60,7 +60,7 @@ module.exports = function (socket, ctx) {
     const myNorm = normalize(username);
 
     // --- Minimaler Zeitabstand zwischen Nachrichten ---
-    const MIN_INTERVAL = 350; // ms
+    const MIN_INTERVAL = 350;
     const lastTime = lastMessageTime.get(username) || 0;
     if (now - lastTime < MIN_INTERVAL) {
       lastMessageTime.set(username, now);
@@ -68,7 +68,7 @@ module.exports = function (socket, ctx) {
     }
     lastMessageTime.set(username, now);
 
-    // --- Spam-History (nur Warnung, kein Auto-Timeout) ---
+    // --- Spam-History
     const HISTORY_LIMIT = 7;
     const TIME_WINDOW = 10000; // ms
     const hist = messageHistory.get(myNorm) || [];
